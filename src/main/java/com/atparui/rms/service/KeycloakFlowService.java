@@ -208,12 +208,12 @@ public class KeycloakFlowService {
      * Copy the default browser flow and modify it to use phone auto-registration form
      * instead of username-password form.
      *
-     * This follows the standard Keycloak pattern:
-     * 1. Create a new top-level flow
-     * 2. Copy all executions from the original browser flow
-     * 3. Replace the forms subflow with a new one containing phone authenticator
-     * 4. Remove any direct username-password form executions
-     * 5. Set the new flow as the browser flow
+     * This follows the recommended Keycloak Admin REST API pattern:
+     * 1. Retrieve the complete structure of the default browser flow
+     * 2. Create a new top-level flow
+     * 3. Create all required subflows first (to avoid timing issues)
+     * 4. Add executions in order, preserving requirements and configurations
+     * 5. Bind the new flow as the browser flow
      *
      * @param realmName the realm name
      */
@@ -222,7 +222,8 @@ public class KeycloakFlowService {
             RealmResource realmResource = keycloakAdmin.realm(realmName);
             String newFlowAlias = "browser-phone-flow";
 
-            // Get the default browser flow
+            // Step 1: Retrieve the structure of the default browser flow
+            log.info("Retrieving default browser flow structure");
             List<AuthenticationFlowRepresentation> flows = realmResource.flows().getFlows();
             AuthenticationFlowRepresentation browserFlow = flows
                 .stream()
@@ -232,7 +233,11 @@ public class KeycloakFlowService {
 
             log.info("Found default browser flow: {}", browserFlow.getAlias());
 
-            // Copy the browser flow
+            // Get all executions from the original browser flow (complete structure)
+            List<AuthenticationExecutionInfoRepresentation> originalExecutions = realmResource.flows().getExecutions("browser");
+            log.info("Retrieved {} executions from default browser flow", originalExecutions.size());
+
+            // Step 2: Create the new top-level flow
             AuthenticationFlowRepresentation newFlow = new AuthenticationFlowRepresentation();
             newFlow.setAlias(newFlowAlias);
             newFlow.setDescription("Browser flow with phone auto-registration");
@@ -241,17 +246,18 @@ public class KeycloakFlowService {
             newFlow.setBuiltIn(false);
 
             realmResource.flows().createFlow(newFlow);
-            log.info("Created new flow: {}", newFlowAlias);
+            log.info("Created new top-level flow: {}", newFlowAlias);
 
             // Verify the main flow is available before proceeding
-            if (!waitForFlowToBeAvailable(realmResource, newFlowAlias, 3)) {
+            if (!waitForFlowToBeAvailable(realmResource, newFlowAlias, 5)) {
                 throw new RuntimeException("Failed to verify newly created browser flow: " + newFlowAlias);
             }
 
-            // Get all executions from the original browser flow
-            List<AuthenticationExecutionInfoRepresentation> originalExecutions = realmResource.flows().getExecutions("browser");
+            // Step 3: Create all required subflows FIRST (before adding executions)
+            // This ensures subflows are available when we add them as executions
+            log.info("Step 3: Creating all required subflows");
 
-            // Find the forms subflow (if it exists)
+            // Find the forms subflow in the original flow (if it exists)
             String formsSubflowId = null;
             String formsSubflowAlias = null;
             String formsSubflowRequirement = "REQUIRED"; // Default requirement
@@ -262,26 +268,46 @@ public class KeycloakFlowService {
                         formsSubflowId = execution.getFlowId();
                         formsSubflowAlias = subflowAlias;
                         formsSubflowRequirement = execution.getRequirement() != null ? execution.getRequirement() : "REQUIRED";
+                        log.info("Found forms subflow in original flow with requirement: {}", formsSubflowRequirement);
                         break;
                     }
                 }
             }
 
-            // Always create the forms subflow with phone authenticator
+            // Create our custom forms subflow with phone authenticator
+            // This must be done BEFORE adding executions that reference it
             String newFormsSubflowAlias = "forms-phone";
             if (formsSubflowAlias != null) {
-                // Copy from existing forms subflow
+                log.info("Copying forms subflow from original and modifying for phone authenticator");
                 copyFormsSubflowWithoutUsernamePassword(realmResource, formsSubflowAlias, newFormsSubflowAlias);
             } else {
-                // Create new forms subflow if it doesn't exist in original flow
                 log.info("Forms subflow not found in original browser flow, creating new one");
                 createFormsSubflowWithPhoneAuthenticator(realmResource, newFormsSubflowAlias);
             }
 
-            // Copy executions from the original browser flow
-            // Standard Keycloak pattern: Iterate through original executions and copy them,
-            // skipping username-password form and replacing forms subflow with our custom one
+            // Wait a bit to ensure all subflows are fully created and available
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while waiting for subflows to be available");
+            }
+
+            // Step 4: Add executions in order, preserving requirements and configurations
+            log.info("Step 4: Adding executions to new flow in order");
+
+            // Copy executions from the original browser flow in order
+            // This preserves the execution order and requirements from the original flow
+            int executionIndex = 0;
             for (AuthenticationExecutionInfoRepresentation execution : originalExecutions) {
+                executionIndex++;
+                log.debug(
+                    "Processing execution {} of {}: provider={}, requirement={}",
+                    executionIndex,
+                    originalExecutions.size(),
+                    execution.getProviderId() != null ? execution.getProviderId() : "subflow",
+                    execution.getRequirement()
+                );
                 // Skip username-password form execution if it's a direct execution (not in subflow)
                 // This is the standard way to remove username-password form from the flow
                 if ("auth-username-password-form".equals(execution.getProviderId())) {
@@ -291,12 +317,44 @@ public class KeycloakFlowService {
 
                 // Handle forms subflow specially - replace with our new forms subflow
                 if (execution.getFlowId() != null && execution.getFlowId().equals(formsSubflowId)) {
+                    log.info("Replacing forms subflow with custom forms-phone subflow");
                     // Add the new forms subflow to the browser flow
                     Map<String, Object> executionData = new HashMap<>();
                     executionData.put("provider", newFormsSubflowAlias);
+
+                    // Ensure subflow is available before adding
+                    if (!waitForSubflowToBeAvailable(realmResource, newFormsSubflowAlias, 3)) {
+                        throw new RuntimeException("Forms subflow not available when trying to add execution");
+                    }
+
                     try {
                         realmResource.flows().addExecution(newFlowAlias, executionData);
                         log.info("Successfully added forms subflow execution to flow: {}", newFlowAlias);
+
+                        // Wait a bit for execution to be persisted
+                        Thread.sleep(200);
+
+                        // Update requirement to match original
+                        List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFlowAlias);
+                        AuthenticationExecutionInfoRepresentation newExecution = newExecutions
+                            .stream()
+                            .filter(e -> {
+                                if (e.getFlowId() != null) {
+                                    String flowAlias = getFlowAliasById(realmResource, e.getFlowId());
+                                    return newFormsSubflowAlias.equals(flowAlias);
+                                }
+                                return false;
+                            })
+                            .findFirst()
+                            .orElse(null);
+
+                        if (newExecution != null) {
+                            newExecution.setRequirement(formsSubflowRequirement);
+                            realmResource.flows().updateExecutions(newFlowAlias, newExecution);
+                            log.info("Set forms subflow requirement to: {}", formsSubflowRequirement);
+                        } else {
+                            log.warn("Could not find newly added forms subflow execution to set requirement");
+                        }
                     } catch (jakarta.ws.rs.BadRequestException e) {
                         log.error(
                             "Failed to add forms subflow execution '{}' to flow '{}': {}",
@@ -319,20 +377,9 @@ public class KeycloakFlowService {
                         } else {
                             log.warn("Forms subflow execution already exists, continuing");
                         }
-                    }
-
-                    // Update requirement
-                    List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFlowAlias);
-                    AuthenticationExecutionInfoRepresentation newExecution = newExecutions
-                        .stream()
-                        .filter(e -> e.getFlowId() != null && getFlowAliasById(realmResource, e.getFlowId()).equals(newFormsSubflowAlias))
-                        .findFirst()
-                        .orElse(null);
-
-                    if (newExecution != null) {
-                        newExecution.setRequirement(formsSubflowRequirement);
-                        realmResource.flows().updateExecutions(newFlowAlias, newExecution);
-                        log.info("Set forms subflow requirement to: {}", formsSubflowRequirement);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Interrupted while waiting for execution to be persisted");
                     }
                 } else {
                     // Copy other executions as-is
@@ -430,8 +477,8 @@ public class KeycloakFlowService {
             if (formsSubflowAlias == null) {
                 log.info("Adding forms subflow to new browser flow since it wasn't in the original");
 
-                // Verify the flow exists (with retry in case of timing issues)
-                if (!waitForFlowToBeAvailable(realmResource, newFormsSubflowAlias, 3)) {
+                // Verify the subflow is available
+                if (!waitForSubflowToBeAvailable(realmResource, newFormsSubflowAlias, 5)) {
                     throw new RuntimeException("Failed to find newly created forms subflow: " + newFormsSubflowAlias);
                 }
 
@@ -441,8 +488,8 @@ public class KeycloakFlowService {
                     realmResource.flows().addExecution(newFlowAlias, executionData);
                     log.info("Successfully added forms subflow execution to flow: {}", newFlowAlias);
 
-                    // Set requirement - wait a bit for the execution to be available
-                    Thread.sleep(100); // Small delay to ensure execution is persisted
+                    // Wait a bit for the execution to be persisted
+                    Thread.sleep(200);
 
                     // Set requirement
                     List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFlowAlias);
@@ -496,7 +543,8 @@ public class KeycloakFlowService {
                 }
             }
 
-            // Set the new flow as the browser flow
+            // Step 5: Bind the new flow as the browser flow
+            log.info("Step 5: Binding new flow as browser flow");
             RealmRepresentation realm = realmResource.toRepresentation();
             realm.setBrowserFlow(newFlowAlias);
             realmResource.update(realm);
@@ -538,8 +586,18 @@ public class KeycloakFlowService {
         realmResource.flows().createFlow(newFormsFlow);
         log.info("Created new forms subflow: {}", newFormsAlias);
 
+        // Wait a bit for Keycloak to process the subflow creation
+        // Subflows (topLevel=false) may take longer to appear in the flows list
+        try {
+            Thread.sleep(500); // Wait 500ms for subflow to be available
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted while waiting for subflow creation");
+        }
+
         // Verify the flow is available before proceeding
-        if (!waitForFlowToBeAvailable(realmResource, newFormsAlias, 3)) {
+        // For subflows, we verify by trying to get executions (more reliable than searching flows list)
+        if (!waitForSubflowToBeAvailable(realmResource, newFormsAlias, 5)) {
             throw new RuntimeException("Failed to verify newly created forms subflow: " + newFormsAlias);
         }
 
@@ -600,8 +658,18 @@ public class KeycloakFlowService {
         realmResource.flows().createFlow(newFormsFlow);
         log.info("Created new forms subflow: {}", newFormsAlias);
 
+        // Wait a bit for Keycloak to process the subflow creation
+        // Subflows (topLevel=false) may take longer to appear in the flows list
+        try {
+            Thread.sleep(500); // Wait 500ms for subflow to be available
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted while waiting for subflow creation");
+        }
+
         // Verify the flow is available before proceeding
-        if (!waitForFlowToBeAvailable(realmResource, newFormsAlias, 3)) {
+        // For subflows, we verify by trying to get executions (more reliable than searching flows list)
+        if (!waitForSubflowToBeAvailable(realmResource, newFormsAlias, 5)) {
             throw new RuntimeException("Failed to verify newly created forms subflow: " + newFormsAlias);
         }
 
@@ -732,6 +800,43 @@ public class KeycloakFlowService {
 
         log.warn("Flow '{}' not found after {} attempts", flowAlias, maxRetries);
         return false;
+    }
+
+    /**
+     * Wait for a subflow to be available in the realm.
+     * This is more reliable for subflows (topLevel=false) than waitForFlowToBeAvailable,
+     * as it verifies by trying to get executions, which is what we actually need.
+     *
+     * @param realmResource the realm resource
+     * @param flowAlias the subflow alias to check for
+     * @param maxRetries maximum number of retries
+     * @return true if the subflow is found and accessible, false otherwise
+     */
+    private boolean waitForSubflowToBeAvailable(RealmResource realmResource, String flowAlias, int maxRetries) {
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                // Try to get executions - if this succeeds, the subflow exists and is accessible
+                realmResource.flows().getExecutions(flowAlias);
+                log.debug("Found subflow '{}' after {} attempt(s) - can access executions", flowAlias, i + 1);
+                return true;
+            } catch (Exception e) {
+                // Subflow not yet available or doesn't exist
+                if (i < maxRetries - 1) {
+                    try {
+                        Thread.sleep(300); // Wait 300ms before retrying
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Interrupted while waiting for subflow to be available");
+                        return false;
+                    }
+                } else {
+                    log.warn("Subflow '{}' not accessible after {} attempts: {}", flowAlias, maxRetries, e.getMessage());
+                }
+            }
+        }
+
+        // Also try the standard flow check as a fallback
+        return waitForFlowToBeAvailable(realmResource, flowAlias, 2);
     }
 
     /**
