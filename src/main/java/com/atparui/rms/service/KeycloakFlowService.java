@@ -318,23 +318,32 @@ public class KeycloakFlowService {
                 // Handle forms subflow specially - replace with our new forms subflow
                 if (execution.getFlowId() != null && execution.getFlowId().equals(formsSubflowId)) {
                     log.info("Replacing forms subflow with custom forms-phone subflow");
-                    // Add the new forms subflow to the browser flow
+
+                    // Wait a bit to ensure the subflow is fully registered
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Interrupted while waiting for subflow to be available");
+                    }
+
+                    // Try to verify subflow has executions, but don't fail if we can't
+                    try {
+                        List<AuthenticationExecutionInfoRepresentation> subflowExecutions = realmResource
+                            .flows()
+                            .getExecutions(newFormsSubflowAlias);
+                        if (subflowExecutions != null && !subflowExecutions.isEmpty()) {
+                            log.debug("Verified subflow '{}' has {} execution(s)", newFormsSubflowAlias, subflowExecutions.size());
+                        } else {
+                            log.warn("Subflow '{}' appears to have no executions, but proceeding anyway", newFormsSubflowAlias);
+                        }
+                    } catch (Exception e) {
+                        log.warn("Could not verify subflow executions, but proceeding anyway: {}", e.getMessage());
+                    }
+
+                    // Add the new forms subflow to the browser flow using the alias (Keycloak expects alias for subflows)
                     Map<String, Object> executionData = new HashMap<>();
                     executionData.put("provider", newFormsSubflowAlias);
-
-                    // Ensure subflow is available and has executions before adding
-                    if (!waitForSubflowToBeAvailable(realmResource, newFormsSubflowAlias, 3)) {
-                        throw new RuntimeException("Forms subflow not available when trying to add execution");
-                    }
-
-                    // Verify subflow has at least one execution (required for subflows)
-                    List<AuthenticationExecutionInfoRepresentation> subflowExecutions = realmResource
-                        .flows()
-                        .getExecutions(newFormsSubflowAlias);
-                    if (subflowExecutions == null || subflowExecutions.isEmpty()) {
-                        throw new RuntimeException("Forms subflow must have at least one execution before it can be added to parent flow");
-                    }
-                    log.debug("Verified subflow '{}' has {} execution(s)", newFormsSubflowAlias, subflowExecutions.size());
 
                     try {
                         realmResource.flows().addExecution(newFlowAlias, executionData);
@@ -499,19 +508,28 @@ public class KeycloakFlowService {
             if (formsSubflowAlias == null) {
                 log.info("Adding forms subflow to new browser flow since it wasn't in the original");
 
-                // Verify the subflow is available and has executions
-                if (!waitForSubflowToBeAvailable(realmResource, newFormsSubflowAlias, 5)) {
-                    throw new RuntimeException("Failed to find newly created forms subflow: " + newFormsSubflowAlias);
+                // Wait a bit to ensure the subflow is fully registered in Keycloak
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Interrupted while waiting for subflow to be fully registered");
                 }
 
-                // Verify subflow has at least one execution (required for subflows)
-                List<AuthenticationExecutionInfoRepresentation> subflowExecutions = realmResource
-                    .flows()
-                    .getExecutions(newFormsSubflowAlias);
-                if (subflowExecutions == null || subflowExecutions.isEmpty()) {
-                    throw new RuntimeException("Forms subflow must have at least one execution before it can be added to parent flow");
+                // Try to verify subflow has at least one execution (required for subflows)
+                // But don't fail if we can't verify - just try to add it and let Keycloak tell us if it's invalid
+                try {
+                    List<AuthenticationExecutionInfoRepresentation> subflowExecutions = realmResource
+                        .flows()
+                        .getExecutions(newFormsSubflowAlias);
+                    if (subflowExecutions != null && !subflowExecutions.isEmpty()) {
+                        log.debug("Verified subflow '{}' has {} execution(s)", newFormsSubflowAlias, subflowExecutions.size());
+                    } else {
+                        log.warn("Subflow '{}' appears to have no executions, but proceeding anyway", newFormsSubflowAlias);
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not verify subflow executions, but proceeding anyway: {}", e.getMessage());
                 }
-                log.debug("Verified subflow '{}' has {} execution(s)", newFormsSubflowAlias, subflowExecutions.size());
 
                 Map<String, Object> executionData = new HashMap<>();
                 executionData.put("provider", newFormsSubflowAlias);
@@ -632,22 +650,36 @@ public class KeycloakFlowService {
         // Wait a bit for Keycloak to process the subflow creation
         // Subflows (topLevel=false) may take longer to appear in the flows list
         try {
-            Thread.sleep(500); // Wait 500ms for subflow to be available
+            Thread.sleep(1500); // Wait 1.5 seconds for subflow to be available
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Interrupted while waiting for subflow creation");
         }
 
-        // Verify the flow is available before proceeding
-        // For subflows, we verify by trying to get executions (more reliable than searching flows list)
-        if (!waitForSubflowToBeAvailable(realmResource, newFormsAlias, 5)) {
-            throw new RuntimeException("Failed to verify newly created forms subflow: " + newFormsAlias);
-        }
-
+        // Instead of verifying the subflow exists first, try to add the execution directly
+        // This is more reliable - if the subflow doesn't exist, this will fail with a clear error
         // Add phone auto-registration form execution as REQUIRED
         Map<String, Object> phoneExecutionData = new HashMap<>();
         phoneExecutionData.put("provider", "auth-phone-auto-reg-form");
-        realmResource.flows().addExecution(newFormsAlias, phoneExecutionData);
+
+        try {
+            realmResource.flows().addExecution(newFormsAlias, phoneExecutionData);
+            log.info("Successfully added phone authenticator to subflow: {}", newFormsAlias);
+        } catch (jakarta.ws.rs.NotFoundException e) {
+            // Subflow doesn't exist yet, wait a bit more and retry
+            log.warn("Subflow '{}' not found immediately after creation, waiting and retrying...", newFormsAlias);
+            try {
+                Thread.sleep(2000); // Wait 2 more seconds
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+            // Retry once
+            realmResource.flows().addExecution(newFormsAlias, phoneExecutionData);
+            log.info("Successfully added phone authenticator to subflow after retry: {}", newFormsAlias);
+        } catch (Exception e) {
+            log.error("Failed to add phone authenticator to subflow '{}': {}", newFormsAlias, e.getMessage(), e);
+            throw new RuntimeException("Failed to add phone authenticator to subflow '" + newFormsAlias + "': " + e.getMessage(), e);
+        }
 
         // Set phone form as required
         List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFormsAlias);
@@ -720,23 +752,37 @@ public class KeycloakFlowService {
         // Wait a bit for Keycloak to process the subflow creation
         // Subflows (topLevel=false) may take longer to appear in the flows list
         try {
-            Thread.sleep(500); // Wait 500ms for subflow to be available
+            Thread.sleep(1500); // Wait 1.5 seconds for subflow to be available
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Interrupted while waiting for subflow creation");
         }
 
-        // Verify the flow is available before proceeding
-        // For subflows, we verify by trying to get executions (more reliable than searching flows list)
-        if (!waitForSubflowToBeAvailable(realmResource, newFormsAlias, 5)) {
-            throw new RuntimeException("Failed to verify newly created forms subflow: " + newFormsAlias);
-        }
-
+        // Instead of verifying the subflow exists first, try to add the execution directly
+        // This is more reliable - if the subflow doesn't exist, this will fail with a clear error
         // Add phone auto-registration form execution FIRST as REQUIRED
         // This replaces the username-password form
         Map<String, Object> phoneExecutionData = new HashMap<>();
         phoneExecutionData.put("provider", "auth-phone-auto-reg-form");
-        realmResource.flows().addExecution(newFormsAlias, phoneExecutionData);
+
+        try {
+            realmResource.flows().addExecution(newFormsAlias, phoneExecutionData);
+            log.info("Successfully added phone authenticator to subflow: {}", newFormsAlias);
+        } catch (jakarta.ws.rs.NotFoundException e) {
+            // Subflow doesn't exist yet, wait a bit more and retry
+            log.warn("Subflow '{}' not found immediately after creation, waiting and retrying...", newFormsAlias);
+            try {
+                Thread.sleep(2000); // Wait 2 more seconds
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+            // Retry once
+            realmResource.flows().addExecution(newFormsAlias, phoneExecutionData);
+            log.info("Successfully added phone authenticator to subflow after retry: {}", newFormsAlias);
+        } catch (Exception e) {
+            log.error("Failed to add phone authenticator to subflow '{}': {}", newFormsAlias, e.getMessage(), e);
+            throw new RuntimeException("Failed to add phone authenticator to subflow '" + newFormsAlias + "': " + e.getMessage(), e);
+        }
 
         // Set phone form as required
         List<AuthenticationExecutionInfoRepresentation> phoneExecutions = realmResource.flows().getExecutions(newFormsAlias);
@@ -890,9 +936,27 @@ public class KeycloakFlowService {
     private boolean waitForSubflowToBeAvailable(RealmResource realmResource, String flowAlias, int maxRetries) {
         for (int i = 0; i < maxRetries; i++) {
             try {
+                // First verify the subflow exists in the flows list
+                String flowId = getFlowIdByAlias(realmResource, flowAlias);
+                if (flowId == null) {
+                    if (i < maxRetries - 1) {
+                        try {
+                            Thread.sleep(300); // Wait 300ms before retrying
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            log.warn("Interrupted while waiting for subflow to be available");
+                            return false;
+                        }
+                        continue;
+                    } else {
+                        log.warn("Subflow '{}' not found in flows list after {} attempts", flowAlias, maxRetries);
+                        return false;
+                    }
+                }
+
                 // Try to get executions - if this succeeds, the subflow exists and is accessible
                 realmResource.flows().getExecutions(flowAlias);
-                log.debug("Found subflow '{}' after {} attempt(s) - can access executions", flowAlias, i + 1);
+                log.debug("Found subflow '{}' (ID: {}) after {} attempt(s) - can access executions", flowAlias, flowId, i + 1);
                 return true;
             } catch (Exception e) {
                 // Subflow not yet available or doesn't exist
