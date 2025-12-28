@@ -10,7 +10,10 @@ import io.r2dbc.spi.ConnectionFactory;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.ReactiveTransactionManager;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -23,18 +26,21 @@ public class TenantService {
     private final KeycloakRealmService keycloakRealmService;
     private final DatabaseProvisioningService databaseProvisioningService;
     private final TenantLiquibaseService tenantLiquibaseService;
+    private final TransactionalOperator transactionalOperator;
     private final ConcurrentHashMap<String, ConnectionFactory> connectionFactoryCache = new ConcurrentHashMap<>();
 
     public TenantService(
         TenantRepository tenantRepository,
         KeycloakRealmService keycloakRealmService,
         DatabaseProvisioningService databaseProvisioningService,
-        TenantLiquibaseService tenantLiquibaseService
+        TenantLiquibaseService tenantLiquibaseService,
+        @Qualifier("masterTransactionManager") ReactiveTransactionManager masterTransactionManager
     ) {
         this.tenantRepository = tenantRepository;
         this.keycloakRealmService = keycloakRealmService;
         this.databaseProvisioningService = databaseProvisioningService;
         this.tenantLiquibaseService = tenantLiquibaseService;
+        this.transactionalOperator = TransactionalOperator.create(masterTransactionManager);
     }
 
     public Mono<Tenant> findTenant(String tenantId) {
@@ -101,21 +107,22 @@ public class TenantService {
             );
         }
 
-        // Create context to track resources for rollback
+        // Create context to track external resources for rollback (database, Keycloak)
         TenantCreationContext context = new TenantCreationContext(
             tenant.getTenantId() != null ? tenant.getTenantId() : tenant.getTenantKey(),
             tenant.getTenantKey()
         );
 
-        // Step 1: Save tenant entity
-        return tenantRepository
+        // Wrap tenant database operations in a transaction
+        // This ensures that if any step fails, the tenant entity save will be automatically rolled back
+        Mono<Tenant> tenantCreationFlow = tenantRepository
             .save(tenant)
             .doOnSuccess(savedTenant -> {
                 context.setTenantSaved(true);
                 context.setTenantEntityId(savedTenant.getId());
-                log.debug("Step 1: Saved tenant entity: {}", savedTenant.getTenantKey());
+                log.debug("Step 1: Saved tenant entity (within transaction): {}", savedTenant.getTenantKey());
             })
-            // Step 2: Create database
+            // Step 2: Create database (external resource - not part of transaction)
             .flatMap(savedTenant ->
                 Mono.fromRunnable(() -> {
                     try {
@@ -124,20 +131,18 @@ public class TenantService {
                         log.debug("Step 2: Created database for tenant: {}", savedTenant.getTenantKey());
                     } catch (Exception e) {
                         log.error("Failed to create database for tenant: {}", savedTenant.getTenantKey(), e);
-                        // Database creation has its own rollback logic, but we still need to mark context
-                        // The exception will trigger the doOnError handler which will attempt rollback
                         throw new RuntimeException("Failed to create database", e);
                     }
                 }).thenReturn(savedTenant)
             )
-            // Step 3: Update tenant with database info
+            // Step 3: Update tenant with database info (within transaction)
             .flatMap(savedTenant -> {
                 savedTenant.setDatabaseUrl(databaseProvisioningService.getTenantDatabaseUrl(savedTenant.getTenantKey()));
                 savedTenant.setDatabaseUsername(databaseProvisioningService.getTenantDatabaseUsername(savedTenant.getTenantKey()));
                 savedTenant.setDatabasePassword(databaseProvisioningService.getTenantDatabasePassword(savedTenant.getTenantKey()));
                 return tenantRepository.save(savedTenant);
             })
-            // Step 4: Create Keycloak realm
+            // Step 4: Create Keycloak realm (external resource - not part of transaction)
             .flatMap(savedTenant ->
                 Mono.fromRunnable(() -> {
                     try {
@@ -149,8 +154,6 @@ public class TenantService {
                         log.debug("Step 4: Created Keycloak realm for tenant: {}", savedTenant.getTenantKey());
                     } catch (Exception e) {
                         log.error("Failed to create Keycloak realm for tenant: {}", savedTenant.getTenantKey(), e);
-                        // Keycloak realm creation has its own rollback logic, but we need to ensure database is also rolled back
-                        // The exception will trigger the doOnError handler which will rollback database
                         throw new RuntimeException("Failed to create Keycloak realm", e);
                     }
                 }).thenReturn(savedTenant)
@@ -158,42 +161,13 @@ public class TenantService {
             .doOnSuccess(savedTenant -> {
                 log.info("Successfully created tenant with database and Keycloak realm: {}", savedTenant.getTenantKey());
             })
-            // Rollback on error - MUST complete synchronously before error is propagated
+            // Rollback external resources on error
+            // Note: Tenant entity rollback is handled automatically by the transaction
             .onErrorResume(error -> {
-                log.error("Error during tenant creation, initiating rollback for tenant: {}", context.getTenantKey(), error);
-                // Execute rollback synchronously and wait for it to complete
-                // Use doFinally to ensure tenant deletion is attempted even if rollback fails
-                return rollbackTenantCreation(context)
-                    .doFinally(signalType -> {
-                        // Final safety check: Try to delete tenant entity one more time if rollback didn't complete successfully
-                        // This is a last resort to ensure cleanup
-                        if (context.isTenantSaved()) {
-                            log.debug("Rollback: Final safety check - attempting tenant entity deletion for: {}", context.getTenantKey());
-                            try {
-                                // Try synchronous deletion as a last resort
-                                if (context.getTenantEntityId() != null) {
-                                    tenantRepository.deleteById(context.getTenantEntityId()).block(); // Block to ensure it completes
-                                    log.info(
-                                        "Rollback: Final safety check - deleted tenant entity with ID: {}",
-                                        context.getTenantEntityId()
-                                    );
-                                } else {
-                                    // Try by tenantKey
-                                    tenantRepository
-                                        .findByTenantKey(context.getTenantKey())
-                                        .flatMap(tenantEntity -> tenantRepository.deleteById(tenantEntity.getId()))
-                                        .block(); // Block to ensure it completes
-                                    log.info("Rollback: Final safety check - deleted tenant entity by key: {}", context.getTenantKey());
-                                }
-                            } catch (Exception finalError) {
-                                log.error(
-                                    "Rollback: CRITICAL - Final safety check failed to delete tenant entity for: {}. Manual cleanup REQUIRED.",
-                                    context.getTenantKey(),
-                                    finalError
-                                );
-                            }
-                        }
-                    })
+                log.error("Error during tenant creation, initiating rollback for external resources: {}", context.getTenantKey(), error);
+                // Rollback external resources (database, Keycloak)
+                // The tenant entity will be automatically rolled back by the transaction
+                return rollbackExternalResources(context)
                     .then(
                         Mono.<Tenant>error(
                             new RuntimeException("Failed to create tenant: " + context.getTenantKey() + ". Rollback completed.", error)
@@ -210,18 +184,22 @@ public class TenantService {
                         );
                     });
             });
+
+        // Execute the flow within a transaction
+        // If any error occurs, the transaction will automatically rollback the tenant entity save/update
+        return transactionalOperator.transactional(tenantCreationFlow);
     }
 
     /**
-     * Rollback tenant creation by removing all created resources in reverse order.
-     * This ensures that if any step fails, all previously created resources are cleaned up.
+     * Rollback external resources created during tenant creation (database, Keycloak realm).
+     * Note: The tenant entity rollback is handled automatically by the database transaction.
      *
      * @param context the tenant creation context
      * @return Mono that completes when rollback is finished
      */
-    private Mono<Void> rollbackTenantCreation(TenantCreationContext context) {
+    private Mono<Void> rollbackExternalResources(TenantCreationContext context) {
         log.info(
-            "Starting rollback for tenant: {} (database: {}, realm: {})",
+            "Starting rollback of external resources for tenant: {} (database: {}, realm: {})",
             context.getTenantKey(),
             context.isDatabaseCreated(),
             context.isRealmCreated()
@@ -298,130 +276,24 @@ public class TenantService {
             );
         }
 
-        // Delete tenant entity from database
-        // ALWAYS try to delete the tenant entity if it was saved, regardless of context state
-        // This ensures cleanup even if context is incomplete or incorrect
-        Mono<Void> deleteTenant = Mono.defer(() -> {
-            // Only attempt deletion if tenant was actually saved
-            if (!context.isTenantSaved()) {
-                log.debug("Rollback: Tenant entity was not saved, skipping deletion for tenantKey: {}", context.getTenantKey());
-                return Mono.empty();
-            }
-
-            log.info(
-                "Rollback: Attempting to delete tenant entity for tenantKey: {} (saved: true, entityId: {})",
-                context.getTenantKey(),
-                context.getTenantEntityId()
-            );
-
-            // Strategy 1: If we have the entity ID, try deleting by ID first (most reliable)
-            if (context.getTenantEntityId() != null) {
-                log.debug("Rollback: Attempting to delete tenant by ID: {}", context.getTenantEntityId());
-                return tenantRepository
-                    .deleteById(context.getTenantEntityId())
-                    .doOnSuccess(v -> log.info("Rollback: Successfully deleted tenant entity with ID: {}", context.getTenantEntityId()))
-                    .onErrorResume(e -> {
-                        log.warn(
-                            "Rollback: Failed to delete tenant entity with ID: {} (error: {}), trying fallback method",
-                            context.getTenantEntityId(),
-                            e.getMessage()
-                        );
-                        // Fall through to Strategy 2 - don't return empty, continue to fallback
-                        return Mono.empty();
-                    })
-                    .then(
-                        // Strategy 2: Always try to find and delete by tenantKey as a fallback/verification
-                        Mono.defer(() -> {
-                            log.debug("Rollback: Verifying deletion by checking if tenant still exists by key: {}", context.getTenantKey());
-                            return tenantRepository
-                                .findByTenantKey(context.getTenantKey())
-                                .flatMap(tenantEntity -> {
-                                    log.warn(
-                                        "Rollback: Tenant entity still exists after ID deletion (ID: {}), deleting by key",
-                                        tenantEntity.getId()
-                                    );
-                                    return tenantRepository.deleteById(tenantEntity.getId());
-                                })
-                                .doOnSuccess(v ->
-                                    log.info(
-                                        "Rollback: Successfully deleted tenant entity by tenantKey (fallback): {}",
-                                        context.getTenantKey()
-                                    )
-                                )
-                                .switchIfEmpty(
-                                    Mono.fromRunnable(() ->
-                                        log.info(
-                                            "Rollback: Tenant entity confirmed deleted (not found by tenantKey: {})",
-                                            context.getTenantKey()
-                                        )
-                                    ).then()
-                                )
-                                .onErrorResume(fallbackError -> {
-                                    log.error(
-                                        "Rollback: CRITICAL - Failed to delete tenant entity by tenantKey: {} (error: {}). Manual cleanup required.",
-                                        context.getTenantKey(),
-                                        fallbackError.getMessage(),
-                                        fallbackError
-                                    );
-                                    // Don't return empty - we want to know about this failure
-                                    return Mono.empty();
-                                });
-                        })
-                    );
-            } else {
-                // Strategy 2: If no ID, try finding and deleting by tenantKey
-                log.debug("Rollback: No entity ID in context, attempting to delete by tenantKey: {}", context.getTenantKey());
-                return tenantRepository
-                    .findByTenantKey(context.getTenantKey())
-                    .flatMap(tenantEntity -> {
-                        log.info("Rollback: Found tenant by key, deleting with ID: {}", tenantEntity.getId());
-                        return tenantRepository.deleteById(tenantEntity.getId());
-                    })
-                    .doOnSuccess(v -> log.info("Rollback: Successfully deleted tenant entity by tenantKey: {}", context.getTenantKey()))
-                    .switchIfEmpty(
-                        Mono.fromRunnable(() ->
-                            log.warn(
-                                "Rollback: Tenant entity not found by tenantKey: {} (was marked as saved but not found - may have been deleted or save failed)",
-                                context.getTenantKey()
-                            )
-                        ).then()
-                    )
-                    .onErrorResume(e -> {
-                        log.error(
-                            "Rollback: CRITICAL - Failed to delete tenant entity by tenantKey: {} (error: {}). Manual cleanup required.",
-                            context.getTenantKey(),
-                            e.getMessage(),
-                            e
-                        );
-                        // Don't return empty - we want to know about this failure
-                        return Mono.empty();
-                    });
-            }
-        }).then();
-
-        // Execute rollback steps sequentially, but ensure tenant deletion happens even if other steps fail
-        // Use doOnError to ensure tenant deletion is attempted even if realm/database deletion fails
+        // Execute rollback steps sequentially
+        // Note: Tenant entity rollback is handled automatically by the transaction, so we don't need to delete it here
         return deleteRealm
-            .doOnError(e -> log.error("Rollback: Error deleting realm, but continuing with database and tenant deletion", e))
+            .doOnError(e -> log.error("Rollback: Error deleting realm, but continuing with database deletion", e))
             .onErrorResume(e -> {
                 log.warn("Rollback: Continuing rollback despite realm deletion error");
                 return Mono.empty();
             })
             .then(deleteDatabase)
-            .doOnError(e -> log.error("Rollback: Error deleting database, but continuing with tenant deletion", e))
+            .doOnError(e -> log.error("Rollback: Error deleting database", e))
             .onErrorResume(e -> {
-                log.warn("Rollback: Continuing rollback despite database deletion error");
+                log.warn("Rollback: Continuing despite database deletion error");
                 return Mono.empty();
             })
-            .then(deleteTenant)
-            .doOnSuccess(v -> log.info("Rollback completed successfully for tenant: {}", context.getTenantKey()))
-            .doOnError(e ->
-                log.error("Rollback: CRITICAL - Failed to delete tenant entity during rollback for tenant: {}", context.getTenantKey(), e)
-            )
-            // Even if tenant deletion fails, we still want to complete the rollback attempt
-            // The error is already logged, and we don't want to block the error propagation
+            .doOnSuccess(v -> log.info("Rollback of external resources completed for tenant: {}", context.getTenantKey()))
+            .doOnError(e -> log.error("Rollback: Error during external resources rollback for tenant: {}", context.getTenantKey(), e))
             .onErrorResume(e -> {
-                log.error("Rollback: Final rollback step (tenant deletion) failed for tenant: {}", context.getTenantKey(), e);
+                log.error("Rollback: External resources rollback failed for tenant: {}", context.getTenantKey(), e);
                 // Return empty to allow the rollback to complete, but the error is logged
                 return Mono.empty();
             });
