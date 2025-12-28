@@ -105,15 +105,49 @@ public final class SecurityUtils {
     }
 
     public static List<GrantedAuthority> extractAuthorityFromClaims(Map<String, Object> claims) {
-        return mapRolesToGrantedAuthorities(getRolesFromClaims(claims));
+        // Add debug logging
+        System.out.println("DEBUG: JWT Claims: " + claims);
+        Collection<String> roles = getRolesFromClaims(claims);
+        System.out.println("DEBUG: Extracted roles: " + roles);
+        List<GrantedAuthority> authorities = mapRolesToGrantedAuthorities(roles);
+        System.out.println("DEBUG: Mapped authorities: " + authorities);
+        return authorities;
     }
 
     @SuppressWarnings("unchecked")
     private static Collection<String> getRolesFromClaims(Map<String, Object> claims) {
-        return (Collection<String>) claims.getOrDefault(
+        // Try multiple possible claim names for roles
+        Collection<String> roles = (Collection<String>) claims.getOrDefault(
             "groups",
-            claims.getOrDefault("roles", claims.getOrDefault(CLAIMS_NAMESPACE + "roles", new ArrayList<>()))
+            claims.getOrDefault(
+                "roles",
+                claims.getOrDefault(
+                    CLAIMS_NAMESPACE + "roles",
+                    claims.getOrDefault("realm_access.roles", claims.getOrDefault("resource_access.web_app.roles", new ArrayList<>()))
+                )
+            )
         );
+
+        // Handle nested realm_access structure
+        if (roles.isEmpty() && claims.containsKey("realm_access")) {
+            Map<String, Object> realmAccess = (Map<String, Object>) claims.get("realm_access");
+            if (realmAccess != null && realmAccess.containsKey("roles")) {
+                roles = (Collection<String>) realmAccess.get("roles");
+            }
+        }
+
+        // Handle nested resource_access structure
+        if (roles.isEmpty() && claims.containsKey("resource_access")) {
+            Map<String, Object> resourceAccess = (Map<String, Object>) claims.get("resource_access");
+            if (resourceAccess != null && resourceAccess.containsKey("web_app")) {
+                Map<String, Object> webAppAccess = (Map<String, Object>) resourceAccess.get("web_app");
+                if (webAppAccess != null && webAppAccess.containsKey("roles")) {
+                    roles = (Collection<String>) webAppAccess.get("roles");
+                }
+            }
+        }
+
+        return roles;
     }
 
     private static List<GrantedAuthority> mapRolesToGrantedAuthorities(Collection<String> roles) {

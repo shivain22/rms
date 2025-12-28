@@ -77,7 +77,7 @@ export const AuthenticationSlice = createSlice({
         errorMessage: action.error.message,
       }))
       .addCase(getAccount.fulfilled, (state, action) => {
-        const isAuthenticated = action.payload && action.payload.data && action.payload.data.activated;
+        const isAuthenticated = action.payload && action.payload.data && action.payload.data.login;
         return {
           ...state,
           isAuthenticated,

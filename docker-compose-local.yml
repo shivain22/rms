@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  postgresql:
+    image: postgres:15
+    container_name: rms-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-rms}
+      POSTGRES_USER: ${DB_USERNAME:-rms}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./setup-tenant-databases.sql:/docker-entrypoint-initdb.d/setup-tenant-databases.sql
+    networks:
+      - rms-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.1
+    container_name: rms-keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgresql:5432/keycloak
+      KC_DB_USERNAME: ${DB_USERNAME:-rms}
+      KC_DB_PASSWORD: ${DB_PASSWORD:-}
+    ports:
+      - '9080:8080'
+    depends_on:
+      - postgresql
+    command: start-dev
+    networks:
+      - rms-network
+
+  rms-app:
+    build: .
+    container_name: rms-gateway
+    environment:
+      - DB_HOST=postgresql
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-rms}
+      - DB_USERNAME=${DB_USERNAME:-rms}
+      - DB_PASSWORD=${DB_PASSWORD:-}
+      - DB_TENANT1_NAME=${DB_TENANT1_NAME:-rms_tenant1}
+      - DB_TENANT2_NAME=${DB_TENANT2_NAME:-rms_tenant2}
+      - KEYCLOAK_HOST=${KEYCLOAK_HOST:-rmsauth.atparui.com}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-gateway}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-gateway-web}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h}
+      - CONSUL_HOST=consul
+      - ELASTICSEARCH_HOST=elasticsearch
+      - SPRING_PROFILES_ACTIVE=prod
+    ports:
+      - '${APP_PORT:-8080}:8080'
+    depends_on:
+      - postgresql
+      - consul
+      - elasticsearch
+    networks:
+      - rms-network
+
+  consul:
+    image: consul:1.15
+    container_name: rms-consul
+    ports:
+      - '${CONSUL_PORT:-8500}:8500'
+    networks:
+      - rms-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: rms-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - '${ELASTICSEARCH_PORT:-9200}:9200'
+    networks:
+      - rms-network
+
+volumes:
+  postgres_data:
+
+networks:
+  rms-network:
+    driver: bridge

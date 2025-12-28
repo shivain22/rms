@@ -2,9 +2,50 @@ configserver:
   name: Docker Consul Service
   status: Connected to Consul Server running in Docker
 
+# Elasticsearch Configuration
+elasticsearch:
+  uris: http://elasticsearch:9200
+
+# Spring Configuration
+spring:
+  cloud:
+    stream:
+      kafka:
+        binder:
+          brokers: kafka:9092
+          replicationFactor: 1
+          auto-create-topics: true
+  security:
+    oauth2:
+      client:
+        provider:
+          oidc:
+            issuer-uri: ${KEYCLOAK_BASE_URL:https://rmsauth.atparui.com}/realms/${tenant.realm:gateway}
+        registration:
+          oidc:
+            client-id: ${TENANT_CLIENT_ID:web_app}
+            client-secret: ${TENANT_CLIENT_SECRET:aU0HqAIe0TnxlTyA23pG0HLFONwlMX4v}
+            scope: openid, profile, email, offline_access
+
+# Multi-tenancy Configuration
+multitenancy:
+  enabled: ${MULTITENANCY_ENABLED:true}
+  strategy: REALM_PER_TENANT
+  resolution: DOMAIN_BASED
+  default-tenant: ${MULTITENANCY_DEFAULT_TENANT:gateway}
+  tenant-header: ${MULTITENANCY_TENANT_HEADER:X-Tenant-ID}
+  keycloak:
+    base-url: ${KEYCLOAK_BASE_URL:https://rmsauth.atparui.com}
+    admin-realm: master
+  domains:
+    pizzahut.com: pizzahut-realm
+    pizzahut.yourdomain.com: pizzahut-realm
+    mcdonalds.yourdomain.com: mcdonalds-realm
+    subway.yourdomain.com: subway-realm
+
 jhipster:
   security:
     authentication:
       jwt:
         # secret key which should be base64 encoded and changed in production
-        base64-secret:
+        base64-secret: ${JWT_BASE64_SECRET:}

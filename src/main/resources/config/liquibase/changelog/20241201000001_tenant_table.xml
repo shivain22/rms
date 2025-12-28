@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20241201000001-1" author="system">
+        <createTable tableName="tenants">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_key" type="varchar(50)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="tenant_id" type="varchar(50)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="name" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subdomain" type="varchar(100)"/>
+            <column name="database_url" type="varchar(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="database_username" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="database_password" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="schema_name" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="realm_name" type="varchar(100)"/>
+            <column name="client_id" type="varchar(100)"/>
+            <column name="client_secret" type="varchar(255)"/>
+            <column name="default_roles" type="varchar(500)"/>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+        </createTable>
+        
+        <createIndex indexName="idx_tenant_key" tableName="tenants">
+            <column name="tenant_key"/>
+        </createIndex>
+        <createIndex indexName="idx_tenant_id" tableName="tenants">
+            <column name="tenant_id"/>
+        </createIndex>
+        
+        <insert tableName="tenants">
+            <column name="tenant_key" value="gateway"/>
+            <column name="tenant_id" value="gateway"/>
+            <column name="name" value="Gateway Tenant"/>
+            <column name="subdomain" value="gateway"/>
+            <column name="database_url" value="jdbc:postgresql://localhost:5432/rms"/>
+            <column name="database_username" value="rms"/>
+            <column name="database_password" value=""/>
+            <column name="schema_name" value="public"/>
+            <column name="realm_name" value="gateway-realm"/>
+            <column name="client_id" value="gateway-web"/>
+            <column name="default_roles" value="ROLE_ADMIN,ROLE_MANAGER,ROLE_SUPERVISOR,ROLE_WAITER,ROLE_CHEF,ROLE_CASHIER,ROLE_CUSTOMER,ROLE_ANONYMOUS"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

@@ -8,6 +8,7 @@ import com.atparui.rms.security.AuthoritiesConstants;
 import com.atparui.rms.security.SecurityUtils;
 import com.atparui.rms.security.oauth2.AudienceValidator;
 import com.atparui.rms.web.filter.SpaWebFilter;
+import com.atparui.rms.web.filter.TenantFilter;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.time.Duration;
@@ -65,6 +66,7 @@ public class SecurityConfiguration {
     private String issuerUri;
 
     private final ReactiveClientRegistrationRepository clientRegistrationRepository;
+    private final TenantFilter tenantFilter;
 
     // See https://github.com/jhipster/generator-jhipster/issues/18868
     // We don't use a distributed cache or the user selected cache implementation here on purpose
@@ -74,9 +76,14 @@ public class SecurityConfiguration {
         .recordStats()
         .build();
 
-    public SecurityConfiguration(ReactiveClientRegistrationRepository clientRegistrationRepository, JHipsterProperties jHipsterProperties) {
+    public SecurityConfiguration(
+        ReactiveClientRegistrationRepository clientRegistrationRepository,
+        JHipsterProperties jHipsterProperties,
+        TenantFilter tenantFilter
+    ) {
         this.clientRegistrationRepository = clientRegistrationRepository;
         this.jHipsterProperties = jHipsterProperties;
+        this.tenantFilter = tenantFilter;
     }
 
     @Bean
@@ -96,6 +103,7 @@ public class SecurityConfiguration {
             )
             // See https://github.com/spring-projects/spring-security/issues/5766
             .addFilterAt(new CookieCsrfFilter(), SecurityWebFiltersOrder.REACTOR_CONTEXT)
+            .addFilterBefore(tenantFilter, SecurityWebFiltersOrder.AUTHENTICATION)
             .addFilterAfter(new SpaWebFilter(), SecurityWebFiltersOrder.HTTPS_REDIRECT)
             .headers(headers ->
                 headers

@@ -1,0 +1,44 @@
+# IntelliJ IDEA Run Configuration
+# Copy these environment variables to your IntelliJ Run Configuration
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=rms
+DB_USERNAME=rms
+DB_PASSWORD=
+
+# Tenant Databases
+DB_TENANT1_NAME=rms_tenant1
+DB_TENANT2_NAME=rms_tenant2
+
+# Keycloak (Cloud)
+KEYCLOAK_HOST=rmsauth.atparui.com
+KEYCLOAK_REALM=gateway
+KEYCLOAK_CLIENT_ID=gateway-web
+KEYCLOAK_CLIENT_SECRET=M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h
+
+# Application
+APP_PORT=8080
+SPRING_PROFILES_ACTIVE=dev
+
+# Services (Enabled)
+CONSUL_ENABLED=true
+CONSUL_HOST=localhost
+CONSUL_PORT=8500
+ELASTICSEARCH_ENABLED=false
+ELASTICSEARCH_HOST=localhost
+ELASTICSEARCH_PORT=9200
+SPRING_DOCKER_COMPOSE_ENABLED=false
+
+# Multi-tenancy
+MULTITENANCY_ENABLED=true
+MULTITENANCY_DEFAULT_TENANT=default
+MULTITENANCY_TENANT_HEADER=X-Tenant-ID
+
+# Logging
+LOG_LEVEL_ROOT=INFO
+LOG_LEVEL_APP=DEBUG
+
+# CORS
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:4200,http://localhost:8100,http://localhost:9000

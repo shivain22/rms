@@ -1,0 +1,39 @@
+# Gateway Admin Configuration for Consul
+# Place this in Consul KV store under config/rms/data
+
+# Default tenant configuration
+multitenancy:
+  default-tenant: gateway
+  keycloak:
+    base-url: https://rmsauth.atparui.com
+
+# Default tenant credentials
+tenant:
+  client-id: gateway-web
+  client-secret: M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h
+
+gateway:
+  admin:
+    realm: gateway
+    client-id: gateway-web
+    client-secret: M5nP8qR2sT6uV9wX1yZ3aB3cD4eF6gH8j
+    issuer-uri: ${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}/realms/gateway
+    admin-client-id: gateway-admin-client
+    admin-client-secret: K8mN2pQ7rT5vW9xZ1aB3cD4eF6gH8j
+
+# OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      client:
+        provider:
+          gwadmin:
+            issuer-uri: ${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}/realms/gateway
+        registration:
+          gwadmin:
+            client-id: gateway-web
+            client-secret: M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h
+            scope: openid, profile, email, offline_access
+            client-authentication-method: client_secret_basic
+            authorization-grant-type: authorization_code
+            provider: gwadmin

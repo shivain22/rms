@@ -15,14 +15,18 @@
 
 logging:
   level:
-    ROOT: DEBUG
-    tech.jhipster: DEBUG
-    org.hibernate.SQL: DEBUG
-    com.atparui.rms: DEBUG
+    ROOT: ${LOG_LEVEL_ROOT:INFO}
+    tech.jhipster: INFO
+    org.hibernate.SQL: WARN
+    com.atparui.rms: ${LOG_LEVEL_APP:INFO}
+    org.springframework.security.oauth2: WARN
+    org.springframework.security.web: WARN
 
 management:
   health:
     elasticsearch:
+      enabled: false
+    r2dbc:
       enabled: false
   zipkin: # Use the "zipkin" Maven profile to have the Spring Cloud Zipkin dependencies
     tracing:
@@ -38,16 +42,18 @@ spring:
       additional-exclude: static/**
     livereload:
       enabled: false # we use Webpack dev server + BrowserSync for livereload
+  jmx:
+    enabled: false
   jackson:
     serialization:
       indent-output: true
   cloud:
     consul:
-      config:
-        fail-fast: false # if not in "prod" profile, do not force to use Spring Cloud Config
-        format: yaml
-        profile-separator: '-'
       discovery:
+        enabled: ${CONSUL_ENABLED:true}
+        healthCheckPath: /management/health
+        instanceId: rms:${spring.application.instance-id:${random.value}}
+        service-name: rms
         prefer-ip-address: true
         tags:
           - profile=${spring.profiles.active}
@@ -55,25 +61,59 @@ spring:
           - git-version=${git.commit.id.describe:}
           - git-commit=${git.commit.id.abbrev:}
           - git-branch=${git.branch:}
-      host: localhost
-      port: 8500
+      config:
+        enabled: ${CONSUL_ENABLED:true}
+        watch:
+          enabled: true
+        fail-fast: false
+        format: yaml
+        profile-separator: '-'
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
   elasticsearch:
-    uris: http://localhost:9200
+    uris: http://${ELASTICSEARCH_HOST:localhost}:${ELASTICSEARCH_PORT:9200}
+  data:
+    elasticsearch:
+      repositories:
+        enabled: ${ELASTICSEARCH_ENABLED:true}
   liquibase:
+    enabled: true
     # Remove 'faker' if you do not want the sample data to be loaded automatically
     contexts: dev, faker
-    url: jdbc:postgresql://localhost:5432/rms
+    url: jdbc:postgresql://localhost:5432/rms?sslmode=disable
+    user: rms
+    password: rms
   messages:
     cache-duration: PT1S # 1 second, see the ISO 8601 standard
   r2dbc:
-    url: r2dbc:postgresql://localhost:5432/rms
+    url: r2dbc:postgresql://localhost:5432/rms?sslmode=disable
     username: rms
-    password:
-  thymeleaf:
-    cache: false
+    password: rms
+  security:
+    oauth2:
+      client:
+        provider:
+          oidc:
+            issuer-uri: ${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}/realms/gateway
+          gwadmin:
+            issuer-uri: ${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}/realms/gateway
+        registration:
+          oidc:
+            client-id: gateway-web
+            client-secret: M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h
+            scope: openid, profile, email, offline_access
+            client-authentication-method: client_secret_basic
+            authorization-grant-type: authorization_code
+          gwadmin:
+            client-id: gateway-web
+            client-secret: M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h
+            scope: openid, profile, email, offline_access
+            client-authentication-method: client_secret_basic
+            authorization-grant-type: authorization_code
+            provider: gwadmin
 
 server:
-  port: 8080
+  port: ${APP_PORT:8082}
   # make sure requests the proxy uri instead of the server one
   forward-headers-strategy: native
 
@@ -93,7 +133,7 @@ jhipster:
   cors:
     # Allow Ionic for JHipster by default (* no longer allowed in Spring Boot 2.4+)
     # Ports 9061-9069 are allowed for microfrontend development
-    allowed-origins: 'http://localhost:8100,https://localhost:8100,http://localhost:9000,https://localhost:9000,http://localhost:9060,https://localhost:9060,http://localhost:9061,https://localhost:9061,http://localhost:9062,https://localhost:9062,http://localhost:9063,https://localhost:9063,http://localhost:9064,https://localhost:9064,http://localhost:9065,https://localhost:9065,http://localhost:9066,https://localhost:9066,http://localhost:9067,https://localhost:9067,http://localhost:9068,https://localhost:9068,http://localhost:9069,https://localhost:9069'
+    allowed-origins: '${CORS_ALLOWED_ORIGINS:http://localhost:8100,https://localhost:8100,http://localhost:9000,https://localhost:9000,http://localhost:9060,https://localhost:9060,http://localhost:9061,https://localhost:9061,http://localhost:9062,https://localhost:9062,http://localhost:9063,https://localhost:9063,http://localhost:9064,https://localhost:9064,http://localhost:9065,https://localhost:9065,http://localhost:9066,https://localhost:9066,http://localhost:9067,https://localhost:9067,http://localhost:9068,https://localhost:9068,http://localhost:9069,https://localhost:9069}'
     # Enable CORS when running in GitHub Codespaces
     allowed-origin-patterns: 'https://*.githubpreview.dev'
     allowed-methods: '*'
@@ -117,4 +157,47 @@ jhipster:
 # https://www.jhipster.tech/common-application-properties/
 # ===================================================================
 
-# application:
+# Keycloak Admin Client Configuration
+keycloak:
+  admin:
+    server-url: ${KEYCLOAK_ADMIN_SERVER_URL:https://rmsauth.atparui.com}
+    realm: ${KEYCLOAK_ADMIN_REALM:master}
+    client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
+    username: ${KEYCLOAK_ADMIN_USERNAME:admin}
+    password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
+
+# Restaurant Keycloak Configuration
+restaurant:
+  keycloak:
+    theme:
+      login-theme: ${RESTAURANT_LOGIN_THEME:restaurant-theme}
+      account-theme: ${RESTAURANT_ACCOUNT_THEME:restaurant-theme}
+      admin-theme: ${RESTAURANT_ADMIN_THEME:keycloak}
+      email-theme: ${RESTAURANT_EMAIL_THEME:restaurant-theme}
+    authentication:
+      browser-flow: ${RESTAURANT_BROWSER_FLOW:restaurant-browser-flow}
+      registration-flow: ${RESTAURANT_REGISTRATION_FLOW:restaurant-registration-flow}
+      required-actions:
+        - VERIFY_EMAIL
+        - UPDATE_PASSWORD
+      remember-me: true
+      reset-password-allowed: true
+    registration:
+      enabled: true
+      email-as-username: true
+      verify-email: false # Disabled for dev
+      default-roles:
+        - ROLE_CUSTOMER
+    security:
+      access-token-lifespan: 1800 # 30 minutes for dev
+      refresh-token-max-reuse: 0
+      sso-session-idle-timeout: 3600 # 1 hour for dev
+      sso-session-max-lifespan: 43200 # 12 hours for dev
+      password-policy:
+        min-length: 6 # Relaxed for dev
+        min-digits: 1
+        min-lower-case: 1
+        min-upper-case: 0 # Relaxed for dev
+        min-special-chars: 0 # Relaxed for dev
+        not-username: true
+        password-history: 1 # Relaxed for dev

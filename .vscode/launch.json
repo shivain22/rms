@@ -1,0 +1,50 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Debug Spring Boot Application",
+      "request": "launch",
+      "mainClass": "com.atparui.rms.RmsApp",
+      "projectName": "rms",
+      "args": "",
+      "vmArgs": "-Dspring.profiles.active=dev",
+      "env": {
+        "APP_PORT": "8082",
+        "CONSUL_ENABLED": "true",
+        "CONSUL_HOST": "localhost",
+        "CONSUL_PORT": "8500",
+        "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:4200,http://localhost:8100,http://localhost:9000",
+        "DB_HOST": "localhost",
+        "DB_NAME": "rms",
+        "DB_PASSWORD": "rms",
+        "DB_PORT": "5432",
+        "DB_USERNAME": "rms",
+        "ELASTICSEARCH_ENABLED": "false",
+        "ELASTICSEARCH_HOST": "localhost",
+        "ELASTICSEARCH_PORT": "9200",
+        "KEYCLOAK_CLIENT_ID": "gateway",
+        "KEYCLOAK_CLIENT_SECRET": "M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h",
+        "KEYCLOAK_HOST": "rmsauth.atparui.com",
+        "KEYCLOAK_REALM": "gateway",
+        "LOG_LEVEL_APP": "DEBUG",
+        "LOG_LEVEL_ROOT": "INFO",
+        "MULTITENANCY_DEFAULT_TENANT": "gateway",
+        "MULTITENANCY_ENABLED": "true",
+        "MULTITENANCY_TENANT_HEADER": "X-Tenant-ID",
+        "SPRING_DOCKER_COMPOSE_ENABLED": "false",
+        "SPRING_PROFILES_ACTIVE": "dev"
+      },
+      "console": "internalConsole",
+      "internalConsoleOptions": "openOnSessionStart"
+    },
+    {
+      "type": "java",
+      "name": "Debug Spring Boot (Attach)",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 8000,
+      "projectName": "rms"
+    }
+  ]
+}

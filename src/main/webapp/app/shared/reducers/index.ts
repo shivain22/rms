@@ -7,6 +7,7 @@ import authentication from './authentication';
 import applicationProfile from './application-profile';
 
 import userManagement from './user-management';
+import tenantManagement from 'app/modules/administration/tenant-management/tenant-management.reducer';
 /* jhipster-needle-add-reducer-import - JHipster will add reducer here */
 
 const rootReducer: ReducersMapObject = {
@@ -15,6 +16,7 @@ const rootReducer: ReducersMapObject = {
   applicationProfile,
   administration,
   userManagement,
+  tenantManagement,
   loadingBar,
   /* jhipster-needle-add-reducer-combine - JHipster will add reducer here */
 };

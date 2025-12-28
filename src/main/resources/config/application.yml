@@ -112,8 +112,12 @@ spring:
         instanceId: rms:${spring.application.instance-id:${random.value}}
         service-name: rms
       config:
+        enabled: true
+        format: YAML
+        data-key: data
         watch:
-          enabled: false
+          enabled: true
+          delay: 1000
     gateway:
       default-filters:
         - TokenRelay
@@ -151,9 +155,7 @@ spring:
           group: rms
   docker:
     compose:
-      enabled: true
-      lifecycle-management: start-only
-      file: src/main/docker/services.yml
+      enabled: false
   profiles:
     # The commented value for `active` can be replaced with valid Spring profiles to load.
     # Otherwise, it will be filled in by maven when building the JAR file
@@ -167,8 +169,6 @@ spring:
         #- tls
   jmx:
     enabled: false
-  messages:
-    basename: i18n/messages
   main:
     allow-bean-definition-overriding: true
   webflux:
@@ -179,12 +179,19 @@ spring:
       client:
         provider:
           oidc:
-            issuer-uri: http://localhost:9080/realms/jhipster
+            issuer-uri: ${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}/realms/gateway
+          gwadmin:
+            issuer-uri: ${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}/realms/gateway
         registration:
           oidc:
-            client-id: web_app
-            client-secret: web_app
-            scope: openid, profile, email, offline_access # last one for refresh tokens
+            client-id: ${tenant.client-id:gateway-web}
+            client-secret: ${tenant.client-secret:M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h}
+            scope: openid, profile, email, offline_access
+          gwadmin:
+            client-id: gateway-web
+            client-secret: M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h
+            scope: openid, profile, email, offline_access
+            provider: gwadmin
   task:
     execution:
       thread-name-prefix: rms-task-
@@ -254,6 +261,60 @@ jhipster:
         - account
         - api://default
 
+# Multi-tenancy Configuration
+multitenancy:
+  enabled: ${MULTITENANCY_ENABLED:true}
+  strategy: REALM_PER_TENANT
+  resolution: DOMAIN_BASED # SUBDOMAIN, DOMAIN, or HEADER
+  default-tenant: ${MULTITENANCY_DEFAULT_TENANT:gateway}
+  tenant-header: ${MULTITENANCY_TENANT_HEADER:X-Tenant-ID}
+  keycloak:
+    base-url: https://rmsauth.atparui.com
+    admin-realm: master
+  domains:
+    pizzahut.com: pizzahut-realm
+    pizzahut.yourdomain.com: pizzahut-realm
+    mcdonalds.yourdomain.com: mcdonalds-realm
+    subway.yourdomain.com: subway-realm
+
+# Restaurant Keycloak Configuration
+restaurant:
+  keycloak:
+    theme:
+      login-theme: ${RESTAURANT_LOGIN_THEME:restaurant-theme}
+      account-theme: ${RESTAURANT_ACCOUNT_THEME:restaurant-theme}
+      admin-theme: ${RESTAURANT_ADMIN_THEME:keycloak}
+      email-theme: ${RESTAURANT_EMAIL_THEME:restaurant-theme}
+    authentication:
+      browser-flow: ${RESTAURANT_BROWSER_FLOW:restaurant-browser-flow}
+      registration-flow: ${RESTAURANT_REGISTRATION_FLOW:restaurant-registration-flow}
+      required-actions:
+        - VERIFY_EMAIL
+        - UPDATE_PASSWORD
+      remember-me: true
+      reset-password-allowed: true
+    registration:
+      enabled: true
+      email-as-username: true
+      verify-email: true
+      default-roles:
+        - ROLE_CUSTOMER
+    security:
+      access-token-lifespan: 900 # 15 minutes
+      refresh-token-max-reuse: 0
+      sso-session-idle-timeout: 1800 # 30 minutes
+      sso-session-max-lifespan: 36000 # 10 hours
+      password-policy:
+        min-length: 8
+        min-digits: 1
+        min-lower-case: 1
+        min-upper-case: 1
+        min-special-chars: 1
+        not-username: true
+        password-history: 3
+
+# Database configuration moved to Consul
+
 # jhipster-needle-add-application-yaml-document
 ---
 # ===================================================================
@@ -265,4 +326,12 @@ jhipster:
 # https://www.jhipster.tech/common-application-properties/
 # ===================================================================
 
+# Tenant Liquibase Configuration
+tenant:
+  liquibase:
+    repository:
+      url: https://github.com/shivain22/rms-service.git
+      branch: master
+      local-path: ${java.io.tmpdir}/rms-service-repo
+    changelog-path: src/main/resources/config/liquibase/master.xml
 # application:

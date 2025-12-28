@@ -1,0 +1,46 @@
+{
+  "tenantManagement": {
+    "home": {
+      "title": "Tenants",
+      "refreshListLabel": "Refresh list",
+      "createLabel": "Create a new Tenant",
+      "createOrEditLabel": "Create or edit a Tenant"
+    },
+    "detail": {
+      "title": "Tenant"
+    },
+    "delete": {
+      "question": "Are you sure you want to delete Tenant {{ id }}?"
+    },
+    "basicInfo": "Basic Information",
+    "databaseConfig": "Database Configuration (Auto-generated)",
+    "keycloakConfig": "Keycloak Configuration (Auto-generated)",
+    "tenantKey": "Tenant Key",
+    "tenantId": "Tenant ID",
+    "name": "Name",
+    "subdomain": "Subdomain",
+    "databaseUrl": "Database URL",
+    "databaseUsername": "Database Username",
+    "databasePassword": "Database Password",
+    "schemaName": "Schema Name",
+    "realmName": "Keycloak Realm",
+    "clientId": "Client ID",
+    "clientSecret": "Client Secret",
+    "defaultRoles": "Default Roles",
+    "active": "Active",
+    "inactive": "Inactive",
+    "help": {
+      "tenantKey": "Unique identifier for the tenant (lowercase letters and numbers only)",
+      "tenantId": "Auto-generated from tenant key",
+      "subdomain": "Auto-generated subdomain based on tenant key",
+      "databaseUrl": "Auto-generated database URL",
+      "databaseUsername": "Auto-generated database user",
+      "databasePassword": "Password will be auto-generated",
+      "schemaName": "Auto-generated schema name",
+      "realmName": "Auto-generated Keycloak realm",
+      "clientId": "Auto-generated web client ID",
+      "mobileClientId": "Auto-generated mobile client ID",
+      "defaultRoles": "Default roles created in the realm"
+    }
+  }
+}
