@@ -270,7 +270,32 @@ public class KeycloakFlowService {
                     // Add the new forms subflow to the browser flow
                     Map<String, Object> executionData = new HashMap<>();
                     executionData.put("provider", newFormsSubflowAlias);
-                    realmResource.flows().addExecution(newFlowAlias, executionData);
+                    try {
+                        realmResource.flows().addExecution(newFlowAlias, executionData);
+                        log.debug("Successfully added forms subflow execution to flow: {}", newFlowAlias);
+                    } catch (jakarta.ws.rs.BadRequestException e) {
+                        log.error(
+                            "Failed to add forms subflow execution '{}' to flow '{}': {}",
+                            newFormsSubflowAlias,
+                            newFlowAlias,
+                            e.getMessage()
+                        );
+                        // Check if it already exists
+                        List<AuthenticationExecutionInfoRepresentation> existingExecutions = realmResource
+                            .flows()
+                            .getExecutions(newFlowAlias);
+                        boolean alreadyExists = existingExecutions
+                            .stream()
+                            .anyMatch(
+                                ex -> ex.getFlowId() != null && getFlowAliasById(realmResource, ex.getFlowId()).equals(newFormsSubflowAlias)
+                            );
+
+                        if (!alreadyExists) {
+                            throw new RuntimeException("Failed to add forms subflow execution to flow: " + e.getMessage(), e);
+                        } else {
+                            log.warn("Forms subflow execution already exists, continuing");
+                        }
+                    }
 
                     // Update requirement
                     List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFlowAlias);
@@ -288,15 +313,72 @@ public class KeycloakFlowService {
                     // Copy other executions as-is
                     Map<String, Object> executionData = new HashMap<>();
                     if (execution.getFlowId() != null && !execution.getFlowId().isEmpty()) {
-                        // It's a subflow
+                        // It's a subflow - get the alias and find the corresponding flow ID in the new realm
                         String subflowAlias = getFlowAliasById(realmResource, execution.getFlowId());
-                        executionData.put("provider", subflowAlias);
+                        if (subflowAlias != null) {
+                            // Find the flow ID in the new realm by alias
+                            String newRealmFlowId = getFlowIdByAlias(realmResource, subflowAlias);
+                            if (newRealmFlowId != null) {
+                                // For subflows, we need to use the alias, not the flow ID
+                                executionData.put("provider", subflowAlias);
+                                log.debug(
+                                    "Adding subflow execution: {} (original flow ID: {}, new flow ID: {})",
+                                    subflowAlias,
+                                    execution.getFlowId(),
+                                    newRealmFlowId
+                                );
+                            } else {
+                                log.warn("Subflow {} not found in new realm, skipping", subflowAlias);
+                                continue;
+                            }
+                        } else {
+                            log.warn("Could not find alias for flow ID {}, skipping", execution.getFlowId());
+                            continue;
+                        }
                     } else {
                         // It's a direct authenticator
+                        if (execution.getProviderId() == null || execution.getProviderId().isEmpty()) {
+                            log.warn("Execution has no provider ID, skipping");
+                            continue;
+                        }
                         executionData.put("provider", execution.getProviderId());
+                        log.debug("Adding authenticator execution: {}", execution.getProviderId());
                     }
 
-                    realmResource.flows().addExecution(newFlowAlias, executionData);
+                    try {
+                        realmResource.flows().addExecution(newFlowAlias, executionData);
+                        log.debug("Successfully added execution to flow: {}", newFlowAlias);
+                    } catch (jakarta.ws.rs.BadRequestException e) {
+                        String providerValue = (String) executionData.get("provider");
+                        log.error("Failed to add execution '{}' to flow '{}': {}", providerValue, newFlowAlias, e.getMessage());
+
+                        // Check if execution already exists - if so, skip it
+                        List<AuthenticationExecutionInfoRepresentation> existingExecutions = realmResource
+                            .flows()
+                            .getExecutions(newFlowAlias);
+                        boolean alreadyExists = existingExecutions
+                            .stream()
+                            .anyMatch(ex -> {
+                                if (execution.getFlowId() != null && !execution.getFlowId().isEmpty()) {
+                                    String existingFlowAlias = getFlowAliasById(realmResource, ex.getFlowId());
+                                    return providerValue != null && providerValue.equals(existingFlowAlias);
+                                } else {
+                                    return providerValue != null && providerValue.equals(ex.getProviderId());
+                                }
+                            });
+
+                        if (alreadyExists) {
+                            log.warn("Execution '{}' already exists in flow '{}', skipping", providerValue, newFlowAlias);
+                            // Continue to update requirement for existing execution
+                        } else {
+                            // Re-throw if it's a different error
+                            log.error("Unknown error adding execution '{}' to flow '{}'", providerValue, newFlowAlias, e);
+                            throw new RuntimeException(
+                                "Failed to add execution '" + providerValue + "' to flow '" + newFlowAlias + "': " + e.getMessage(),
+                                e
+                            );
+                        }
+                    }
 
                     // Update requirement
                     List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFlowAlias);
@@ -413,6 +495,23 @@ public class KeycloakFlowService {
             .stream()
             .filter(f -> flowId.equals(f.getId()))
             .map(AuthenticationFlowRepresentation::getAlias)
+            .findFirst()
+            .orElse(null);
+    }
+
+    /**
+     * Get flow ID by flow alias.
+     *
+     * @param realmResource the realm resource
+     * @param flowAlias the flow alias
+     * @return the flow ID or null if not found
+     */
+    private String getFlowIdByAlias(RealmResource realmResource, String flowAlias) {
+        List<AuthenticationFlowRepresentation> flows = realmResource.flows().getFlows();
+        return flows
+            .stream()
+            .filter(f -> flowAlias.equals(f.getAlias()))
+            .map(AuthenticationFlowRepresentation::getId)
             .findFirst()
             .orElse(null);
     }
