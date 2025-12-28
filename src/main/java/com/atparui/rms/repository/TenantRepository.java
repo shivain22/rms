@@ -71,4 +71,16 @@ public class TenantRepository {
     public Mono<Boolean> existsByTenantKey(String tenantKey) {
         return masterTemplate.exists(Query.query(Criteria.where("tenant_key").is(tenantKey)), Tenant.class);
     }
+
+    /**
+     * Find tenant by tenantKey without checking active status.
+     * This is useful for rollback operations where we need to find and delete tenants
+     * regardless of their active status.
+     *
+     * @param tenantKey the tenant key
+     * @return Mono containing the tenant if found
+     */
+    public Mono<Tenant> findByTenantKey(String tenantKey) {
+        return masterTemplate.select(Tenant.class).matching(Query.query(Criteria.where("tenant_key").is(tenantKey))).one();
+    }
 }

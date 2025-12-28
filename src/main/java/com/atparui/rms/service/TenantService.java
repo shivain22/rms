@@ -257,15 +257,82 @@ public class TenantService {
             );
         }
 
+        // Delete tenant entity from database
+        // Try multiple approaches to ensure we delete it even if context is incomplete
         Mono<Void> deleteTenant = Mono.empty();
         if (context.isTenantSaved() && context.getTenantEntityId() != null) {
+            // First try: Delete by ID (most reliable)
             deleteTenant = tenantRepository
                 .deleteById(context.getTenantEntityId())
                 .doOnSuccess(v -> log.info("Rollback: Deleted tenant entity with ID: {}", context.getTenantEntityId()))
                 .onErrorResume(e -> {
-                    log.warn("Rollback: Failed to delete tenant entity with ID: {}, continuing rollback", context.getTenantEntityId(), e);
+                    log.warn(
+                        "Rollback: Failed to delete tenant entity with ID: {}, trying fallback method",
+                        context.getTenantEntityId(),
+                        e
+                    );
+                    // Fallback: Try to find and delete by tenantKey
+                    return tenantRepository
+                        .findByTenantKey(context.getTenantKey())
+                        .flatMap(tenant -> {
+                            log.info("Rollback: Found tenant by key, deleting with ID: {}", tenant.getId());
+                            return tenantRepository.deleteById(tenant.getId());
+                        })
+                        .doOnSuccess(v -> log.info("Rollback: Successfully deleted tenant entity by tenantKey: {}", context.getTenantKey()))
+                        .switchIfEmpty(
+                            Mono.fromRunnable(() ->
+                                log.debug(
+                                    "Rollback: Tenant entity not found by tenantKey: {} (may have already been deleted)",
+                                    context.getTenantKey()
+                                )
+                            ).then()
+                        )
+                        .onErrorResume(fallbackError -> {
+                            log.error("Rollback: Failed to delete tenant entity by tenantKey: {}", context.getTenantKey(), fallbackError);
+                            return Mono.empty();
+                        })
+                        .then();
+                })
+                .then();
+        } else if (context.isTenantSaved()) {
+            // Tenant was saved but ID is missing - try to find and delete by tenantKey
+            log.warn("Rollback: Tenant was saved but entity ID is missing, attempting to delete by tenantKey: {}", context.getTenantKey());
+            deleteTenant = tenantRepository
+                .findByTenantKey(context.getTenantKey())
+                .flatMap(tenant -> {
+                    log.info("Rollback: Found tenant by key, deleting with ID: {}", tenant.getId());
+                    return tenantRepository.deleteById(tenant.getId());
+                })
+                .doOnSuccess(v -> log.info("Rollback: Successfully deleted tenant entity by tenantKey: {}", context.getTenantKey()))
+                .onErrorResume(e -> {
+                    log.error("Rollback: Failed to delete tenant entity by tenantKey: {}", context.getTenantKey(), e);
                     return Mono.empty();
                 })
+                .switchIfEmpty(
+                    Mono.fromRunnable(() ->
+                        log.warn(
+                            "Rollback: Tenant entity not found by tenantKey: {} (may have already been deleted)",
+                            context.getTenantKey()
+                        )
+                    ).then()
+                )
+                .then();
+        } else {
+            // Tenant may not have been saved, but check anyway to be safe
+            log.debug("Rollback: Tenant was not marked as saved, but checking if tenant exists by tenantKey: {}", context.getTenantKey());
+            deleteTenant = tenantRepository
+                .findByTenantKey(context.getTenantKey())
+                .flatMap(tenant -> {
+                    log.warn("Rollback: Found tenant entity that was not marked as saved, deleting with ID: {}", tenant.getId());
+                    return tenantRepository.deleteById(tenant.getId());
+                })
+                .doOnSuccess(v -> log.info("Rollback: Successfully deleted tenant entity found by tenantKey: {}", context.getTenantKey()))
+                .onErrorResume(e -> {
+                    // Tenant doesn't exist, which is fine
+                    log.debug("Rollback: Tenant entity not found by tenantKey: {} (expected if not saved)", context.getTenantKey());
+                    return Mono.empty();
+                })
+                .switchIfEmpty(Mono.empty())
                 .then();
         }
 
