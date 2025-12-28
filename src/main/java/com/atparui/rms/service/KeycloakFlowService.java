@@ -322,10 +322,19 @@ public class KeycloakFlowService {
                     Map<String, Object> executionData = new HashMap<>();
                     executionData.put("provider", newFormsSubflowAlias);
 
-                    // Ensure subflow is available before adding
+                    // Ensure subflow is available and has executions before adding
                     if (!waitForSubflowToBeAvailable(realmResource, newFormsSubflowAlias, 3)) {
                         throw new RuntimeException("Forms subflow not available when trying to add execution");
                     }
+
+                    // Verify subflow has at least one execution (required for subflows)
+                    List<AuthenticationExecutionInfoRepresentation> subflowExecutions = realmResource
+                        .flows()
+                        .getExecutions(newFormsSubflowAlias);
+                    if (subflowExecutions == null || subflowExecutions.isEmpty()) {
+                        throw new RuntimeException("Forms subflow must have at least one execution before it can be added to parent flow");
+                    }
+                    log.debug("Verified subflow '{}' has {} execution(s)", newFormsSubflowAlias, subflowExecutions.size());
 
                     try {
                         realmResource.flows().addExecution(newFlowAlias, executionData);
@@ -356,12 +365,25 @@ public class KeycloakFlowService {
                             log.warn("Could not find newly added forms subflow execution to set requirement");
                         }
                     } catch (jakarta.ws.rs.BadRequestException e) {
+                        // Try to get more details from the error response
+                        String errorDetails = e.getMessage();
+                        try {
+                            if (e.getResponse() != null && e.getResponse().hasEntity()) {
+                                String responseBody = e.getResponse().readEntity(String.class);
+                                errorDetails = responseBody != null ? responseBody : e.getMessage();
+                                log.error("Keycloak error response body: {}", responseBody);
+                            }
+                        } catch (Exception ex) {
+                            log.debug("Could not read error response body: {}", ex.getMessage());
+                        }
+
                         log.error(
                             "Failed to add forms subflow execution '{}' to flow '{}': {}",
                             newFormsSubflowAlias,
                             newFlowAlias,
-                            e.getMessage()
+                            errorDetails
                         );
+
                         // Check if it already exists
                         List<AuthenticationExecutionInfoRepresentation> existingExecutions = realmResource
                             .flows()
@@ -373,7 +395,7 @@ public class KeycloakFlowService {
                             );
 
                         if (!alreadyExists) {
-                            throw new RuntimeException("Failed to add forms subflow execution to flow: " + e.getMessage(), e);
+                            throw new RuntimeException("Failed to add forms subflow execution to flow: " + errorDetails, e);
                         } else {
                             log.warn("Forms subflow execution already exists, continuing");
                         }
@@ -477,10 +499,19 @@ public class KeycloakFlowService {
             if (formsSubflowAlias == null) {
                 log.info("Adding forms subflow to new browser flow since it wasn't in the original");
 
-                // Verify the subflow is available
+                // Verify the subflow is available and has executions
                 if (!waitForSubflowToBeAvailable(realmResource, newFormsSubflowAlias, 5)) {
                     throw new RuntimeException("Failed to find newly created forms subflow: " + newFormsSubflowAlias);
                 }
+
+                // Verify subflow has at least one execution (required for subflows)
+                List<AuthenticationExecutionInfoRepresentation> subflowExecutions = realmResource
+                    .flows()
+                    .getExecutions(newFormsSubflowAlias);
+                if (subflowExecutions == null || subflowExecutions.isEmpty()) {
+                    throw new RuntimeException("Forms subflow must have at least one execution before it can be added to parent flow");
+                }
+                log.debug("Verified subflow '{}' has {} execution(s)", newFormsSubflowAlias, subflowExecutions.size());
 
                 Map<String, Object> executionData = new HashMap<>();
                 executionData.put("provider", newFormsSubflowAlias);
@@ -513,11 +544,23 @@ public class KeycloakFlowService {
                         log.warn("Could not find newly added forms subflow execution to set requirement");
                     }
                 } catch (jakarta.ws.rs.BadRequestException e) {
+                    // Try to get more details from the error response
+                    String errorDetails = e.getMessage();
+                    try {
+                        if (e.getResponse() != null && e.getResponse().hasEntity()) {
+                            String responseBody = e.getResponse().readEntity(String.class);
+                            errorDetails = responseBody != null ? responseBody : e.getMessage();
+                            log.error("Keycloak error response body: {}", responseBody);
+                        }
+                    } catch (Exception ex) {
+                        log.debug("Could not read error response body: {}", ex.getMessage());
+                    }
+
                     log.error(
                         "Failed to add forms subflow execution '{}' to flow '{}': {}",
                         newFormsSubflowAlias,
                         newFlowAlias,
-                        e.getMessage()
+                        errorDetails
                     );
 
                     // Check if it already exists
@@ -533,7 +576,7 @@ public class KeycloakFlowService {
                         });
 
                     if (!alreadyExists) {
-                        throw new RuntimeException("Failed to add forms subflow execution to flow: " + e.getMessage(), e);
+                        throw new RuntimeException("Failed to add forms subflow execution to flow: " + errorDetails, e);
                     } else {
                         log.warn("Forms subflow execution already exists, continuing");
                     }
@@ -619,8 +662,24 @@ public class KeycloakFlowService {
             realmResource.flows().updateExecutions(newFormsAlias, phoneExecution);
             log.info("Added phone auto-registration form to forms subflow: {} as REQUIRED", newFormsAlias);
 
+            // Wait for execution requirement to be persisted
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while waiting for execution requirement to be persisted");
+            }
+
             // Configure the authenticator to enable auto-registration
             configurePhoneAutoRegistrationAuthenticator(realmResource, newFormsAlias, phoneExecution.getId());
+
+            // Final wait to ensure all subflow changes are persisted before adding to parent flow
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while waiting for subflow changes to be persisted");
+            }
         } else {
             log.error("Failed to add phone auto-registration form to forms subflow: {}", newFormsAlias);
             throw new RuntimeException("Failed to add phone auto-registration form to forms subflow");
@@ -692,8 +751,24 @@ public class KeycloakFlowService {
             realmResource.flows().updateExecutions(newFormsAlias, phoneExecution);
             log.info("Added phone auto-registration form to forms subflow: {} as REQUIRED", newFormsAlias);
 
+            // Wait for execution requirement to be persisted
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while waiting for execution requirement to be persisted");
+            }
+
             // Configure the authenticator to enable auto-registration
             configurePhoneAutoRegistrationAuthenticator(realmResource, newFormsAlias, phoneExecution.getId());
+
+            // Final wait to ensure all subflow changes are persisted before adding to parent flow
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while waiting for subflow changes to be persisted");
+            }
         } else {
             log.error("Failed to add phone auto-registration form to forms subflow: {}", newFormsAlias);
             throw new RuntimeException("Failed to add phone auto-registration form to forms subflow");
