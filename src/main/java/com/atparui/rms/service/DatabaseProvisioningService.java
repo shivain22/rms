@@ -2,6 +2,7 @@ package com.atparui.rms.service;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.slf4j.Logger;
@@ -152,13 +153,23 @@ public class DatabaseProvisioningService {
             // Terminate any active connections to the database before dropping
             if (databaseCreated) {
                 try (Statement statement = connection.createStatement()) {
-                    // Terminate connections to the database
-                    statement.executeUpdate(
-                        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '" +
-                        dbName +
-                        "' AND pid <> pg_backend_pid()"
-                    );
-                    log.debug("Terminated active connections to database: {}", dbName);
+                    // Terminate connections to the database (excluding current connection)
+                    try (
+                        ResultSet rs = statement.executeQuery(
+                            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '" +
+                            dbName +
+                            "' AND pid <> pg_backend_pid()"
+                        )
+                    ) {
+                        // Consume the result set
+                        int terminatedCount = 0;
+                        while (rs.next()) {
+                            terminatedCount++;
+                        }
+                        if (terminatedCount > 0) {
+                            log.debug("Terminated {} active connections to database: {}", terminatedCount, dbName);
+                        }
+                    }
                 } catch (SQLException e) {
                     log.warn("Failed to terminate connections to database: {}, continuing with drop", dbName, e);
                 }
@@ -169,20 +180,23 @@ public class DatabaseProvisioningService {
                     log.info("Rollback: Dropped database: {}", dbName);
                 } catch (SQLException e) {
                     log.error("Rollback: Failed to drop database: {}", dbName, e);
+                    throw e; // Re-throw to ensure we know if database drop failed
                 }
             }
 
-            // Drop user
+            // Drop user (should be done after database is dropped)
             if (userCreated) {
                 try (Statement statement = connection.createStatement()) {
                     statement.executeUpdate("DROP USER IF EXISTS " + dbUser);
                     log.info("Rollback: Dropped user: {}", dbUser);
                 } catch (SQLException e) {
                     log.error("Rollback: Failed to drop user: {}", dbUser, e);
+                    // Don't re-throw for user deletion - it's less critical
                 }
             }
         } catch (Exception e) {
             log.error("Error during database rollback for database: {} and user: {}", dbName, dbUser, e);
+            throw new RuntimeException("Failed to rollback database creation", e);
         }
     }
 
@@ -308,26 +322,110 @@ public class DatabaseProvisioningService {
         String dbName = "rms_" + tenantId;
         String dbUser = "rms_" + tenantId;
 
+        log.info("Starting deletion of database: {} and user: {} for tenant: {}", dbName, dbUser, tenantId);
+
         try {
             String jdbcUrl = convertR2dbcToJdbc(masterDbUrl);
 
-            try (
-                Connection connection = DriverManager.getConnection(jdbcUrl, masterDbUsername, masterDbPassword);
-                Statement statement = connection.createStatement()
-            ) {
-                // Terminate connections to the database
-                statement.executeUpdate("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '" + dbName + "'");
+            try (Connection connection = DriverManager.getConnection(jdbcUrl, masterDbUsername, masterDbPassword)) {
+                // Step 1: Check if database exists
+                boolean databaseExists = false;
+                try (
+                    Statement statement = connection.createStatement();
+                    ResultSet rs = statement.executeQuery("SELECT 1 FROM pg_database WHERE datname = '" + dbName + "'")
+                ) {
+                    databaseExists = rs.next();
+                } catch (SQLException e) {
+                    log.warn("Failed to check if database exists: {}", dbName, e);
+                }
 
-                // Drop database
-                statement.executeUpdate("DROP DATABASE IF EXISTS " + dbName);
+                if (!databaseExists) {
+                    log.info("Database {} does not exist, skipping database deletion", dbName);
+                } else {
+                    // Step 2: Terminate all connections to the database (excluding current connection)
+                    try (Statement statement = connection.createStatement()) {
+                        try (
+                            ResultSet rs = statement.executeQuery(
+                                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '" +
+                                dbName +
+                                "' AND pid <> pg_backend_pid()"
+                            )
+                        ) {
+                            // Consume the result set
+                            int terminatedCount = 0;
+                            while (rs.next()) {
+                                terminatedCount++;
+                            }
+                            if (terminatedCount > 0) {
+                                log.info("Terminated {} active connections to database: {}", terminatedCount, dbName);
+                            } else {
+                                log.debug("No active connections to terminate for database: {}", dbName);
+                            }
+                        }
+                    } catch (SQLException e) {
+                        log.warn("Failed to terminate connections to database: {}, continuing with drop", dbName, e);
+                        // Continue even if termination fails - database might not have active connections
+                    }
 
-                // Drop user
-                statement.executeUpdate("DROP USER IF EXISTS " + dbUser);
+                    // Step 3: Drop database
+                    try (Statement statement = connection.createStatement()) {
+                        int rowsAffected = statement.executeUpdate("DROP DATABASE IF EXISTS " + dbName);
+                        if (rowsAffected > 0 || databaseExists) {
+                            log.info("Deleted database: {}", dbName);
+                        } else {
+                            log.warn("Database {} was not dropped (may not exist)", dbName);
+                        }
+                    } catch (SQLException e) {
+                        log.error("Failed to drop database: {}", dbName, e);
+                        throw new RuntimeException("Failed to drop database: " + dbName, e);
+                    }
+                }
 
-                log.info("Deleted database and user for tenant: {}", tenantId);
+                // Step 4: Check if user exists
+                boolean userExists = false;
+                try (
+                    Statement statement = connection.createStatement();
+                    ResultSet rs = statement.executeQuery("SELECT 1 FROM pg_user WHERE usename = '" + dbUser + "'")
+                ) {
+                    userExists = rs.next();
+                } catch (SQLException e) {
+                    log.warn("Failed to check if user exists: {}", dbUser, e);
+                }
+
+                if (!userExists) {
+                    log.info("User {} does not exist, skipping user deletion", dbUser);
+                } else {
+                    // Step 5: Drop user (must be done after database is dropped)
+                    try (Statement statement = connection.createStatement()) {
+                        // First, revoke any remaining privileges
+                        try {
+                            statement.executeUpdate("REVOKE ALL PRIVILEGES ON DATABASE " + dbName + " FROM " + dbUser);
+                        } catch (SQLException e) {
+                            // Ignore - database might already be dropped or user might not have privileges
+                            log.debug("Could not revoke privileges (database may not exist): {}", e.getMessage());
+                        }
+
+                        int rowsAffected = statement.executeUpdate("DROP USER IF EXISTS " + dbUser);
+                        if (rowsAffected > 0 || userExists) {
+                            log.info("Deleted user: {}", dbUser);
+                        } else {
+                            log.warn("User {} was not dropped (may not exist)", dbUser);
+                        }
+                    } catch (SQLException e) {
+                        log.error("Failed to drop user: {}", dbUser, e);
+                        // Don't throw - user might not exist or might have been dropped already
+                        // But log it as an error for visibility
+                        log.error("User {} may still exist after deletion attempt", dbUser);
+                    }
+                }
+
+                log.info("Successfully completed deletion process for tenant: {} (database: {}, user: {})", tenantId, dbName, dbUser);
             }
         } catch (SQLException e) {
             log.error("Failed to delete database for tenant: {}", tenantId, e);
+            throw new RuntimeException("Failed to delete tenant database", e);
+        } catch (Exception e) {
+            log.error("Unexpected error deleting database for tenant: {}", tenantId, e);
             throw new RuntimeException("Failed to delete tenant database", e);
         }
     }

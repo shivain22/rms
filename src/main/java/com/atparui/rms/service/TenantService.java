@@ -186,64 +186,97 @@ public class TenantService {
             context.isRealmCreated()
         );
 
-        return Mono.fromRunnable(() -> {
-            try {
-                // Rollback in reverse order of creation
-
-                // 1. Delete Keycloak realm (this will also delete clients, roles, flows)
-                // Note: If realm creation failed partway through, it may have already rolled back itself
-                // But we still attempt deletion here to be safe
-                if (context.isRealmCreated() || context.isClientsCreated() || context.isRolesCreated() || context.isFlowsCreated()) {
-                    try {
-                        // Use tenantKey for realm deletion since realm is created with tenantKey
-                        keycloakRealmService.deleteTenantRealm(context.getTenantKey());
-                        log.info("Rollback: Deleted Keycloak realm: {}", context.getRealmName());
-                    } catch (Exception e) {
-                        // Realm may have already been deleted during its own rollback, or may not exist
-                        log.warn(
-                            "Rollback: Failed to delete Keycloak realm: {} (may already be deleted), continuing rollback",
-                            context.getRealmName(),
-                            e
-                        );
-                    }
+        // Rollback in reverse order of creation
+        Mono<Void> deleteRealm = Mono.empty();
+        if (context.isRealmCreated() || context.isClientsCreated() || context.isRolesCreated() || context.isFlowsCreated()) {
+            deleteRealm = Mono.fromRunnable(() -> {
+                try {
+                    // Use tenantKey for realm deletion since realm is created with tenantKey
+                    keycloakRealmService.deleteTenantRealm(context.getTenantKey());
+                    log.info("Rollback: Deleted Keycloak realm: {}", context.getRealmName());
+                } catch (Exception e) {
+                    // Realm may have already been deleted during its own rollback, or may not exist
+                    log.warn(
+                        "Rollback: Failed to delete Keycloak realm: {} (may already be deleted), continuing rollback",
+                        context.getRealmName(),
+                        e
+                    );
                 }
+            })
+                .onErrorResume(e -> {
+                    log.warn("Rollback: Error deleting Keycloak realm, continuing", e);
+                    return Mono.<Void>empty();
+                })
+                .then();
+        }
 
-                // 2. Delete database and user (this is critical - must be done if database was created)
-                // Note: If database creation failed partway through, it may have already rolled back itself
-                // But we still attempt deletion here to be safe
-                if (context.isDatabaseCreated()) {
-                    try {
-                        databaseProvisioningService.deleteTenantDatabase(context.getTenantKey());
-                        log.info("Rollback: Deleted database: {} and user: {}", context.getDatabaseName(), context.getDatabaseUser());
-                    } catch (Exception e) {
-                        // Database may have already been deleted during its own rollback, or may not exist
-                        log.warn(
-                            "Rollback: Failed to delete database: {} (may already be deleted), continuing rollback",
-                            context.getDatabaseName(),
-                            e
-                        );
-                    }
+        Mono<Void> deleteDatabase = Mono.empty();
+        if (context.isDatabaseCreated()) {
+            deleteDatabase = Mono.fromRunnable(() -> {
+                try {
+                    log.info(
+                        "Rollback: Attempting to delete database: {} and user: {}",
+                        context.getDatabaseName(),
+                        context.getDatabaseUser()
+                    );
+                    databaseProvisioningService.deleteTenantDatabase(context.getTenantKey());
+                    log.info(
+                        "Rollback: Successfully deleted database: {} and user: {}",
+                        context.getDatabaseName(),
+                        context.getDatabaseUser()
+                    );
+                } catch (Exception e) {
+                    // Database may have already been deleted during its own rollback, or may not exist
+                    // But we should log this as an error since it's important
+                    log.error(
+                        "Rollback: CRITICAL - Failed to delete database: {} and user: {}. Manual cleanup may be required. Error: {}",
+                        context.getDatabaseName(),
+                        context.getDatabaseUser(),
+                        e.getMessage(),
+                        e
+                    );
+                    // Re-throw to ensure the error is visible, but the onErrorResume will catch it
+                    throw new RuntimeException("Failed to delete database during rollback: " + context.getDatabaseName(), e);
                 }
+            })
+                .onErrorResume(e -> {
+                    log.error(
+                        "Rollback: Error deleting database: {} and user: {}. This is a critical error that requires manual cleanup.",
+                        context.getDatabaseName(),
+                        context.getDatabaseUser(),
+                        e
+                    );
+                    // Continue with other rollback operations, but log as error
+                    return Mono.<Void>empty();
+                })
+                .then();
+        } else {
+            log.debug(
+                "Rollback: Database was not marked as created in context, skipping database deletion for tenant: {}",
+                context.getTenantKey()
+            );
+        }
 
-                // 3. Delete tenant entity
-                if (context.isTenantSaved() && context.getTenantEntityId() != null) {
-                    try {
-                        tenantRepository.deleteById(context.getTenantEntityId()).block();
-                        log.info("Rollback: Deleted tenant entity with ID: {}", context.getTenantEntityId());
-                    } catch (Exception e) {
-                        log.warn(
-                            "Rollback: Failed to delete tenant entity with ID: {}, continuing rollback",
-                            context.getTenantEntityId(),
-                            e
-                        );
-                    }
-                }
+        Mono<Void> deleteTenant = Mono.empty();
+        if (context.isTenantSaved() && context.getTenantEntityId() != null) {
+            deleteTenant = tenantRepository
+                .deleteById(context.getTenantEntityId())
+                .doOnSuccess(v -> log.info("Rollback: Deleted tenant entity with ID: {}", context.getTenantEntityId()))
+                .onErrorResume(e -> {
+                    log.warn("Rollback: Failed to delete tenant entity with ID: {}, continuing rollback", context.getTenantEntityId(), e);
+                    return Mono.empty();
+                })
+                .then();
+        }
 
-                log.info("Rollback completed for tenant: {}", context.getTenantKey());
-            } catch (Exception e) {
+        return deleteRealm
+            .then(deleteDatabase)
+            .then(deleteTenant)
+            .doOnSuccess(v -> log.info("Rollback completed for tenant: {}", context.getTenantKey()))
+            .onErrorResume(e -> {
                 log.error("Error during rollback for tenant: {}", context.getTenantKey(), e);
-            }
-        }).then();
+                return Mono.empty();
+            });
     }
 
     private String generateClientSecret() {
