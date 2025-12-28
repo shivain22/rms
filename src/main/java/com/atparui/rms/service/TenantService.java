@@ -23,6 +23,7 @@ public class TenantService {
     private static final Logger log = LoggerFactory.getLogger(TenantService.class);
 
     private final TenantRepository tenantRepository;
+    private final com.atparui.rms.repository.TenantClientRepository tenantClientRepository;
     private final KeycloakRealmService keycloakRealmService;
     private final DatabaseProvisioningService databaseProvisioningService;
     private final TenantLiquibaseService tenantLiquibaseService;
@@ -31,12 +32,14 @@ public class TenantService {
 
     public TenantService(
         TenantRepository tenantRepository,
+        com.atparui.rms.repository.TenantClientRepository tenantClientRepository,
         KeycloakRealmService keycloakRealmService,
         DatabaseProvisioningService databaseProvisioningService,
         TenantLiquibaseService tenantLiquibaseService,
         @Qualifier("masterTransactionManager") ReactiveTransactionManager masterTransactionManager
     ) {
         this.tenantRepository = tenantRepository;
+        this.tenantClientRepository = tenantClientRepository;
         this.keycloakRealmService = keycloakRealmService;
         this.databaseProvisioningService = databaseProvisioningService;
         this.tenantLiquibaseService = tenantLiquibaseService;
@@ -146,24 +149,38 @@ public class TenantService {
             .flatMap(savedTenant -> {
                 return Mono.fromCallable(() -> {
                     try {
-                        com.atparui.rms.service.KeycloakRealmService.RmsServiceClientInfo clientInfo =
+                        java.util.List<com.atparui.rms.service.KeycloakRealmService.ClientInfo> clientInfos =
                             keycloakRealmService.createTenantRealm(savedTenant.getTenantKey(), savedTenant.getName());
                         context.setRealmCreated(true);
                         context.setClientsCreated(true);
                         context.setRolesCreated(true);
                         context.setFlowsCreated(true);
-                        log.debug("Step 4: Created Keycloak realm for tenant: {}", savedTenant.getTenantKey());
-                        return clientInfo;
+                        log.debug(
+                            "Step 4: Created Keycloak realm for tenant: {} with {} clients",
+                            savedTenant.getTenantKey(),
+                            clientInfos.size()
+                        );
+                        return clientInfos;
                     } catch (Exception e) {
                         log.error("Failed to create Keycloak realm for tenant: {}", savedTenant.getTenantKey(), e);
                         throw new RuntimeException("Failed to create Keycloak realm", e);
                     }
-                }).flatMap(clientInfo -> {
-                    // Step 4b: Update tenant with rms-service client credentials (within transaction)
-                    if (clientInfo != null) {
-                        savedTenant.setRmsServiceClientId(clientInfo.getClientId());
-                        savedTenant.setRmsServiceClientSecret(clientInfo.getClientSecret());
-                        return tenantRepository.save(savedTenant);
+                }).flatMap(clientInfos -> {
+                    // Step 4b: Save all client credentials to tenant_clients table (within transaction)
+                    if (clientInfos != null && !clientInfos.isEmpty()) {
+                        return Flux.fromIterable(clientInfos)
+                            .map(clientInfo -> {
+                                com.atparui.rms.domain.TenantClient tenantClient = new com.atparui.rms.domain.TenantClient(
+                                    savedTenant.getId(),
+                                    clientInfo.getClientId(),
+                                    clientInfo.getClientSecret(),
+                                    clientInfo.getClientType(),
+                                    savedTenant.getRealmName()
+                                );
+                                return tenantClient;
+                            })
+                            .flatMap(tenantClientRepository::save)
+                            .then(Mono.just(savedTenant));
                     }
                     return Mono.just(savedTenant);
                 });
@@ -387,13 +404,20 @@ public class TenantService {
 
     /**
      * Get tenant database configuration for the given tenant ID.
-     * Converts Tenant entity to TenantDatabaseConfigDTO with R2DBC URL format.
+     * Converts Tenant entity to TenantDatabaseConfigDTO with R2DBC URL format and includes all clients.
      *
      * @param tenantId the tenant ID
      * @return Mono containing TenantDatabaseConfigDTO
      */
     public Mono<TenantDatabaseConfigDTO> getTenantDatabaseConfig(String tenantId) {
-        return findTenant(tenantId).map(this::convertToDatabaseConfigDTO);
+        return findTenant(tenantId).flatMap(tenant ->
+            tenantClientRepository
+                .findByTenantId(tenant.getId())
+                .collectList()
+                .map(clients -> {
+                    return convertToDatabaseConfigDTO(tenant, clients);
+                })
+        );
     }
 
     /**
@@ -424,12 +448,13 @@ public class TenantService {
 
     /**
      * Convert Tenant entity to TenantDatabaseConfigDTO.
-     * Converts JDBC URL format to R2DBC URL format if needed.
+     * Converts JDBC URL format to R2DBC URL format if needed and includes all clients.
      *
      * @param tenant the tenant entity
+     * @param clients the list of tenant clients
      * @return TenantDatabaseConfigDTO
      */
-    private TenantDatabaseConfigDTO convertToDatabaseConfigDTO(Tenant tenant) {
+    private TenantDatabaseConfigDTO convertToDatabaseConfigDTO(Tenant tenant, java.util.List<com.atparui.rms.domain.TenantClient> clients) {
         String databaseUrl = tenant.getDatabaseUrl();
 
         // Convert JDBC URL to R2DBC URL format if needed
@@ -452,10 +477,18 @@ public class TenantService {
             tenant.getDatabasePassword(),
             20, // default maxPoolSize
             30000, // default connectionTimeout
-            "SELECT 1", // default validationQuery
-            tenant.getRmsServiceClientId(),
-            tenant.getRmsServiceClientSecret()
+            "SELECT 1" // default validationQuery
         );
+
+        // Set clients list
+        java.util.List<com.atparui.rms.service.dto.TenantClientDTO> clientDTOs = clients
+            .stream()
+            .map(client ->
+                new com.atparui.rms.service.dto.TenantClientDTO(client.getClientId(), client.getClientSecret(), client.getClientType())
+            )
+            .collect(java.util.stream.Collectors.toList());
+        dto.setClients(clientDTOs);
+
         return dto;
     }
 }

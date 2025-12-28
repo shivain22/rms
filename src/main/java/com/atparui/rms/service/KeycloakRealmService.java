@@ -32,13 +32,41 @@ public class KeycloakRealmService {
     }
 
     /**
+     * Information about created clients.
+     */
+    public static class ClientInfo {
+
+        private final String clientId;
+        private final String clientSecret;
+        private final String clientType; // web, mobile, rms-service
+
+        public ClientInfo(String clientId, String clientSecret, String clientType) {
+            this.clientId = clientId;
+            this.clientSecret = clientSecret;
+            this.clientType = clientType;
+        }
+
+        public String getClientId() {
+            return clientId;
+        }
+
+        public String getClientSecret() {
+            return clientSecret;
+        }
+
+        public String getClientType() {
+            return clientType;
+        }
+    }
+
+    /**
      * Create tenant realm in Keycloak with all required clients and configuration.
      *
      * @param tenantId the tenant ID
      * @param tenantName the tenant name
-     * @return RmsServiceClientInfo containing the rms-service client ID and secret, or null if not created
+     * @return List of ClientInfo for all created clients (web, mobile, rms-service)
      */
-    public RmsServiceClientInfo createTenantRealm(String tenantId, String tenantName) {
+    public java.util.List<ClientInfo> createTenantRealm(String tenantId, String tenantName) {
         String realmName = tenantId + "_realm";
         boolean realmCreated = false;
         boolean clientScopesCreated = false;
@@ -48,6 +76,8 @@ public class KeycloakRealmService {
         boolean rolesCreated = false;
         boolean themeUpdated = false;
         boolean flowsCreated = false;
+
+        java.util.List<ClientInfo> createdClients = new java.util.ArrayList<>();
 
         try {
             // Step 1: Create realm
@@ -131,10 +161,10 @@ public class KeycloakRealmService {
             }
 
             // Step 5: Create rms-service client
-            String rmsServiceClientSecret = null;
             try {
-                rmsServiceClientSecret = createRmsServiceClient(realmResource);
-                if (rmsServiceClientSecret != null) {
+                ClientInfo rmsServiceClientInfo = createRmsServiceClient(realmResource);
+                if (rmsServiceClientInfo != null) {
+                    createdClients.add(rmsServiceClientInfo);
                     rmsServiceClientCreated = true;
                     log.info("Step 5: Created rms-service client for realm: {}", realmName);
                 }
@@ -222,13 +252,10 @@ public class KeycloakRealmService {
                 throw new RuntimeException("Failed to create browser flow", e);
             }
 
-            log.info("Successfully configured tenant realm: {}", realmName);
+            log.info("Successfully configured tenant realm: {} with {} clients", realmName, createdClients.size());
 
-            // Return client info if created
-            if (rmsServiceClientSecret != null) {
-                return new RmsServiceClientInfo("rms-service", rmsServiceClientSecret);
-            }
-            return null;
+            // Return all created client info
+            return createdClients;
         } catch (RuntimeException e) {
             // Re-throw runtime exceptions (they already have rollback logic)
             throw e;
@@ -404,9 +431,10 @@ public class KeycloakRealmService {
         log.info("Created client scopes for realm: {}", realmResource.toRepresentation().getRealm());
     }
 
-    private void createTenantClient(RealmResource realmResource, String tenantId, String clientType) {
+    private ClientInfo createTenantClient(RealmResource realmResource, String tenantId, String clientType) {
         ClientRepresentation client = new ClientRepresentation();
-        client.setClientId(tenantId + "_" + clientType);
+        String clientId = tenantId + "_" + clientType;
+        client.setClientId(clientId);
         client.setName(tenantId + " " + clientType.substring(0, 1).toUpperCase() + clientType.substring(1) + " Client");
         client.setDescription(clientType.substring(0, 1).toUpperCase() + clientType.substring(1) + " client for " + tenantId + " tenant");
         client.setEnabled(true);
@@ -431,15 +459,19 @@ public class KeycloakRealmService {
         }
 
         // Set client secret for web clients only
+        String clientSecret = null;
         if ("web".equals(clientType)) {
-            client.setSecret(generateClientSecret());
+            clientSecret = generateClientSecret();
+            client.setSecret(clientSecret);
         }
 
         // Set default client scopes
         client.setDefaultClientScopes(Arrays.asList("openid", "profile", "email", "offline_access"));
 
         realmResource.clients().create(client);
-        log.info("Created {} client: {} for realm: {}", clientType, client.getClientId(), realmResource.toRepresentation().getRealm());
+        log.info("Created {} client: {} for realm: {}", clientType, clientId, realmResource.toRepresentation().getRealm());
+
+        return new ClientInfo(clientId, clientSecret, clientType);
     }
 
     /**
@@ -447,16 +479,17 @@ public class KeycloakRealmService {
      * This client is used by the RMS Service to validate tokens from this tenant realm.
      *
      * @param realmResource the realm resource
-     * @return the client secret that was set (for storing in database)
+     * @return ClientInfo containing the client ID and secret, or null if not created
      */
-    private String createRmsServiceClient(RealmResource realmResource) {
+    private ClientInfo createRmsServiceClient(RealmResource realmResource) {
         if (rmsServiceClientSecret == null || rmsServiceClientSecret.isEmpty()) {
             log.warn("rms-service.client-secret is not configured. Skipping rms-service client creation.");
             return null;
         }
 
         ClientRepresentation client = new ClientRepresentation();
-        client.setClientId("rms-service");
+        String clientId = "rms-service";
+        client.setClientId(clientId);
         client.setName("RMS Service Client");
         client.setDescription("Service client for RMS Service to validate tokens from this tenant realm");
         client.setEnabled(true);
@@ -480,8 +513,7 @@ public class KeycloakRealmService {
         realmResource.clients().create(client);
         log.info("Created rms-service client for realm: {}", realmResource.toRepresentation().getRealm());
 
-        // Return the client secret for storing in database
-        return rmsServiceClientSecret;
+        return new ClientInfo(clientId, rmsServiceClientSecret, "rms-service");
     }
 
     private void createRealmRoles(RealmResource realmResource) {

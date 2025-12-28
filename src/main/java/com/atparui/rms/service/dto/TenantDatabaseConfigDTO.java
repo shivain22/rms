@@ -32,11 +32,8 @@ public class TenantDatabaseConfigDTO implements Serializable {
     @JsonProperty("validationQuery")
     private String validationQuery = "SELECT 1";
 
-    @JsonProperty("rmsServiceClientId")
-    private String rmsServiceClientId;
-
-    @JsonProperty("rmsServiceClientSecret")
-    private String rmsServiceClientSecret;
+    @JsonProperty("clients")
+    private java.util.List<TenantClientDTO> clients;
 
     public TenantDatabaseConfigDTO() {
         // Empty constructor needed for Jackson
@@ -49,9 +46,7 @@ public class TenantDatabaseConfigDTO implements Serializable {
         String password,
         Integer maxPoolSize,
         Integer connectionTimeout,
-        String validationQuery,
-        String rmsServiceClientId,
-        String rmsServiceClientSecret
+        String validationQuery
     ) {
         this.tenantId = tenantId;
         this.databaseUrl = databaseUrl;
@@ -60,8 +55,6 @@ public class TenantDatabaseConfigDTO implements Serializable {
         this.maxPoolSize = maxPoolSize != null ? maxPoolSize : 20;
         this.connectionTimeout = connectionTimeout != null ? connectionTimeout : 30000;
         this.validationQuery = validationQuery != null ? validationQuery : "SELECT 1";
-        this.rmsServiceClientId = rmsServiceClientId;
-        this.rmsServiceClientSecret = rmsServiceClientSecret;
     }
 
     public String getTenantId() {
@@ -120,20 +113,12 @@ public class TenantDatabaseConfigDTO implements Serializable {
         this.validationQuery = validationQuery;
     }
 
-    public String getRmsServiceClientId() {
-        return rmsServiceClientId;
+    public java.util.List<TenantClientDTO> getClients() {
+        return clients;
     }
 
-    public void setRmsServiceClientId(String rmsServiceClientId) {
-        this.rmsServiceClientId = rmsServiceClientId;
-    }
-
-    public String getRmsServiceClientSecret() {
-        return rmsServiceClientSecret;
-    }
-
-    public void setRmsServiceClientSecret(String rmsServiceClientSecret) {
-        this.rmsServiceClientSecret = rmsServiceClientSecret;
+    public void setClients(java.util.List<TenantClientDTO> clients) {
+        this.clients = clients;
     }
 
     @Override

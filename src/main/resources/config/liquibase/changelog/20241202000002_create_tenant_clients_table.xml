@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20241202000002-1" author="system">
+        <comment>Create tenant_clients table for one-to-many relationship with tenants</comment>
+        
+        <createTable tableName="tenant_clients">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="bigint">
+                <constraints nullable="false" foreignKeyName="fk_tenant_clients_tenant" references="tenants(id)" onDelete="CASCADE"/>
+            </column>
+            <column name="client_id" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="client_secret" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="client_type" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="realm_name" type="varchar(100)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+        </createTable>
+        
+        <createIndex indexName="idx_tenant_clients_tenant_id" tableName="tenant_clients">
+            <column name="tenant_id"/>
+        </createIndex>
+        
+        <createIndex indexName="idx_tenant_clients_client_id" tableName="tenant_clients">
+            <column name="client_id"/>
+        </createIndex>
+        
+        <createIndex indexName="idx_tenant_clients_client_type" tableName="tenant_clients">
+            <column name="client_type"/>
+        </createIndex>
+        
+        <rollback>
+            <dropTable tableName="tenant_clients"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="20241202000002-2" author="system">
+        <comment>Migrate existing client data from tenants table to tenant_clients table</comment>
+        
+        <sql>
+            INSERT INTO tenant_clients (tenant_id, client_id, client_secret, client_type, realm_name, enabled, created_date, last_modified_date)
+            SELECT 
+                id as tenant_id,
+                client_id,
+                client_secret,
+                'web' as client_type,
+                realm_name,
+                true as enabled,
+                created_date,
+                last_modified_date
+            FROM tenants
+            WHERE client_id IS NOT NULL AND client_id != '';
+        </sql>
+        
+        <sql>
+            INSERT INTO tenant_clients (tenant_id, client_id, client_secret, client_type, realm_name, enabled, created_date, last_modified_date)
+            SELECT 
+                id as tenant_id,
+                rms_service_client_id,
+                rms_service_client_secret,
+                'rms-service' as client_type,
+                realm_name,
+                true as enabled,
+                created_date,
+                last_modified_date
+            FROM tenants
+            WHERE rms_service_client_id IS NOT NULL AND rms_service_client_id != '';
+        </sql>
+        
+        <rollback>
+            <delete tableName="tenant_clients"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="20241202000002-3" author="system">
+        <comment>Remove client columns from tenants table (keep for now, will drop in future)</comment>
+        <!-- We'll keep the columns for now to allow gradual migration -->
+        <!-- Future changeSet can drop: client_id, client_secret, rms_service_client_id, rms_service_client_secret -->
+    </changeSet>
+
+</databaseChangeLog>
+
