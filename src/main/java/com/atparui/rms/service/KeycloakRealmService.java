@@ -31,7 +31,14 @@ public class KeycloakRealmService {
         this.rmsServiceClientSecret = rmsServiceClientSecret;
     }
 
-    public void createTenantRealm(String tenantId, String tenantName) {
+    /**
+     * Create tenant realm in Keycloak with all required clients and configuration.
+     *
+     * @param tenantId the tenant ID
+     * @param tenantName the tenant name
+     * @return RmsServiceClientInfo containing the rms-service client ID and secret, or null if not created
+     */
+    public RmsServiceClientInfo createTenantRealm(String tenantId, String tenantName) {
         String realmName = tenantId + "_realm";
         boolean realmCreated = false;
         boolean clientScopesCreated = false;
@@ -124,10 +131,13 @@ public class KeycloakRealmService {
             }
 
             // Step 5: Create rms-service client
+            String rmsServiceClientSecret = null;
             try {
-                createRmsServiceClient(realmResource);
-                rmsServiceClientCreated = true;
-                log.info("Step 5: Created rms-service client for realm: {}", realmName);
+                rmsServiceClientSecret = createRmsServiceClient(realmResource);
+                if (rmsServiceClientSecret != null) {
+                    rmsServiceClientCreated = true;
+                    log.info("Step 5: Created rms-service client for realm: {}", realmName);
+                }
             } catch (Exception e) {
                 log.error("Failed to create rms-service client for realm: {}", realmName, e);
                 rollbackRealmCreation(
@@ -213,6 +223,12 @@ public class KeycloakRealmService {
             }
 
             log.info("Successfully configured tenant realm: {}", realmName);
+
+            // Return client info if created
+            if (rmsServiceClientSecret != null) {
+                return new RmsServiceClientInfo("rms-service", rmsServiceClientSecret);
+            }
+            return null;
         } catch (RuntimeException e) {
             // Re-throw runtime exceptions (they already have rollback logic)
             throw e;
@@ -232,6 +248,28 @@ public class KeycloakRealmService {
                 flowsCreated
             );
             throw new RuntimeException("Failed to create Keycloak realm for tenant: " + tenantId, e);
+        }
+    }
+
+    /**
+     * Information about the created rms-service client.
+     */
+    public static class RmsServiceClientInfo {
+
+        private final String clientId;
+        private final String clientSecret;
+
+        public RmsServiceClientInfo(String clientId, String clientSecret) {
+            this.clientId = clientId;
+            this.clientSecret = clientSecret;
+        }
+
+        public String getClientId() {
+            return clientId;
+        }
+
+        public String getClientSecret() {
+            return clientSecret;
         }
     }
 
@@ -409,11 +447,12 @@ public class KeycloakRealmService {
      * This client is used by the RMS Service to validate tokens from this tenant realm.
      *
      * @param realmResource the realm resource
+     * @return the client secret that was set (for storing in database)
      */
-    private void createRmsServiceClient(RealmResource realmResource) {
+    private String createRmsServiceClient(RealmResource realmResource) {
         if (rmsServiceClientSecret == null || rmsServiceClientSecret.isEmpty()) {
             log.warn("rms-service.client-secret is not configured. Skipping rms-service client creation.");
-            return;
+            return null;
         }
 
         ClientRepresentation client = new ClientRepresentation();
@@ -440,6 +479,9 @@ public class KeycloakRealmService {
 
         realmResource.clients().create(client);
         log.info("Created rms-service client for realm: {}", realmResource.toRepresentation().getRealm());
+
+        // Return the client secret for storing in database
+        return rmsServiceClientSecret;
     }
 
     private void createRealmRoles(RealmResource realmResource) {

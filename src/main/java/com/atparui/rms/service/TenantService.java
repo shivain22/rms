@@ -143,21 +143,31 @@ public class TenantService {
                 return tenantRepository.save(savedTenant);
             })
             // Step 4: Create Keycloak realm (external resource - not part of transaction)
-            .flatMap(savedTenant ->
-                Mono.fromRunnable(() -> {
+            .flatMap(savedTenant -> {
+                return Mono.fromCallable(() -> {
                     try {
-                        keycloakRealmService.createTenantRealm(savedTenant.getTenantKey(), savedTenant.getName());
+                        com.atparui.rms.service.KeycloakRealmService.RmsServiceClientInfo clientInfo =
+                            keycloakRealmService.createTenantRealm(savedTenant.getTenantKey(), savedTenant.getName());
                         context.setRealmCreated(true);
                         context.setClientsCreated(true);
                         context.setRolesCreated(true);
                         context.setFlowsCreated(true);
                         log.debug("Step 4: Created Keycloak realm for tenant: {}", savedTenant.getTenantKey());
+                        return clientInfo;
                     } catch (Exception e) {
                         log.error("Failed to create Keycloak realm for tenant: {}", savedTenant.getTenantKey(), e);
                         throw new RuntimeException("Failed to create Keycloak realm", e);
                     }
-                }).thenReturn(savedTenant)
-            )
+                }).flatMap(clientInfo -> {
+                    // Step 4b: Update tenant with rms-service client credentials (within transaction)
+                    if (clientInfo != null) {
+                        savedTenant.setRmsServiceClientId(clientInfo.getClientId());
+                        savedTenant.setRmsServiceClientSecret(clientInfo.getClientSecret());
+                        return tenantRepository.save(savedTenant);
+                    }
+                    return Mono.just(savedTenant);
+                });
+            })
             .doOnSuccess(savedTenant -> {
                 log.info("Successfully created tenant with database and Keycloak realm: {}", savedTenant.getTenantKey());
             })
@@ -435,14 +445,17 @@ public class TenantService {
             }
         }
 
-        return new TenantDatabaseConfigDTO(
+        TenantDatabaseConfigDTO dto = new TenantDatabaseConfigDTO(
             tenant.getTenantId(),
             databaseUrl,
             tenant.getDatabaseUsername(),
             tenant.getDatabasePassword(),
             20, // default maxPoolSize
             30000, // default connectionTimeout
-            "SELECT 1" // default validationQuery
+            "SELECT 1", // default validationQuery
+            tenant.getRmsServiceClientId(),
+            tenant.getRmsServiceClientSecret()
         );
+        return dto;
     }
 }

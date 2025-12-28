@@ -55,6 +55,12 @@ public class Tenant {
     @Column("client_secret")
     private String clientSecret;
 
+    @Column("rms_service_client_id")
+    private String rmsServiceClientId;
+
+    @Column("rms_service_client_secret")
+    private String rmsServiceClientSecret;
+
     @Column("default_roles")
     private String defaultRoles;
 
@@ -195,6 +201,22 @@ public class Tenant {
 
     public void setClientSecret(String clientSecret) {
         this.clientSecret = clientSecret;
+    }
+
+    public String getRmsServiceClientId() {
+        return rmsServiceClientId;
+    }
+
+    public void setRmsServiceClientId(String rmsServiceClientId) {
+        this.rmsServiceClientId = rmsServiceClientId;
+    }
+
+    public String getRmsServiceClientSecret() {
+        return rmsServiceClientSecret;
+    }
+
+    public void setRmsServiceClientSecret(String rmsServiceClientSecret) {
+        this.rmsServiceClientSecret = rmsServiceClientSecret;
     }
 
     public String getDefaultRoles() {

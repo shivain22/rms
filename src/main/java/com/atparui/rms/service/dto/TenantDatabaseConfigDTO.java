@@ -32,6 +32,12 @@ public class TenantDatabaseConfigDTO implements Serializable {
     @JsonProperty("validationQuery")
     private String validationQuery = "SELECT 1";
 
+    @JsonProperty("rmsServiceClientId")
+    private String rmsServiceClientId;
+
+    @JsonProperty("rmsServiceClientSecret")
+    private String rmsServiceClientSecret;
+
     public TenantDatabaseConfigDTO() {
         // Empty constructor needed for Jackson
     }
@@ -43,7 +49,9 @@ public class TenantDatabaseConfigDTO implements Serializable {
         String password,
         Integer maxPoolSize,
         Integer connectionTimeout,
-        String validationQuery
+        String validationQuery,
+        String rmsServiceClientId,
+        String rmsServiceClientSecret
     ) {
         this.tenantId = tenantId;
         this.databaseUrl = databaseUrl;
@@ -52,6 +60,8 @@ public class TenantDatabaseConfigDTO implements Serializable {
         this.maxPoolSize = maxPoolSize != null ? maxPoolSize : 20;
         this.connectionTimeout = connectionTimeout != null ? connectionTimeout : 30000;
         this.validationQuery = validationQuery != null ? validationQuery : "SELECT 1";
+        this.rmsServiceClientId = rmsServiceClientId;
+        this.rmsServiceClientSecret = rmsServiceClientSecret;
     }
 
     public String getTenantId() {
@@ -108,6 +118,22 @@ public class TenantDatabaseConfigDTO implements Serializable {
 
     public void setValidationQuery(String validationQuery) {
         this.validationQuery = validationQuery;
+    }
+
+    public String getRmsServiceClientId() {
+        return rmsServiceClientId;
+    }
+
+    public void setRmsServiceClientId(String rmsServiceClientId) {
+        this.rmsServiceClientId = rmsServiceClientId;
+    }
+
+    public String getRmsServiceClientSecret() {
+        return rmsServiceClientSecret;
+    }
+
+    public void setRmsServiceClientSecret(String rmsServiceClientSecret) {
+        this.rmsServiceClientSecret = rmsServiceClientSecret;
     }
 
     @Override
