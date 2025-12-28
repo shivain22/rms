@@ -19,10 +19,16 @@ public class KeycloakRealmService {
 
     private final Keycloak keycloakAdmin;
     private final RestaurantKeycloakProperties restaurantProperties;
+    private final String rmsServiceClientSecret;
 
-    public KeycloakRealmService(Keycloak keycloakAdmin, RestaurantKeycloakProperties restaurantProperties) {
+    public KeycloakRealmService(
+        Keycloak keycloakAdmin,
+        RestaurantKeycloakProperties restaurantProperties,
+        @org.springframework.beans.factory.annotation.Value("${rms-service.client-secret:}") String rmsServiceClientSecret
+    ) {
         this.keycloakAdmin = keycloakAdmin;
         this.restaurantProperties = restaurantProperties;
+        this.rmsServiceClientSecret = rmsServiceClientSecret;
     }
 
     public void createTenantRealm(String tenantId, String tenantName) {
@@ -31,6 +37,7 @@ public class KeycloakRealmService {
         boolean clientScopesCreated = false;
         boolean webClientCreated = false;
         boolean mobileClientCreated = false;
+        boolean rmsServiceClientCreated = false;
         boolean rolesCreated = false;
         boolean themeUpdated = false;
         boolean flowsCreated = false;
@@ -64,6 +71,7 @@ public class KeycloakRealmService {
                     clientScopesCreated,
                     webClientCreated,
                     mobileClientCreated,
+                    false,
                     rolesCreated,
                     themeUpdated,
                     flowsCreated
@@ -85,6 +93,7 @@ public class KeycloakRealmService {
                     clientScopesCreated,
                     webClientCreated,
                     mobileClientCreated,
+                    false,
                     rolesCreated,
                     themeUpdated,
                     flowsCreated
@@ -106,6 +115,7 @@ public class KeycloakRealmService {
                     clientScopesCreated,
                     webClientCreated,
                     mobileClientCreated,
+                    rmsServiceClientCreated,
                     rolesCreated,
                     themeUpdated,
                     flowsCreated
@@ -113,11 +123,33 @@ public class KeycloakRealmService {
                 throw new RuntimeException("Failed to create mobile client", e);
             }
 
-            // Step 5: Create realm roles
+            // Step 5: Create rms-service client
+            try {
+                createRmsServiceClient(realmResource);
+                rmsServiceClientCreated = true;
+                log.info("Step 5: Created rms-service client for realm: {}", realmName);
+            } catch (Exception e) {
+                log.error("Failed to create rms-service client for realm: {}", realmName, e);
+                rollbackRealmCreation(
+                    tenantId,
+                    realmName,
+                    realmCreated,
+                    clientScopesCreated,
+                    webClientCreated,
+                    mobileClientCreated,
+                    rmsServiceClientCreated,
+                    rolesCreated,
+                    themeUpdated,
+                    flowsCreated
+                );
+                throw new RuntimeException("Failed to create rms-service client", e);
+            }
+
+            // Step 6: Create realm roles
             try {
                 createRealmRoles(realmResource);
                 rolesCreated = true;
-                log.info("Step 5: Created realm roles for realm: {}", realmName);
+                log.info("Step 6: Created realm roles for realm: {}", realmName);
             } catch (Exception e) {
                 log.error("Failed to create realm roles for realm: {}", realmName, e);
                 rollbackRealmCreation(
@@ -127,6 +159,7 @@ public class KeycloakRealmService {
                     clientScopesCreated,
                     webClientCreated,
                     mobileClientCreated,
+                    rmsServiceClientCreated,
                     rolesCreated,
                     themeUpdated,
                     flowsCreated
@@ -134,11 +167,11 @@ public class KeycloakRealmService {
                 throw new RuntimeException("Failed to create realm roles", e);
             }
 
-            // Step 6: Update realm theme
+            // Step 7: Update realm theme
             try {
                 updateRealmTheme(realmResource);
                 themeUpdated = true;
-                log.info("Step 6: Updated realm theme for realm: {}", realmName);
+                log.info("Step 7: Updated realm theme for realm: {}", realmName);
             } catch (Exception e) {
                 log.error("Failed to update realm theme for realm: {}", realmName, e);
                 rollbackRealmCreation(
@@ -148,6 +181,7 @@ public class KeycloakRealmService {
                     clientScopesCreated,
                     webClientCreated,
                     mobileClientCreated,
+                    rmsServiceClientCreated,
                     rolesCreated,
                     themeUpdated,
                     flowsCreated
@@ -155,12 +189,12 @@ public class KeycloakRealmService {
                 throw new RuntimeException("Failed to update realm theme", e);
             }
 
-            // Step 7: Copy browser flow and modify it with phone auto-reg form
+            // Step 8: Copy browser flow and modify it with phone auto-reg form
             try {
                 KeycloakFlowService flowService = new KeycloakFlowService(keycloakAdmin);
                 flowService.copyAndModifyBrowserFlow(realmName);
                 flowsCreated = true;
-                log.info("Step 7: Created browser flow for realm: {}", realmName);
+                log.info("Step 8: Created browser flow for realm: {}", realmName);
             } catch (Exception e) {
                 log.error("Failed to create browser flow for realm: {}", realmName, e);
                 rollbackRealmCreation(
@@ -170,6 +204,7 @@ public class KeycloakRealmService {
                     clientScopesCreated,
                     webClientCreated,
                     mobileClientCreated,
+                    rmsServiceClientCreated,
                     rolesCreated,
                     themeUpdated,
                     flowsCreated
@@ -191,6 +226,7 @@ public class KeycloakRealmService {
                 clientScopesCreated,
                 webClientCreated,
                 mobileClientCreated,
+                false,
                 rolesCreated,
                 themeUpdated,
                 flowsCreated
@@ -209,6 +245,7 @@ public class KeycloakRealmService {
      * @param clientScopesCreated whether client scopes were created
      * @param webClientCreated whether web client was created
      * @param mobileClientCreated whether mobile client was created
+     * @param rmsServiceClientCreated whether rms-service client was created
      * @param rolesCreated whether roles were created
      * @param themeUpdated whether theme was updated
      * @param flowsCreated whether flows were created
@@ -220,6 +257,7 @@ public class KeycloakRealmService {
         boolean clientScopesCreated,
         boolean webClientCreated,
         boolean mobileClientCreated,
+        boolean rmsServiceClientCreated,
         boolean rolesCreated,
         boolean themeUpdated,
         boolean flowsCreated
@@ -364,6 +402,44 @@ public class KeycloakRealmService {
 
         realmResource.clients().create(client);
         log.info("Created {} client: {} for realm: {}", clientType, client.getClientId(), realmResource.toRepresentation().getRealm());
+    }
+
+    /**
+     * Create rms-service client in the tenant realm.
+     * This client is used by the RMS Service to validate tokens from this tenant realm.
+     *
+     * @param realmResource the realm resource
+     */
+    private void createRmsServiceClient(RealmResource realmResource) {
+        if (rmsServiceClientSecret == null || rmsServiceClientSecret.isEmpty()) {
+            log.warn("rms-service.client-secret is not configured. Skipping rms-service client creation.");
+            return;
+        }
+
+        ClientRepresentation client = new ClientRepresentation();
+        client.setClientId("rms-service");
+        client.setName("RMS Service Client");
+        client.setDescription("Service client for RMS Service to validate tokens from this tenant realm");
+        client.setEnabled(true);
+        client.setPublicClient(false);
+        client.setStandardFlowEnabled(false);
+        client.setImplicitFlowEnabled(false);
+        client.setDirectAccessGrantsEnabled(false);
+        client.setServiceAccountsEnabled(true);
+        client.setAuthorizationServicesEnabled(false);
+
+        // Set client secret
+        client.setSecret(rmsServiceClientSecret);
+
+        // Set redirect URIs (not needed for service account, but set for completeness)
+        client.setRedirectUris(Arrays.asList("*"));
+        client.setWebOrigins(Arrays.asList("*"));
+
+        // Set default client scopes
+        client.setDefaultClientScopes(Arrays.asList("openid", "profile", "email", "offline_access"));
+
+        realmResource.clients().create(client);
+        log.info("Created rms-service client for realm: {}", realmResource.toRepresentation().getRealm());
     }
 
     private void createRealmRoles(RealmResource realmResource) {

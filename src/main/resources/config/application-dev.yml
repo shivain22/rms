@@ -166,6 +166,12 @@ keycloak:
     username: ${KEYCLOAK_ADMIN_USERNAME:admin}
     password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
 
+# RMS Service Client Configuration
+# This secret is used when creating rms-service client in tenant realms
+# The same secret should be configured in rms-service application
+rms-service:
+  client-secret: ${RMS_SERVICE_CLIENT_SECRET:}
+
 # Restaurant Keycloak Configuration
 restaurant:
   keycloak:
