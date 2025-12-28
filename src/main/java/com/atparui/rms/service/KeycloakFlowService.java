@@ -319,15 +319,16 @@ public class KeycloakFlowService {
                 if (execution.getFlowId() != null && execution.getFlowId().equals(formsSubflowId)) {
                     log.info("Replacing forms subflow with custom forms-phone subflow");
 
-                    // Wait a bit to ensure the subflow is fully registered
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.warn("Interrupted while waiting for subflow to be available");
+                    // Wait for the subflow to be fully available and ready
+                    if (!waitForSubflowToBeAvailable(realmResource, newFormsSubflowAlias, 10)) {
+                        throw new RuntimeException(
+                            "Subflow '" +
+                            newFormsSubflowAlias +
+                            "' is not available after creation. It may not have been created properly or is not yet registered in Keycloak."
+                        );
                     }
 
-                    // Try to verify subflow has executions, but don't fail if we can't
+                    // Verify subflow has at least one execution (required for subflows to be usable)
                     try {
                         List<AuthenticationExecutionInfoRepresentation> subflowExecutions = realmResource
                             .flows()
@@ -341,9 +342,17 @@ public class KeycloakFlowService {
                         log.warn("Could not verify subflow executions, but proceeding anyway: {}", e.getMessage());
                     }
 
-                    // Add the new forms subflow to the browser flow using the alias (Keycloak expects alias for subflows)
+                    // Get the flow ID of the newly created subflow - Keycloak needs the flow ID for subflow executions
+                    String newFormsSubflowId = getFlowIdByAlias(realmResource, newFormsSubflowAlias);
+                    if (newFormsSubflowId == null) {
+                        throw new RuntimeException(
+                            "Failed to find flow ID for subflow: " + newFormsSubflowAlias + ". Subflow may not be fully registered yet."
+                        );
+                    }
+
+                    // Add the new forms subflow to the browser flow - use flow ID for subflows
                     Map<String, Object> executionData = new HashMap<>();
-                    executionData.put("provider", newFormsSubflowAlias);
+                    executionData.put("provider", newFormsSubflowId);
 
                     try {
                         realmResource.flows().addExecution(newFlowAlias, executionData);
@@ -356,13 +365,7 @@ public class KeycloakFlowService {
                         List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFlowAlias);
                         AuthenticationExecutionInfoRepresentation newExecution = newExecutions
                             .stream()
-                            .filter(e -> {
-                                if (e.getFlowId() != null) {
-                                    String flowAlias = getFlowAliasById(realmResource, e.getFlowId());
-                                    return newFormsSubflowAlias.equals(flowAlias);
-                                }
-                                return false;
-                            })
+                            .filter(e -> newFormsSubflowId.equals(e.getFlowId()))
                             .findFirst()
                             .orElse(null);
 
@@ -397,11 +400,7 @@ public class KeycloakFlowService {
                         List<AuthenticationExecutionInfoRepresentation> existingExecutions = realmResource
                             .flows()
                             .getExecutions(newFlowAlias);
-                        boolean alreadyExists = existingExecutions
-                            .stream()
-                            .anyMatch(
-                                ex -> ex.getFlowId() != null && getFlowAliasById(realmResource, ex.getFlowId()).equals(newFormsSubflowAlias)
-                            );
+                        boolean alreadyExists = existingExecutions.stream().anyMatch(ex -> newFormsSubflowId.equals(ex.getFlowId()));
 
                         if (!alreadyExists) {
                             throw new RuntimeException("Failed to add forms subflow execution to flow: " + errorDetails, e);
@@ -508,12 +507,13 @@ public class KeycloakFlowService {
             if (formsSubflowAlias == null) {
                 log.info("Adding forms subflow to new browser flow since it wasn't in the original");
 
-                // Wait a bit to ensure the subflow is fully registered in Keycloak
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.warn("Interrupted while waiting for subflow to be fully registered");
+                // Wait for the subflow to be fully available and ready
+                if (!waitForSubflowToBeAvailable(realmResource, newFormsSubflowAlias, 10)) {
+                    throw new RuntimeException(
+                        "Subflow '" +
+                        newFormsSubflowAlias +
+                        "' is not available after creation. It may not have been created properly or is not yet registered in Keycloak."
+                    );
                 }
 
                 // Try to verify subflow has at least one execution (required for subflows)
@@ -531,8 +531,16 @@ public class KeycloakFlowService {
                     log.warn("Could not verify subflow executions, but proceeding anyway: {}", e.getMessage());
                 }
 
+                // Get the flow ID of the newly created subflow - Keycloak needs the flow ID for subflow executions
+                String newFormsSubflowId = getFlowIdByAlias(realmResource, newFormsSubflowAlias);
+                if (newFormsSubflowId == null) {
+                    throw new RuntimeException(
+                        "Failed to find flow ID for subflow: " + newFormsSubflowAlias + ". Subflow may not be fully registered yet."
+                    );
+                }
+
                 Map<String, Object> executionData = new HashMap<>();
-                executionData.put("provider", newFormsSubflowAlias);
+                executionData.put("provider", newFormsSubflowId);
                 try {
                     realmResource.flows().addExecution(newFlowAlias, executionData);
                     log.info("Successfully added forms subflow execution to flow: {}", newFlowAlias);
@@ -544,13 +552,7 @@ public class KeycloakFlowService {
                     List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFlowAlias);
                     AuthenticationExecutionInfoRepresentation newExecution = newExecutions
                         .stream()
-                        .filter(e -> {
-                            if (e.getFlowId() != null) {
-                                String flowAlias = getFlowAliasById(realmResource, e.getFlowId());
-                                return newFormsSubflowAlias.equals(flowAlias);
-                            }
-                            return false;
-                        })
+                        .filter(e -> newFormsSubflowId.equals(e.getFlowId()))
                         .findFirst()
                         .orElse(null);
 
@@ -583,15 +585,7 @@ public class KeycloakFlowService {
 
                     // Check if it already exists
                     List<AuthenticationExecutionInfoRepresentation> existingExecutions = realmResource.flows().getExecutions(newFlowAlias);
-                    boolean alreadyExists = existingExecutions
-                        .stream()
-                        .anyMatch(ex -> {
-                            if (ex.getFlowId() != null) {
-                                String flowAlias = getFlowAliasById(realmResource, ex.getFlowId());
-                                return newFormsSubflowAlias.equals(flowAlias);
-                            }
-                            return false;
-                        });
+                    boolean alreadyExists = existingExecutions.stream().anyMatch(ex -> newFormsSubflowId.equals(ex.getFlowId()));
 
                     if (!alreadyExists) {
                         throw new RuntimeException("Failed to add forms subflow execution to flow: " + errorDetails, e);
