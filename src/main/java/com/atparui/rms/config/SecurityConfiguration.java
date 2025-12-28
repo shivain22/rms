@@ -67,6 +67,7 @@ public class SecurityConfiguration {
 
     private final ReactiveClientRegistrationRepository clientRegistrationRepository;
     private final TenantFilter tenantFilter;
+    private final DynamicOAuth2ConfigService dynamicOAuth2ConfigService;
 
     // See https://github.com/jhipster/generator-jhipster/issues/18868
     // We don't use a distributed cache or the user selected cache implementation here on purpose
@@ -79,11 +80,13 @@ public class SecurityConfiguration {
     public SecurityConfiguration(
         ReactiveClientRegistrationRepository clientRegistrationRepository,
         JHipsterProperties jHipsterProperties,
-        TenantFilter tenantFilter
+        TenantFilter tenantFilter,
+        DynamicOAuth2ConfigService dynamicOAuth2ConfigService
     ) {
         this.clientRegistrationRepository = clientRegistrationRepository;
         this.jHipsterProperties = jHipsterProperties;
         this.tenantFilter = tenantFilter;
+        this.dynamicOAuth2ConfigService = dynamicOAuth2ConfigService;
     }
 
     @Bean
@@ -151,13 +154,21 @@ public class SecurityConfiguration {
     private ServerOAuth2AuthorizationRequestResolver authorizationRequestResolver(
         ReactiveClientRegistrationRepository clientRegistrationRepository
     ) {
-        DefaultServerOAuth2AuthorizationRequestResolver authorizationRequestResolver = new DefaultServerOAuth2AuthorizationRequestResolver(
+        // Use dynamic resolver that resolves client registration based on tenant
+        DynamicServerOAuth2AuthorizationRequestResolver dynamicResolver = new DynamicServerOAuth2AuthorizationRequestResolver(
+            dynamicOAuth2ConfigService
+        );
+
+        // Fallback to default resolver if dynamic resolution fails
+        DefaultServerOAuth2AuthorizationRequestResolver defaultResolver = new DefaultServerOAuth2AuthorizationRequestResolver(
             clientRegistrationRepository
         );
         if (this.issuerUri.contains("auth0.com")) {
-            authorizationRequestResolver.setAuthorizationRequestCustomizer(authorizationRequestCustomizer());
+            defaultResolver.setAuthorizationRequestCustomizer(authorizationRequestCustomizer());
         }
-        return authorizationRequestResolver;
+
+        // Return dynamic resolver as primary
+        return dynamicResolver;
     }
 
     private Consumer<OAuth2AuthorizationRequest.Builder> authorizationRequestCustomizer() {
