@@ -3,6 +3,9 @@ spring:
     name: rms
   profiles:
     active: '@spring.profiles.active@'
+  docker:
+    compose:
+      enabled: false
   cloud:
     consul:
       host: localhost
