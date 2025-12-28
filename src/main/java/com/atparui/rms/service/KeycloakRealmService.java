@@ -2,9 +2,6 @@ package com.atparui.rms.service;
 
 import com.atparui.rms.config.RestaurantKeycloakProperties;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -62,19 +59,6 @@ public class KeycloakRealmService {
             log.error("Failed to create tenant realm for tenant: {}", tenantId, e);
             throw new RuntimeException("Failed to create Keycloak realm for tenant: " + tenantId, e);
         }
-    }
-
-    private void createCustomFlows(RealmResource realmResource, String realmName) {
-        KeycloakFlowService flowService = new KeycloakFlowService(keycloakAdmin);
-        flowService.createRestaurantBrowserFlow(realmName);
-        flowService.createRestaurantRegistrationFlow(realmName);
-    }
-
-    private void setDefaultFlows(RealmResource realmResource) {
-        RealmRepresentation realm = realmResource.toRepresentation();
-        realm.setBrowserFlow(restaurantProperties.getAuthentication().getBrowserFlow());
-        realm.setRegistrationFlow(restaurantProperties.getAuthentication().getRegistrationFlow());
-        realmResource.update(realm);
     }
 
     /**

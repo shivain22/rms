@@ -148,7 +148,6 @@ public class RestaurantUserService {
     public List<UserRepresentation> getUsersByRole(String realmName, String role) {
         try {
             RealmResource realmResource = keycloakAdmin.realm(realmName);
-            RoleRepresentation roleRep = realmResource.roles().get(role).toRepresentation();
             return realmResource.roles().get(role).getUserMembers();
         } catch (Exception e) {
             log.error("Failed to get users by role: {} in realm: {}", role, realmName, e);

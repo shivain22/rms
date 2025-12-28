@@ -1,11 +1,5 @@
 package com.atparui.rms.config;
 
-import javax.sql.DataSource;
-import liquibase.integration.spring.SpringLiquibase;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.jdbc.DataSourceBuilder;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration

@@ -23,8 +23,6 @@ public class TenantAwareConnectionFactory implements ConnectionFactory {
     @Override
     public Publisher<? extends Connection> create() {
         return Mono.deferContextual(contextView -> {
-            String tenantKey = contextView.getOrDefault("tenantKey", "default");
-
             // Always use default connection factory for now
             // Tenant-specific connections will be handled by TenantService when needed
             ConnectionFactory connectionFactory = tenantConnectionFactories.getOrDefault("default", defaultConnectionFactory);

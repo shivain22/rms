@@ -150,10 +150,10 @@ public class TenantResource {
         log.debug("REST request to apply Liquibase changes for tenant: {}", tenantId);
         return tenantService
             .applyLiquibaseChanges(tenantId)
-            .then(Mono.just(ResponseEntity.ok().build()))
+            .then(Mono.just(ResponseEntity.ok().<Void>build()))
             .onErrorResume(throwable -> {
                 log.error("Failed to apply Liquibase changes for tenant: {}", tenantId, throwable);
-                return Mono.just(ResponseEntity.badRequest().build());
+                return Mono.just(ResponseEntity.badRequest().<Void>build());
             });
     }
 }

@@ -419,11 +419,13 @@ public class KeycloakFlowService {
 
     /**
      * Check if a flow contains username-password form.
+     * This method is kept for potential future use.
      *
      * @param realmResource the realm resource
      * @param flowAlias the flow alias
      * @return true if the flow contains username-password form
      */
+    @SuppressWarnings("unused")
     private boolean containsUsernamePasswordForm(RealmResource realmResource, String flowAlias) {
         try {
             List<AuthenticationExecutionInfoRepresentation> executions = realmResource.flows().getExecutions(flowAlias);

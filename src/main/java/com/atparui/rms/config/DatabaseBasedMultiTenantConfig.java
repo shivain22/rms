@@ -2,7 +2,6 @@ package com.atparui.rms.config;
 
 import com.atparui.rms.service.TenantService;
 import io.r2dbc.spi.ConnectionFactory;
-import org.springframework.boot.autoconfigure.r2dbc.R2dbcProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -20,11 +19,9 @@ import reactor.core.publisher.Mono;
 )
 public class DatabaseBasedMultiTenantConfig extends AbstractR2dbcConfiguration {
 
-    private final R2dbcProperties r2dbcProperties;
     private final TenantService tenantService;
 
-    public DatabaseBasedMultiTenantConfig(R2dbcProperties r2dbcProperties, TenantService tenantService) {
-        this.r2dbcProperties = r2dbcProperties;
+    public DatabaseBasedMultiTenantConfig(TenantService tenantService) {
         this.tenantService = tenantService;
     }
 
