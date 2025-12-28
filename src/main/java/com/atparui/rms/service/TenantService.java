@@ -2,6 +2,7 @@ package com.atparui.rms.service;
 
 import com.atparui.rms.domain.Tenant;
 import com.atparui.rms.repository.TenantRepository;
+import com.atparui.rms.service.dto.TenantCreationContext;
 import com.atparui.rms.service.dto.TenantDatabaseConfigDTO;
 import io.r2dbc.postgresql.PostgresqlConnectionConfiguration;
 import io.r2dbc.postgresql.PostgresqlConnectionFactory;
@@ -100,32 +101,149 @@ public class TenantService {
             );
         }
 
+        // Create context to track resources for rollback
+        TenantCreationContext context = new TenantCreationContext(
+            tenant.getTenantId() != null ? tenant.getTenantId() : tenant.getTenantKey(),
+            tenant.getTenantKey()
+        );
+
+        // Step 1: Save tenant entity
         return tenantRepository
             .save(tenant)
             .doOnSuccess(savedTenant -> {
-                try {
-                    // Create tenant database first and get connection details
-                    databaseProvisioningService.createTenantDatabase(savedTenant.getTenantKey(), applyLiquibaseImmediately);
-
-                    // Update tenant with database connection info
-                    savedTenant.setDatabaseUrl(databaseProvisioningService.getTenantDatabaseUrl(savedTenant.getTenantKey()));
-                    savedTenant.setDatabaseUsername(databaseProvisioningService.getTenantDatabaseUsername(savedTenant.getTenantKey()));
-                    savedTenant.setDatabasePassword(databaseProvisioningService.getTenantDatabasePassword(savedTenant.getTenantKey()));
-
-                    // Save updated tenant with database details
-                    tenantRepository.save(savedTenant).subscribe();
-
-                    // Create Keycloak realm, clients, and roles
-                    keycloakRealmService.createTenantRealm(savedTenant.getTenantKey(), savedTenant.getName());
-
-                    log.info("Successfully created tenant with database and Keycloak realm: {}", savedTenant.getTenantKey());
-                } catch (Exception e) {
-                    log.error("Failed to create tenant infrastructure for: {}", savedTenant.getTenantKey(), e);
-                }
+                context.setTenantSaved(true);
+                context.setTenantEntityId(savedTenant.getId());
+                log.debug("Step 1: Saved tenant entity: {}", savedTenant.getTenantKey());
             })
+            // Step 2: Create database
+            .flatMap(savedTenant ->
+                Mono.fromRunnable(() -> {
+                    try {
+                        databaseProvisioningService.createTenantDatabase(savedTenant.getTenantKey(), applyLiquibaseImmediately);
+                        context.setDatabaseCreated(true);
+                        log.debug("Step 2: Created database for tenant: {}", savedTenant.getTenantKey());
+                    } catch (Exception e) {
+                        log.error("Failed to create database for tenant: {}", savedTenant.getTenantKey(), e);
+                        // Database creation has its own rollback logic, but we still need to mark context
+                        // The exception will trigger the doOnError handler which will attempt rollback
+                        throw new RuntimeException("Failed to create database", e);
+                    }
+                }).thenReturn(savedTenant)
+            )
+            // Step 3: Update tenant with database info
+            .flatMap(savedTenant -> {
+                savedTenant.setDatabaseUrl(databaseProvisioningService.getTenantDatabaseUrl(savedTenant.getTenantKey()));
+                savedTenant.setDatabaseUsername(databaseProvisioningService.getTenantDatabaseUsername(savedTenant.getTenantKey()));
+                savedTenant.setDatabasePassword(databaseProvisioningService.getTenantDatabasePassword(savedTenant.getTenantKey()));
+                return tenantRepository.save(savedTenant);
+            })
+            // Step 4: Create Keycloak realm
+            .flatMap(savedTenant ->
+                Mono.fromRunnable(() -> {
+                    try {
+                        keycloakRealmService.createTenantRealm(savedTenant.getTenantKey(), savedTenant.getName());
+                        context.setRealmCreated(true);
+                        context.setClientsCreated(true);
+                        context.setRolesCreated(true);
+                        context.setFlowsCreated(true);
+                        log.debug("Step 4: Created Keycloak realm for tenant: {}", savedTenant.getTenantKey());
+                    } catch (Exception e) {
+                        log.error("Failed to create Keycloak realm for tenant: {}", savedTenant.getTenantKey(), e);
+                        // Keycloak realm creation has its own rollback logic, but we need to ensure database is also rolled back
+                        // The exception will trigger the doOnError handler which will rollback database
+                        throw new RuntimeException("Failed to create Keycloak realm", e);
+                    }
+                }).thenReturn(savedTenant)
+            )
+            .doOnSuccess(savedTenant -> {
+                log.info("Successfully created tenant with database and Keycloak realm: {}", savedTenant.getTenantKey());
+            })
+            // Rollback on error
             .doOnError(error -> {
-                log.error("Failed to create tenant: {}", tenant.getTenantKey(), error);
+                log.error("Error during tenant creation, initiating rollback for tenant: {}", context.getTenantKey(), error);
+                rollbackTenantCreation(context).subscribe(null, rollbackError ->
+                    log.error("Error during rollback for tenant: {}", context.getTenantKey(), rollbackError)
+                );
+            })
+            .onErrorMap(error -> {
+                // Wrap error to include context
+                return new RuntimeException("Failed to create tenant: " + context.getTenantKey() + ". Rollback initiated.", error);
             });
+    }
+
+    /**
+     * Rollback tenant creation by removing all created resources in reverse order.
+     * This ensures that if any step fails, all previously created resources are cleaned up.
+     *
+     * @param context the tenant creation context
+     * @return Mono that completes when rollback is finished
+     */
+    private Mono<Void> rollbackTenantCreation(TenantCreationContext context) {
+        log.info(
+            "Starting rollback for tenant: {} (database: {}, realm: {})",
+            context.getTenantKey(),
+            context.isDatabaseCreated(),
+            context.isRealmCreated()
+        );
+
+        return Mono.fromRunnable(() -> {
+            try {
+                // Rollback in reverse order of creation
+
+                // 1. Delete Keycloak realm (this will also delete clients, roles, flows)
+                // Note: If realm creation failed partway through, it may have already rolled back itself
+                // But we still attempt deletion here to be safe
+                if (context.isRealmCreated() || context.isClientsCreated() || context.isRolesCreated() || context.isFlowsCreated()) {
+                    try {
+                        // Use tenantKey for realm deletion since realm is created with tenantKey
+                        keycloakRealmService.deleteTenantRealm(context.getTenantKey());
+                        log.info("Rollback: Deleted Keycloak realm: {}", context.getRealmName());
+                    } catch (Exception e) {
+                        // Realm may have already been deleted during its own rollback, or may not exist
+                        log.warn(
+                            "Rollback: Failed to delete Keycloak realm: {} (may already be deleted), continuing rollback",
+                            context.getRealmName(),
+                            e
+                        );
+                    }
+                }
+
+                // 2. Delete database and user (this is critical - must be done if database was created)
+                // Note: If database creation failed partway through, it may have already rolled back itself
+                // But we still attempt deletion here to be safe
+                if (context.isDatabaseCreated()) {
+                    try {
+                        databaseProvisioningService.deleteTenantDatabase(context.getTenantKey());
+                        log.info("Rollback: Deleted database: {} and user: {}", context.getDatabaseName(), context.getDatabaseUser());
+                    } catch (Exception e) {
+                        // Database may have already been deleted during its own rollback, or may not exist
+                        log.warn(
+                            "Rollback: Failed to delete database: {} (may already be deleted), continuing rollback",
+                            context.getDatabaseName(),
+                            e
+                        );
+                    }
+                }
+
+                // 3. Delete tenant entity
+                if (context.isTenantSaved() && context.getTenantEntityId() != null) {
+                    try {
+                        tenantRepository.deleteById(context.getTenantEntityId()).block();
+                        log.info("Rollback: Deleted tenant entity with ID: {}", context.getTenantEntityId());
+                    } catch (Exception e) {
+                        log.warn(
+                            "Rollback: Failed to delete tenant entity with ID: {}, continuing rollback",
+                            context.getTenantEntityId(),
+                            e
+                        );
+                    }
+                }
+
+                log.info("Rollback completed for tenant: {}", context.getTenantKey());
+            } catch (Exception e) {
+                log.error("Error during rollback for tenant: {}", context.getTenantKey(), e);
+            }
+        }).then();
     }
 
     private String generateClientSecret() {
@@ -135,21 +253,46 @@ public class TenantService {
     public Mono<Void> delete(Long id) {
         return tenantRepository
             .findById(id)
-            .doOnNext(tenant -> {
-                try {
-                    // Delete Keycloak realm when tenant is deleted
-                    keycloakRealmService.deleteTenantRealm(tenant.getTenantId());
-                    log.info("Successfully deleted Keycloak realm for tenant: {}", tenant.getTenantId());
+            .switchIfEmpty(Mono.error(new RuntimeException("Tenant not found with ID: " + id)))
+            .flatMap(tenant -> {
+                String tenantId = tenant.getTenantId();
+                String tenantKey = tenant.getTenantKey();
+                log.info("Starting deletion process for tenant: {} (ID: {})", tenantKey, id);
 
-                    // Delete tenant database
-                    databaseProvisioningService.deleteTenantDatabase(tenant.getTenantId());
-                    log.info("Successfully deleted database for tenant: {}", tenant.getTenantId());
-                } catch (Exception e) {
-                    log.error("Failed to delete tenant infrastructure for: {}", tenant.getTenantId(), e);
-                }
-                clearCache(tenant.getTenantId());
+                // Delete in order: Keycloak realm -> Database -> Tenant entity
+                return Mono.fromRunnable(() -> {
+                    try {
+                        // 1. Delete Keycloak realm (includes clients, roles, flows)
+                        log.debug("Deleting Keycloak realm for tenant: {}", tenantId);
+                        keycloakRealmService.deleteTenantRealm(tenantId);
+                        log.info("Successfully deleted Keycloak realm for tenant: {}", tenantId);
+                    } catch (Exception e) {
+                        log.warn("Failed to delete Keycloak realm for tenant: {}, continuing with deletion", tenantId, e);
+                    }
+                })
+                    .then(
+                        Mono.fromRunnable(() -> {
+                            try {
+                                // 2. Delete tenant database
+                                log.debug("Deleting database for tenant: {}", tenantKey);
+                                databaseProvisioningService.deleteTenantDatabase(tenantKey);
+                                log.info("Successfully deleted database for tenant: {}", tenantKey);
+                            } catch (Exception e) {
+                                log.warn("Failed to delete database for tenant: {}, continuing with deletion", tenantKey, e);
+                            }
+                        })
+                    )
+                    .then(
+                        Mono.fromRunnable(() -> {
+                            // 3. Clear cache
+                            clearCache(tenantId);
+                        })
+                    )
+                    .then(tenantRepository.deleteById(id))
+                    .doOnSuccess(v -> log.info("Successfully deleted tenant entity with ID: {}", id))
+                    .doOnError(error -> log.error("Failed to delete tenant with ID: {}", id, error));
             })
-            .then(tenantRepository.deleteById(id));
+            .then();
     }
 
     public Mono<ConnectionFactory> getConnectionFactory(String tenantId) {

@@ -39,42 +39,150 @@ public class DatabaseProvisioningService {
         String dbUser = "rms_" + tenantId;
         this.tenantPassword = generatePassword();
 
+        boolean databaseCreated = false;
+        boolean userCreated = false;
+
         try {
             // Convert R2DBC URL to JDBC URL for admin operations
             String jdbcUrl = convertR2dbcToJdbc(masterDbUrl);
 
             try (Connection connection = DriverManager.getConnection(jdbcUrl, masterDbUsername, masterDbPassword)) {
-                // Create database
-                createDatabase(connection, dbName);
+                // Step 1: Create database
+                try {
+                    createDatabase(connection, dbName);
+                    databaseCreated = true;
+                    log.info("Step 1: Created database: {}", dbName);
+                } catch (SQLException e) {
+                    log.error("Failed to create database: {}", dbName, e);
+                    throw new RuntimeException("Failed to create database: " + dbName, e);
+                }
 
-                // Create user
-                createUser(connection, dbUser, tenantPassword);
+                // Step 2: Create user
+                try {
+                    createUser(connection, dbUser, tenantPassword);
+                    userCreated = true;
+                    log.info("Step 2: Created user: {}", dbUser);
+                } catch (SQLException e) {
+                    log.error("Failed to create user: {}", dbUser, e);
+                    // Rollback: drop database if user creation fails
+                    rollbackDatabase(connection, dbName, dbUser, databaseCreated, userCreated);
+                    throw new RuntimeException("Failed to create user: " + dbUser, e);
+                }
 
-                // Grant privileges
-                grantPrivileges(connection, dbName, dbUser);
+                // Step 3: Grant privileges
+                try {
+                    grantPrivileges(connection, dbName, dbUser);
+                    log.info("Step 3: Granted privileges to user: {} on database: {}", dbUser, dbName);
+                } catch (SQLException e) {
+                    log.error("Failed to grant privileges to user: {} on database: {}", dbUser, dbName, e);
+                    // Rollback: drop database and user if privilege grant fails
+                    rollbackDatabase(connection, dbName, dbUser, databaseCreated, userCreated);
+                    throw new RuntimeException("Failed to grant privileges", e);
+                }
 
-                // Initialize schema
-                if (applyLiquibaseImmediately) {
-                    // Apply Liquibase changes from rms-service repository
-                    String tenantJdbcUrl = convertR2dbcToJdbc(masterDbUrl).replace("/rms", "/" + dbName);
-                    try {
-                        tenantLiquibaseService.applyLiquibaseChanges(tenantId, tenantJdbcUrl, dbUser, tenantPassword);
-                        log.info("Successfully applied Liquibase changes for tenant: {}", tenantId);
-                    } catch (Exception e) {
-                        log.error("Failed to apply Liquibase changes for tenant: {}, falling back to basic schema", tenantId, e);
-                        // Fallback to basic schema if Liquibase fails
+                // Step 4: Initialize schema
+                try {
+                    if (applyLiquibaseImmediately) {
+                        // Apply Liquibase changes from rms-service repository
+                        String tenantJdbcUrl = convertR2dbcToJdbc(masterDbUrl).replace("/rms", "/" + dbName);
+                        try {
+                            tenantLiquibaseService.applyLiquibaseChanges(tenantId, tenantJdbcUrl, dbUser, tenantPassword);
+                            log.info("Successfully applied Liquibase changes for tenant: {}", tenantId);
+                        } catch (Exception e) {
+                            log.error("Failed to apply Liquibase changes for tenant: {}, falling back to basic schema", tenantId, e);
+                            // Fallback to basic schema if Liquibase fails
+                            initializeTenantSchema(dbName, dbUser, tenantPassword);
+                        }
+                    } else {
+                        // Use basic schema initialization (Liquibase can be applied later)
                         initializeTenantSchema(dbName, dbUser, tenantPassword);
                     }
-                } else {
-                    // Use basic schema initialization (Liquibase can be applied later)
-                    initializeTenantSchema(dbName, dbUser, tenantPassword);
+                } catch (Exception e) {
+                    log.error("Failed to initialize schema for tenant: {}", tenantId, e);
+                    // Rollback: drop database and user if schema initialization fails
+                    rollbackDatabase(connection, dbName, dbUser, databaseCreated, userCreated);
+                    throw new RuntimeException("Failed to initialize schema", e);
                 }
 
                 log.info("Successfully created database and user for tenant: {}", tenantId);
             }
         } catch (SQLException e) {
             log.error("Failed to create database for tenant: {}", tenantId, e);
+            // Final rollback attempt if we still have a connection
+            try {
+                String jdbcUrl = convertR2dbcToJdbc(masterDbUrl);
+                try (Connection connection = DriverManager.getConnection(jdbcUrl, masterDbUsername, masterDbPassword)) {
+                    rollbackDatabase(connection, dbName, dbUser, databaseCreated, userCreated);
+                }
+            } catch (Exception rollbackException) {
+                log.error("Failed to rollback database during error handling for tenant: {}", tenantId, rollbackException);
+            }
             throw new RuntimeException("Failed to create tenant database", e);
+        } catch (RuntimeException e) {
+            // Re-throw runtime exceptions (they already have rollback logic)
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error creating database for tenant: {}", tenantId, e);
+            // Rollback on any other exception
+            try {
+                String jdbcUrl = convertR2dbcToJdbc(masterDbUrl);
+                try (Connection connection = DriverManager.getConnection(jdbcUrl, masterDbUsername, masterDbPassword)) {
+                    rollbackDatabase(connection, dbName, dbUser, databaseCreated, userCreated);
+                }
+            } catch (Exception rollbackException) {
+                log.error("Failed to rollback database during error handling for tenant: {}", tenantId, rollbackException);
+            }
+            throw new RuntimeException("Failed to create tenant database", e);
+        }
+    }
+
+    /**
+     * Rollback database creation by dropping database and user if they were created.
+     *
+     * @param connection the database connection
+     * @param dbName the database name
+     * @param dbUser the database user name
+     * @param databaseCreated whether the database was created
+     * @param userCreated whether the user was created
+     */
+    private void rollbackDatabase(Connection connection, String dbName, String dbUser, boolean databaseCreated, boolean userCreated) {
+        log.warn("Rolling back database creation for database: {} and user: {}", dbName, dbUser);
+
+        try {
+            // Terminate any active connections to the database before dropping
+            if (databaseCreated) {
+                try (Statement statement = connection.createStatement()) {
+                    // Terminate connections to the database
+                    statement.executeUpdate(
+                        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '" +
+                        dbName +
+                        "' AND pid <> pg_backend_pid()"
+                    );
+                    log.debug("Terminated active connections to database: {}", dbName);
+                } catch (SQLException e) {
+                    log.warn("Failed to terminate connections to database: {}, continuing with drop", dbName, e);
+                }
+
+                // Drop database
+                try (Statement statement = connection.createStatement()) {
+                    statement.executeUpdate("DROP DATABASE IF EXISTS " + dbName);
+                    log.info("Rollback: Dropped database: {}", dbName);
+                } catch (SQLException e) {
+                    log.error("Rollback: Failed to drop database: {}", dbName, e);
+                }
+            }
+
+            // Drop user
+            if (userCreated) {
+                try (Statement statement = connection.createStatement()) {
+                    statement.executeUpdate("DROP USER IF EXISTS " + dbUser);
+                    log.info("Rollback: Dropped user: {}", dbUser);
+                } catch (SQLException e) {
+                    log.error("Rollback: Failed to drop user: {}", dbUser, e);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error during database rollback for database: {} and user: {}", dbName, dbUser, e);
         }
     }
 

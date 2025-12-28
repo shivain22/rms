@@ -26,38 +26,217 @@ public class KeycloakRealmService {
     }
 
     public void createTenantRealm(String tenantId, String tenantName) {
-        try {
-            String realmName = tenantId + "_realm";
+        String realmName = tenantId + "_realm";
+        boolean realmCreated = false;
+        boolean clientScopesCreated = false;
+        boolean webClientCreated = false;
+        boolean mobileClientCreated = false;
+        boolean rolesCreated = false;
+        boolean themeUpdated = false;
+        boolean flowsCreated = false;
 
-            // Create realm
-            RealmRepresentation realm = createRealmRepresentation(realmName, tenantName);
-            keycloakAdmin.realms().create(realm);
-            log.info("Created realm: {}", realmName);
+        try {
+            // Step 1: Create realm
+            try {
+                RealmRepresentation realm = createRealmRepresentation(realmName, tenantName);
+                keycloakAdmin.realms().create(realm);
+                realmCreated = true;
+                log.info("Step 1: Created realm: {}", realmName);
+            } catch (Exception e) {
+                log.error("Failed to create realm: {}", realmName, e);
+                throw new RuntimeException("Failed to create realm: " + realmName, e);
+            }
 
             // Get realm resource for further configuration
             RealmResource realmResource = keycloakAdmin.realm(realmName);
 
-            // Create client scopes
-            createClientScopes(realmResource);
+            // Step 2: Create client scopes
+            try {
+                createClientScopes(realmResource);
+                clientScopesCreated = true;
+                log.info("Step 2: Created client scopes for realm: {}", realmName);
+            } catch (Exception e) {
+                log.error("Failed to create client scopes for realm: {}", realmName, e);
+                rollbackRealmCreation(
+                    tenantId,
+                    realmName,
+                    realmCreated,
+                    clientScopesCreated,
+                    webClientCreated,
+                    mobileClientCreated,
+                    rolesCreated,
+                    themeUpdated,
+                    flowsCreated
+                );
+                throw new RuntimeException("Failed to create client scopes", e);
+            }
 
-            // Create web and mobile clients
-            createTenantClient(realmResource, tenantId, "web");
-            createTenantClient(realmResource, tenantId, "mobile");
+            // Step 3: Create web client
+            try {
+                createTenantClient(realmResource, tenantId, "web");
+                webClientCreated = true;
+                log.info("Step 3: Created web client for realm: {}", realmName);
+            } catch (Exception e) {
+                log.error("Failed to create web client for realm: {}", realmName, e);
+                rollbackRealmCreation(
+                    tenantId,
+                    realmName,
+                    realmCreated,
+                    clientScopesCreated,
+                    webClientCreated,
+                    mobileClientCreated,
+                    rolesCreated,
+                    themeUpdated,
+                    flowsCreated
+                );
+                throw new RuntimeException("Failed to create web client", e);
+            }
 
-            // Create realm roles
-            createRealmRoles(realmResource);
+            // Step 4: Create mobile client
+            try {
+                createTenantClient(realmResource, tenantId, "mobile");
+                mobileClientCreated = true;
+                log.info("Step 4: Created mobile client for realm: {}", realmName);
+            } catch (Exception e) {
+                log.error("Failed to create mobile client for realm: {}", realmName, e);
+                rollbackRealmCreation(
+                    tenantId,
+                    realmName,
+                    realmCreated,
+                    clientScopesCreated,
+                    webClientCreated,
+                    mobileClientCreated,
+                    rolesCreated,
+                    themeUpdated,
+                    flowsCreated
+                );
+                throw new RuntimeException("Failed to create mobile client", e);
+            }
 
-            // Update realm theme to rms-auth-theme-plugin
-            updateRealmTheme(realmResource);
+            // Step 5: Create realm roles
+            try {
+                createRealmRoles(realmResource);
+                rolesCreated = true;
+                log.info("Step 5: Created realm roles for realm: {}", realmName);
+            } catch (Exception e) {
+                log.error("Failed to create realm roles for realm: {}", realmName, e);
+                rollbackRealmCreation(
+                    tenantId,
+                    realmName,
+                    realmCreated,
+                    clientScopesCreated,
+                    webClientCreated,
+                    mobileClientCreated,
+                    rolesCreated,
+                    themeUpdated,
+                    flowsCreated
+                );
+                throw new RuntimeException("Failed to create realm roles", e);
+            }
 
-            // Copy browser flow and modify it with phone auto-reg form
-            KeycloakFlowService flowService = new KeycloakFlowService(keycloakAdmin);
-            flowService.copyAndModifyBrowserFlow(realmName);
+            // Step 6: Update realm theme
+            try {
+                updateRealmTheme(realmResource);
+                themeUpdated = true;
+                log.info("Step 6: Updated realm theme for realm: {}", realmName);
+            } catch (Exception e) {
+                log.error("Failed to update realm theme for realm: {}", realmName, e);
+                rollbackRealmCreation(
+                    tenantId,
+                    realmName,
+                    realmCreated,
+                    clientScopesCreated,
+                    webClientCreated,
+                    mobileClientCreated,
+                    rolesCreated,
+                    themeUpdated,
+                    flowsCreated
+                );
+                throw new RuntimeException("Failed to update realm theme", e);
+            }
+
+            // Step 7: Copy browser flow and modify it with phone auto-reg form
+            try {
+                KeycloakFlowService flowService = new KeycloakFlowService(keycloakAdmin);
+                flowService.copyAndModifyBrowserFlow(realmName);
+                flowsCreated = true;
+                log.info("Step 7: Created browser flow for realm: {}", realmName);
+            } catch (Exception e) {
+                log.error("Failed to create browser flow for realm: {}", realmName, e);
+                rollbackRealmCreation(
+                    tenantId,
+                    realmName,
+                    realmCreated,
+                    clientScopesCreated,
+                    webClientCreated,
+                    mobileClientCreated,
+                    rolesCreated,
+                    themeUpdated,
+                    flowsCreated
+                );
+                throw new RuntimeException("Failed to create browser flow", e);
+            }
 
             log.info("Successfully configured tenant realm: {}", realmName);
+        } catch (RuntimeException e) {
+            // Re-throw runtime exceptions (they already have rollback logic)
+            throw e;
         } catch (Exception e) {
             log.error("Failed to create tenant realm for tenant: {}", tenantId, e);
+            // Final rollback attempt
+            rollbackRealmCreation(
+                tenantId,
+                realmName,
+                realmCreated,
+                clientScopesCreated,
+                webClientCreated,
+                mobileClientCreated,
+                rolesCreated,
+                themeUpdated,
+                flowsCreated
+            );
             throw new RuntimeException("Failed to create Keycloak realm for tenant: " + tenantId, e);
+        }
+    }
+
+    /**
+     * Rollback realm creation by deleting the realm if it was created.
+     * Deleting the realm will automatically delete all associated resources (clients, roles, flows, etc.).
+     *
+     * @param tenantId the tenant ID
+     * @param realmName the realm name
+     * @param realmCreated whether the realm was created
+     * @param clientScopesCreated whether client scopes were created
+     * @param webClientCreated whether web client was created
+     * @param mobileClientCreated whether mobile client was created
+     * @param rolesCreated whether roles were created
+     * @param themeUpdated whether theme was updated
+     * @param flowsCreated whether flows were created
+     */
+    private void rollbackRealmCreation(
+        String tenantId,
+        String realmName,
+        boolean realmCreated,
+        boolean clientScopesCreated,
+        boolean webClientCreated,
+        boolean mobileClientCreated,
+        boolean rolesCreated,
+        boolean themeUpdated,
+        boolean flowsCreated
+    ) {
+        log.warn("Rolling back realm creation for realm: {}", realmName);
+
+        // If realm was created, delete it (this will automatically delete all associated resources)
+        if (realmCreated) {
+            try {
+                keycloakAdmin.realm(realmName).remove();
+                log.info("Rollback: Deleted realm: {} (and all associated resources)", realmName);
+            } catch (Exception e) {
+                log.error("Rollback: Failed to delete realm: {}", realmName, e);
+                // Note: We log the error but don't throw, as this is cleanup during rollback
+            }
+        } else {
+            log.debug("Rollback: Realm {} was not created, nothing to rollback", realmName);
         }
     }
 

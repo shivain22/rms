@@ -242,15 +242,28 @@ public class KeycloakFlowService {
             // Find the forms subflow (if it exists)
             String formsSubflowId = null;
             String formsSubflowAlias = null;
+            String formsSubflowRequirement = "REQUIRED"; // Default requirement
             for (AuthenticationExecutionInfoRepresentation execution : originalExecutions) {
                 if (execution.getFlowId() != null && !execution.getFlowId().isEmpty()) {
                     String subflowAlias = getFlowAliasById(realmResource, execution.getFlowId());
                     if ("forms".equals(subflowAlias)) {
                         formsSubflowId = execution.getFlowId();
                         formsSubflowAlias = subflowAlias;
+                        formsSubflowRequirement = execution.getRequirement() != null ? execution.getRequirement() : "REQUIRED";
                         break;
                     }
                 }
+            }
+
+            // Always create the forms subflow with phone authenticator
+            String newFormsSubflowAlias = "forms-phone";
+            if (formsSubflowAlias != null) {
+                // Copy from existing forms subflow
+                copyFormsSubflowWithoutUsernamePassword(realmResource, formsSubflowAlias, newFormsSubflowAlias);
+            } else {
+                // Create new forms subflow if it doesn't exist in original flow
+                log.info("Forms subflow not found in original browser flow, creating new one");
+                createFormsSubflowWithPhoneAuthenticator(realmResource, newFormsSubflowAlias);
             }
 
             // Copy executions from the original browser flow
@@ -261,18 +274,14 @@ public class KeycloakFlowService {
                     continue;
                 }
 
-                // Handle forms subflow specially
+                // Handle forms subflow specially - replace with our new forms subflow
                 if (execution.getFlowId() != null && execution.getFlowId().equals(formsSubflowId)) {
-                    // Create a new forms subflow without username-password form
-                    String newFormsSubflowAlias = "forms-phone";
-                    copyFormsSubflowWithoutUsernamePassword(realmResource, formsSubflowAlias, newFormsSubflowAlias);
-
                     // Add the new forms subflow to the browser flow
                     Map<String, Object> executionData = new HashMap<>();
                     executionData.put("provider", newFormsSubflowAlias);
                     try {
                         realmResource.flows().addExecution(newFlowAlias, executionData);
-                        log.debug("Successfully added forms subflow execution to flow: {}", newFlowAlias);
+                        log.info("Successfully added forms subflow execution to flow: {}", newFlowAlias);
                     } catch (jakarta.ws.rs.BadRequestException e) {
                         log.error(
                             "Failed to add forms subflow execution '{}' to flow '{}': {}",
@@ -306,8 +315,9 @@ public class KeycloakFlowService {
                         .orElse(null);
 
                     if (newExecution != null) {
-                        newExecution.setRequirement(execution.getRequirement());
+                        newExecution.setRequirement(formsSubflowRequirement);
                         realmResource.flows().updateExecutions(newFlowAlias, newExecution);
+                        log.info("Set forms subflow requirement to: {}", formsSubflowRequirement);
                     }
                 } else {
                     // Copy other executions as-is
@@ -401,6 +411,39 @@ public class KeycloakFlowService {
                 }
             }
 
+            // If forms subflow wasn't in the original flow, add it now
+            if (formsSubflowAlias == null) {
+                log.info("Adding forms subflow to new browser flow since it wasn't in the original");
+                Map<String, Object> executionData = new HashMap<>();
+                executionData.put("provider", newFormsSubflowAlias);
+                try {
+                    realmResource.flows().addExecution(newFlowAlias, executionData);
+                    log.info("Successfully added forms subflow execution to flow: {}", newFlowAlias);
+
+                    // Set requirement
+                    List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFlowAlias);
+                    AuthenticationExecutionInfoRepresentation newExecution = newExecutions
+                        .stream()
+                        .filter(e -> e.getFlowId() != null && getFlowAliasById(realmResource, e.getFlowId()).equals(newFormsSubflowAlias))
+                        .findFirst()
+                        .orElse(null);
+
+                    if (newExecution != null) {
+                        newExecution.setRequirement("REQUIRED");
+                        realmResource.flows().updateExecutions(newFlowAlias, newExecution);
+                        log.info("Set forms subflow requirement to REQUIRED");
+                    }
+                } catch (jakarta.ws.rs.BadRequestException e) {
+                    log.error(
+                        "Failed to add forms subflow execution '{}' to flow '{}': {}",
+                        newFormsSubflowAlias,
+                        newFlowAlias,
+                        e.getMessage()
+                    );
+                    throw new RuntimeException("Failed to add forms subflow execution to flow: " + e.getMessage(), e);
+                }
+            }
+
             // Set the new flow as the browser flow
             RealmRepresentation realm = realmResource.toRepresentation();
             realm.setBrowserFlow(newFlowAlias);
@@ -410,6 +453,48 @@ public class KeycloakFlowService {
         } catch (Exception e) {
             log.error("Failed to copy and modify browser flow for realm: {}", realmName, e);
             throw new RuntimeException("Failed to copy and modify browser flow", e);
+        }
+    }
+
+    /**
+     * Create a new forms subflow with phone auto-registration form.
+     * This is used when the forms subflow doesn't exist in the original browser flow.
+     *
+     * @param realmResource the realm resource
+     * @param newFormsAlias the new forms subflow alias
+     */
+    private void createFormsSubflowWithPhoneAuthenticator(RealmResource realmResource, String newFormsAlias) {
+        // Create new forms subflow
+        AuthenticationFlowRepresentation newFormsFlow = new AuthenticationFlowRepresentation();
+        newFormsFlow.setAlias(newFormsAlias);
+        newFormsFlow.setDescription("Forms subflow with phone auto-registration");
+        newFormsFlow.setProviderId("basic-flow");
+        newFormsFlow.setTopLevel(false);
+        newFormsFlow.setBuiltIn(false);
+
+        realmResource.flows().createFlow(newFormsFlow);
+        log.info("Created new forms subflow: {}", newFormsAlias);
+
+        // Add phone auto-registration form execution as REQUIRED
+        Map<String, Object> phoneExecutionData = new HashMap<>();
+        phoneExecutionData.put("provider", "auth-phone-auto-reg-form");
+        realmResource.flows().addExecution(newFormsAlias, phoneExecutionData);
+
+        // Set phone form as required
+        List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFormsAlias);
+        AuthenticationExecutionInfoRepresentation phoneExecution = newExecutions
+            .stream()
+            .filter(e -> "auth-phone-auto-reg-form".equals(e.getProviderId()))
+            .findFirst()
+            .orElse(null);
+
+        if (phoneExecution != null) {
+            phoneExecution.setRequirement("REQUIRED");
+            realmResource.flows().updateExecutions(newFormsAlias, phoneExecution);
+            log.info("Added phone auto-registration form to forms subflow: {} as REQUIRED", newFormsAlias);
+        } else {
+            log.error("Failed to add phone auto-registration form to forms subflow: {}", newFormsAlias);
+            throw new RuntimeException("Failed to add phone auto-registration form to forms subflow");
         }
     }
 
@@ -432,14 +517,42 @@ public class KeycloakFlowService {
         realmResource.flows().createFlow(newFormsFlow);
         log.info("Created new forms subflow: {}", newFormsAlias);
 
+        // Add phone auto-registration form execution FIRST as REQUIRED
+        Map<String, Object> phoneExecutionData = new HashMap<>();
+        phoneExecutionData.put("provider", "auth-phone-auto-reg-form");
+        realmResource.flows().addExecution(newFormsAlias, phoneExecutionData);
+
+        // Set phone form as required
+        List<AuthenticationExecutionInfoRepresentation> phoneExecutions = realmResource.flows().getExecutions(newFormsAlias);
+        AuthenticationExecutionInfoRepresentation phoneExecution = phoneExecutions
+            .stream()
+            .filter(e -> "auth-phone-auto-reg-form".equals(e.getProviderId()))
+            .findFirst()
+            .orElse(null);
+
+        if (phoneExecution != null) {
+            phoneExecution.setRequirement("REQUIRED");
+            realmResource.flows().updateExecutions(newFormsAlias, phoneExecution);
+            log.info("Added phone auto-registration form to forms subflow: {} as REQUIRED", newFormsAlias);
+        } else {
+            log.error("Failed to add phone auto-registration form to forms subflow: {}", newFormsAlias);
+            throw new RuntimeException("Failed to add phone auto-registration form to forms subflow");
+        }
+
         // Get executions from original forms subflow
         List<AuthenticationExecutionInfoRepresentation> originalFormsExecutions = realmResource.flows().getExecutions(originalFormsAlias);
 
-        // Copy executions, skipping username-password form
+        // Copy other executions, skipping username-password form
         for (AuthenticationExecutionInfoRepresentation execution : originalFormsExecutions) {
             // Skip username-password form
             if ("auth-username-password-form".equals(execution.getProviderId())) {
                 log.info("Skipping username-password form in forms subflow");
+                continue;
+            }
+
+            // Skip if it's the phone authenticator (already added)
+            if ("auth-phone-auto-reg-form".equals(execution.getProviderId())) {
+                log.info("Skipping phone auto-reg form (already added as first)");
                 continue;
             }
 
@@ -460,25 +573,6 @@ public class KeycloakFlowService {
                 newExecution.setRequirement(execution.getRequirement());
                 realmResource.flows().updateExecutions(newFormsAlias, newExecution);
             }
-        }
-
-        // Add phone auto-registration form execution
-        Map<String, Object> phoneExecutionData = new HashMap<>();
-        phoneExecutionData.put("provider", "auth-phone-auto-reg-form");
-        realmResource.flows().addExecution(newFormsAlias, phoneExecutionData);
-
-        // Set phone form as required
-        List<AuthenticationExecutionInfoRepresentation> newExecutions = realmResource.flows().getExecutions(newFormsAlias);
-        AuthenticationExecutionInfoRepresentation phoneExecution = newExecutions
-            .stream()
-            .filter(e -> "auth-phone-auto-reg-form".equals(e.getProviderId()))
-            .findFirst()
-            .orElse(null);
-
-        if (phoneExecution != null) {
-            phoneExecution.setRequirement("REQUIRED");
-            realmResource.flows().updateExecutions(newFormsAlias, phoneExecution);
-            log.info("Added phone auto-registration form to forms subflow: {}", newFormsAlias);
         }
     }
 
