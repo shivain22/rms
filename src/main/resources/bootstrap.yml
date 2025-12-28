@@ -8,7 +8,7 @@ spring:
       host: localhost
       port: 8500
       config:
-        enabled: true
+        enabled: false
         format: YAML
         data-key: data
         prefix: config
@@ -18,5 +18,5 @@ spring:
           enabled: true
           delay: 1000
       discovery:
-        enabled: true
+        enabled: false
         prefer-ip-address: true

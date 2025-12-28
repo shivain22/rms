@@ -72,27 +72,45 @@ public class TenantResolver {
         return null;
     }
 
-    public String getClientId(String tenantId, String clientType) {
+    public Mono<String> getClientId(String tenantId, String clientType) {
         // Handle gateway admin realm
         if ("gateway".equals(tenantId)) {
-            return gatewayAdminConfig.getClientId();
+            return Mono.just(gatewayAdminConfig.getClientId());
         }
 
         if ("mobile".equals(clientType)) {
-            return tenantId.replace("-realm", "-mobile-app");
+            return Mono.just(tenantId.replace("-realm", "-mobile-app"));
         }
 
+        // First check TenantConfigProperties (for default tenant from config)
         TenantConfigProperties.TenantConfig config = tenantConfigProperties.getTenantConfig(tenantId);
-        return config != null ? config.getClientId() : defaultClientId;
+        if (config != null && config.getClientId() != null) {
+            return Mono.just(config.getClientId());
+        }
+
+        // If not found in config, check database for dynamic tenant
+        return tenantService
+            .findTenant(tenantId)
+            .map(tenant -> tenant.getClientId() != null ? tenant.getClientId() : defaultClientId)
+            .switchIfEmpty(Mono.just(defaultClientId));
     }
 
-    public String getClientSecret(String tenantId) {
+    public Mono<String> getClientSecret(String tenantId) {
         // Handle gateway admin realm
         if ("gateway".equals(tenantId)) {
-            return gatewayAdminConfig.getClientSecret();
+            return Mono.just(gatewayAdminConfig.getClientSecret());
         }
 
+        // First check TenantConfigProperties (for default tenant from config)
         TenantConfigProperties.TenantConfig config = tenantConfigProperties.getTenantConfig(tenantId);
-        return config != null ? config.getClientSecret() : defaultClientSecret;
+        if (config != null && config.getClientSecret() != null) {
+            return Mono.just(config.getClientSecret());
+        }
+
+        // If not found in config, check database for dynamic tenant
+        return tenantService
+            .findTenant(tenantId)
+            .map(tenant -> tenant.getClientSecret() != null ? tenant.getClientSecret() : defaultClientSecret)
+            .switchIfEmpty(Mono.just(defaultClientSecret));
     }
 }

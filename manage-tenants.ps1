@@ -17,13 +17,20 @@ $PostgresPassword = ""
 function Setup-InitialDatabases {
     Write-Host "Setting up initial databases..." -ForegroundColor Green
     
-    # Execute the SQL setup script
-    if (Test-Path "setup-tenant-databases.sql") {
-        psql -h $PostgresHost -p $PostgresPort -U $PostgresUser -f setup-tenant-databases.sql
-        Write-Host "Initial databases created successfully!" -ForegroundColor Green
-    } else {
-        Write-Host "setup-tenant-databases.sql not found!" -ForegroundColor Red
-    }
+    # Create main database if it doesn't exist
+    Write-Host "Creating main database: rms" -ForegroundColor Yellow
+    psql -h $PostgresHost -p $PostgresPort -U $PostgresUser -c "CREATE DATABASE rms;" 2>$null
+    psql -h $PostgresHost -p $PostgresPort -U $PostgresUser -c "GRANT ALL PRIVILEGES ON DATABASE rms TO $PostgresUser;" 2>$null
+    
+    # Create tenant databases
+    Write-Host "Creating tenant databases..." -ForegroundColor Yellow
+    psql -h $PostgresHost -p $PostgresPort -U $PostgresUser -c "CREATE DATABASE rms_tenant1;" 2>$null
+    psql -h $PostgresHost -p $PostgresPort -U $PostgresUser -c "GRANT ALL PRIVILEGES ON DATABASE rms_tenant1 TO $PostgresUser;" 2>$null
+    
+    psql -h $PostgresHost -p $PostgresPort -U $PostgresUser -c "CREATE DATABASE rms_tenant2;" 2>$null
+    psql -h $PostgresHost -p $PostgresPort -U $PostgresUser -c "GRANT ALL PRIVILEGES ON DATABASE rms_tenant2 TO $PostgresUser;" 2>$null
+    
+    Write-Host "Initial databases created successfully!" -ForegroundColor Green
 }
 
 function Create-TenantDatabase {

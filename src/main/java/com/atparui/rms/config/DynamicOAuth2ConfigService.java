@@ -22,15 +22,24 @@ public class DynamicOAuth2ConfigService {
 
         return tenantResolver
             .resolveTenant(exchange)
-            .map(tenantId ->
-                ClientRegistration.withRegistrationId("oidc")
-                    .clientId(tenantResolver.getClientId(tenantId, clientType))
-                    .clientSecret(getClientSecret(tenantId, clientType))
-                    .scope("openid", "profile", "email", "offline_access")
-                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                    .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
-                    .issuerUri(baseKeycloakUrl + "/realms/" + tenantId)
-                    .build()
+            .flatMap(tenantId ->
+                Mono.zip(tenantResolver.getClientId(tenantId, clientType), getClientSecret(tenantId, clientType)).map(tuple -> {
+                    String clientId = tuple.getT1();
+                    String clientSecret = tuple.getT2();
+                    String realmUrl = baseKeycloakUrl + "/realms/" + tenantId;
+                    return ClientRegistration.withRegistrationId("oidc")
+                        .clientId(clientId)
+                        .clientSecret(clientSecret)
+                        .scope("openid", "profile", "email", "offline_access")
+                        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                        .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+                        .authorizationUri(realmUrl + "/protocol/openid-connect/auth")
+                        .tokenUri(realmUrl + "/protocol/openid-connect/token")
+                        .userInfoUri(realmUrl + "/protocol/openid-connect/userinfo")
+                        .jwkSetUri(realmUrl + "/protocol/openid-connect/certs")
+                        .issuerUri(realmUrl)
+                        .build();
+                })
             );
     }
 
@@ -42,9 +51,9 @@ public class DynamicOAuth2ConfigService {
         return "web";
     }
 
-    private String getClientSecret(String tenantId, String clientType) {
+    private Mono<String> getClientSecret(String tenantId, String clientType) {
         if ("mobile".equals(clientType)) {
-            return ""; // Public client - empty string instead of null
+            return Mono.just(""); // Public client - empty string instead of null
         }
         return tenantResolver.getClientSecret(tenantId);
     }

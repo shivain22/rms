@@ -21,6 +21,9 @@ public class TenantConfigProperties {
     }
 
     public TenantConfig getTenantConfig(String tenantId) {
+        if (tenants == null) {
+            return null;
+        }
         return tenants.get(tenantId);
     }
 

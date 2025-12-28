@@ -4,7 +4,37 @@ This application was generated using JHipster 8.11.0, you can find documentation
 
 This is a "gateway" application intended to be part of a microservice architecture, please refer to the [Doing microservices with JHipster][] page of the documentation for more information.
 
-This application is configured for Service Discovery and Configuration with Consul. On launch, it will refuse to start if it is not able to connect to Consul at [http://localhost:8500](http://localhost:8500). For more information, read our documentation on [Service Discovery and Configuration with Consul][].
+## Running in IntelliJ IDEA
+
+The application is configured to use profile-based configuration files. **No environment variables need to be set in IntelliJ run/debug configurations.**
+
+### Steps to Run:
+
+1. **Open the project** in IntelliJ IDEA
+2. **Create a Run Configuration** (if not already present):
+   - Go to **Run** → **Edit Configurations...**
+   - Click **+** → **Spring Boot**
+   - Set **Main class**: `com.atparui.rms.RmsApp`
+   - Set **Active profiles**: `dev`
+   - **Do NOT add any environment variables** - all configuration is in `application-dev.yml`
+3. **Run the application** - Click the Run button or press Shift+F10
+
+### Configuration Files:
+
+- **Development**: `src/main/resources/config/application-dev.yml`
+- **Production**: `src/main/resources/config/application-prod.yml`
+
+All configuration values are stored in these profile-specific YAML files. To change settings, edit the appropriate profile file.
+
+### Default Configuration (Dev Profile):
+
+- **Server Port**: 8082
+- **Database**: PostgreSQL at `localhost:5432/rms` (username: `rms`, password: `rms`)
+- **Keycloak**: `https://rmsauth.atparui.com`
+- **Consul**: Disabled by default
+- **Elasticsearch**: Disabled by default
+
+Note: Consul service discovery is disabled by default in the dev profile. The application will start without requiring Consul to be running.
 
 ## Project Structure
 

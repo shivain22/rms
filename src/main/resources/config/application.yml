@@ -179,13 +179,13 @@ spring:
       client:
         provider:
           oidc:
-            issuer-uri: ${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}/realms/gateway
+            issuer-uri: https://rmsauth.atparui.com/realms/gateway
           gwadmin:
-            issuer-uri: ${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}/realms/gateway
+            issuer-uri: https://rmsauth.atparui.com/realms/gateway
         registration:
           oidc:
-            client-id: ${tenant.client-id:gateway-web}
-            client-secret: ${tenant.client-secret:M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h}
+            client-id: gateway-web
+            client-secret: M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h
             scope: openid, profile, email, offline_access
           gwadmin:
             client-id: gateway-web
@@ -263,11 +263,11 @@ jhipster:
 
 # Multi-tenancy Configuration
 multitenancy:
-  enabled: ${MULTITENANCY_ENABLED:true}
+  enabled: true
   strategy: REALM_PER_TENANT
   resolution: DOMAIN_BASED # SUBDOMAIN, DOMAIN, or HEADER
-  default-tenant: ${MULTITENANCY_DEFAULT_TENANT:gateway}
-  tenant-header: ${MULTITENANCY_TENANT_HEADER:X-Tenant-ID}
+  default-tenant: gateway
+  tenant-header: X-Tenant-ID
   keycloak:
     base-url: https://rmsauth.atparui.com
     admin-realm: master
@@ -277,17 +277,27 @@ multitenancy:
     mcdonalds.yourdomain.com: mcdonalds-realm
     subway.yourdomain.com: subway-realm
 
+# Tenant Configuration
+# Default tenant configuration (gateway). Dynamic tenants are stored in the database.
+tenants:
+  gateway:
+    client-id: gateway-web
+    client-secret: M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h
+    database:
+      name: rms
+      schema: public
+
 # Restaurant Keycloak Configuration
 restaurant:
   keycloak:
     theme:
-      login-theme: ${RESTAURANT_LOGIN_THEME:restaurant-theme}
-      account-theme: ${RESTAURANT_ACCOUNT_THEME:restaurant-theme}
-      admin-theme: ${RESTAURANT_ADMIN_THEME:keycloak}
-      email-theme: ${RESTAURANT_EMAIL_THEME:restaurant-theme}
+      login-theme: restaurant-theme
+      account-theme: restaurant-theme
+      admin-theme: keycloak
+      email-theme: restaurant-theme
     authentication:
-      browser-flow: ${RESTAURANT_BROWSER_FLOW:restaurant-browser-flow}
-      registration-flow: ${RESTAURANT_REGISTRATION_FLOW:restaurant-registration-flow}
+      browser-flow: restaurant-browser-flow
+      registration-flow: restaurant-registration-flow
       required-actions:
         - VERIFY_EMAIL
         - UPDATE_PASSWORD
