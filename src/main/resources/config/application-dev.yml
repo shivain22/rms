@@ -107,6 +107,7 @@ spring:
             scope: openid, profile, email, offline_access
             client-authentication-method: client_secret_basic
             authorization-grant-type: authorization_code
+            redirect-uri: '{baseUrl}/login/oauth2/code/{registrationId}'
           gwadmin:
             client-id: gateway-web
             client-secret: M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h

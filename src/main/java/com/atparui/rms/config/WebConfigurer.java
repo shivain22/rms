@@ -51,6 +51,9 @@ public class WebConfigurer implements WebFluxConfigurer {
             source.registerCorsConfiguration("/*/api/**", config);
             source.registerCorsConfiguration("/services/*/api/**", config);
             source.registerCorsConfiguration("/*/management/**", config);
+            // Add CORS for OAuth2 endpoints
+            source.registerCorsConfiguration("/oauth2/**", config);
+            source.registerCorsConfiguration("/login/**", config);
         }
         return source;
     }
