@@ -37,12 +37,49 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
     }
 
     private Mono<OAuth2AuthorizationRequest> buildAuthorizationRequest(ServerWebExchange exchange, ClientRegistration clientRegistration) {
-        // Get base URL from the request
-        String baseUrl =
-            exchange.getRequest().getURI().getScheme() +
-            "://" +
-            exchange.getRequest().getURI().getHost() +
-            (exchange.getRequest().getURI().getPort() != -1 ? ":" + exchange.getRequest().getURI().getPort() : "");
+        // Get base URL from the request, prefer X-Forwarded headers for proxy scenarios
+        String scheme = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
+        if (scheme == null) {
+            scheme = exchange.getRequest().getURI().getScheme();
+        }
+
+        String host = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
+        if (host == null) {
+            host = exchange.getRequest().getURI().getHost();
+        }
+
+        // For OAuth2 redirect, always use the backend port (8082) not the frontend port (9000)
+        // Check if this is coming from frontend proxy (port 9000 or 9060) and use backend port instead
+        int requestPort = exchange.getRequest().getURI().getPort();
+        int redirectPort = requestPort;
+
+        // If request is coming from webpack dev server (frontend), use backend port for redirect
+        if (requestPort == 9000 || requestPort == 9060) {
+            redirectPort = 8082;
+        } else if (requestPort == -1) {
+            // No port in request, check X-Forwarded-Port header
+            String forwardedPort = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Port");
+            if (forwardedPort != null) {
+                try {
+                    int port = Integer.parseInt(forwardedPort);
+                    if (port == 9000 || port == 9060) {
+                        redirectPort = 8082;
+                    } else {
+                        redirectPort = port;
+                    }
+                } catch (NumberFormatException e) {
+                    redirectPort = "https".equals(scheme) ? 443 : 80;
+                }
+            } else {
+                redirectPort = "https".equals(scheme) ? 443 : 80;
+            }
+        }
+
+        // Build base URL for redirect - always use backend port
+        String baseUrl = scheme + "://" + host;
+        if (redirectPort != 443 && redirectPort != 80) {
+            baseUrl += ":" + redirectPort;
+        }
 
         // Generate state parameter (CSRF token)
         String state = generateState();

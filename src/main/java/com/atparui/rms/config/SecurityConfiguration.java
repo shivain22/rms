@@ -130,6 +130,9 @@ public class SecurityConfiguration {
                     .pathMatchers("/api/auth-info").permitAll()
                     .pathMatchers("/api/admin/**").hasAuthority(AuthoritiesConstants.ADMIN)
                     .pathMatchers("/api/**").authenticated()
+                    // OAuth2 endpoints must be public for redirect flow
+                    .pathMatchers("/oauth2/**").permitAll()
+                    .pathMatchers("/login/**").permitAll()
                     // microfrontend resources are loaded by webpack without authentication, they need to be public
                     .pathMatchers("/services/*/*.js").permitAll()
                     .pathMatchers("/services/*/*.txt").permitAll()
