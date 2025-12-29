@@ -53,6 +53,10 @@
         <jib-maven-plugin.architecture>amd64</jib-maven-plugin.architecture>
         <jib-maven-plugin.image>eclipse-temurin:17-jre-focal</jib-maven-plugin.image>
         <jib-maven-plugin.version>3.4.5</jib-maven-plugin.version>
+        <docker.registry>docker.io</docker.registry>
+        <docker.username>shivain22</docker.username>
+        <docker.image.name>rms-gateway</docker.image.name>
+        <docker.image.tag>latest</docker.image.tag>
         <lifecycle-mapping.version>1.0.0</lifecycle-mapping.version>
         <liquibase-plugin.password/>
         <liquibase-plugin.url/>
@@ -809,7 +813,11 @@
                             </platforms>
                         </from>
                         <to>
-                            <image>rms:latest</image>
+                            <image>${docker.registry}/${docker.username}/${docker.image.name}:${docker.image.tag}</image>
+                            <auth>
+                                <username>${docker.username}</username>
+                                <password>${docker.password}</password>
+                            </auth>
                         </to>
                         <container>
                             <entrypoint>
