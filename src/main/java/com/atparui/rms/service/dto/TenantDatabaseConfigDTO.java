@@ -32,6 +32,12 @@ public class TenantDatabaseConfigDTO implements Serializable {
     @JsonProperty("validationQuery")
     private String validationQuery = "SELECT 1";
 
+    @JsonProperty("keycloakBaseUrl")
+    private String keycloakBaseUrl;
+
+    @JsonProperty("realmName")
+    private String realmName;
+
     @JsonProperty("clients")
     private java.util.List<TenantClientDTO> clients;
 
@@ -119,6 +125,22 @@ public class TenantDatabaseConfigDTO implements Serializable {
 
     public void setClients(java.util.List<TenantClientDTO> clients) {
         this.clients = clients;
+    }
+
+    public String getKeycloakBaseUrl() {
+        return keycloakBaseUrl;
+    }
+
+    public void setKeycloakBaseUrl(String keycloakBaseUrl) {
+        this.keycloakBaseUrl = keycloakBaseUrl;
+    }
+
+    public String getRealmName() {
+        return realmName;
+    }
+
+    public void setRealmName(String realmName) {
+        this.realmName = realmName;
     }
 
     @Override

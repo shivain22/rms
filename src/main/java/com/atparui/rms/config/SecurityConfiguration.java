@@ -11,6 +11,7 @@ import com.atparui.rms.web.filter.SpaWebFilter;
 import com.atparui.rms.web.filter.TenantFilter;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -23,6 +24,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
@@ -44,13 +49,18 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
+import org.springframework.security.web.server.WebFilterExchange;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
 import org.springframework.security.web.server.csrf.ServerCsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.server.header.ReferrerPolicyServerHttpHeadersWriter;
 import org.springframework.security.web.server.header.XFrameOptionsServerHttpHeadersWriter.Mode;
 import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher;
 import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import tech.jhipster.config.JHipsterProperties;
@@ -68,6 +78,7 @@ public class SecurityConfiguration {
     private final ReactiveClientRegistrationRepository clientRegistrationRepository;
     private final TenantFilter tenantFilter;
     private final DynamicOAuth2ConfigService dynamicOAuth2ConfigService;
+    private final CorsConfigurationSource corsConfigurationSource;
 
     // See https://github.com/jhipster/generator-jhipster/issues/18868
     // We don't use a distributed cache or the user selected cache implementation here on purpose
@@ -81,12 +92,14 @@ public class SecurityConfiguration {
         ReactiveClientRegistrationRepository clientRegistrationRepository,
         JHipsterProperties jHipsterProperties,
         TenantFilter tenantFilter,
-        DynamicOAuth2ConfigService dynamicOAuth2ConfigService
+        DynamicOAuth2ConfigService dynamicOAuth2ConfigService,
+        CorsConfigurationSource corsConfigurationSource
     ) {
         this.clientRegistrationRepository = clientRegistrationRepository;
         this.jHipsterProperties = jHipsterProperties;
         this.tenantFilter = tenantFilter;
         this.dynamicOAuth2ConfigService = dynamicOAuth2ConfigService;
+        this.corsConfigurationSource = corsConfigurationSource;
     }
 
     @Bean
@@ -148,9 +161,14 @@ public class SecurityConfiguration {
                     .pathMatchers("/management/prometheus").permitAll()
                     .pathMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
             )
-            .oauth2Login(oauth2 -> oauth2.authorizationRequestResolver(authorizationRequestResolver(this.clientRegistrationRepository)))
+            .oauth2Login(oauth2 ->
+                oauth2
+                    .authorizationRequestResolver(authorizationRequestResolver(this.clientRegistrationRepository))
+                    .authenticationSuccessHandler(oauth2AuthenticationSuccessHandler())
+            )
             .oauth2Client(withDefaults())
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
+            .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(apiAuthenticationEntryPoint()));
         return http.build();
     }
 
@@ -179,6 +197,184 @@ public class SecurityConfiguration {
             customizer.authorizationRequestUri(uriBuilder ->
                 uriBuilder.queryParam("audience", jHipsterProperties.getSecurity().getOauth2().getAudience()).build()
             );
+    }
+
+    /**
+     * Custom OAuth2 authentication success handler that redirects to the frontend (port 9000)
+     * instead of the backend (port 8082) after successful login.
+     */
+    private RedirectServerAuthenticationSuccessHandler oauth2AuthenticationSuccessHandler() {
+        return new RedirectServerAuthenticationSuccessHandler("/") {
+            @Override
+            public Mono<Void> onAuthenticationSuccess(
+                WebFilterExchange webFilterExchange,
+                org.springframework.security.core.Authentication authentication
+            ) {
+                ServerWebExchange exchange = webFilterExchange.getExchange();
+
+                // Get the original request to determine the frontend URL
+                String scheme = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
+                if (scheme == null) {
+                    scheme = exchange.getRequest().getURI().getScheme();
+                }
+
+                String host = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
+                if (host == null) {
+                    host = exchange.getRequest().getURI().getHost();
+                }
+
+                // Check if request came from frontend port (9000 or 9060)
+                int requestPort = exchange.getRequest().getURI().getPort();
+                String forwardedPort = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Port");
+
+                int frontendPort = 9000; // Default frontend port
+                if (requestPort == 9000 || requestPort == 9060) {
+                    frontendPort = requestPort;
+                } else if (forwardedPort != null) {
+                    try {
+                        int port = Integer.parseInt(forwardedPort);
+                        if (port == 9000 || port == 9060) {
+                            frontendPort = port;
+                        }
+                    } catch (NumberFormatException e) {
+                        // Use default
+                    }
+                }
+
+                // Build frontend URL
+                String frontendUrl = scheme + "://" + host;
+                if (frontendPort != 443 && frontendPort != 80) {
+                    frontendUrl += ":" + frontendPort;
+                }
+                frontendUrl += "/";
+
+                // Redirect to frontend
+                exchange.getResponse().setStatusCode(HttpStatus.FOUND);
+                exchange.getResponse().getHeaders().setLocation(URI.create(frontendUrl));
+                return exchange.getResponse().setComplete();
+            }
+        };
+    }
+
+    /**
+     * Custom authentication entry point that returns 401 for API requests
+     * instead of redirecting to OAuth2 login, which causes CORS issues.
+     * This also ensures CORS headers are properly added to the response.
+     */
+    private ServerAuthenticationEntryPoint apiAuthenticationEntryPoint() {
+        return (exchange, ex) -> {
+            String path = exchange.getRequest().getURI().getPath();
+
+            // OAuth2 callback endpoints should NEVER trigger the entry point since they're permitAll()
+            // But if they do, we must NOT redirect (that would cause a loop)
+            // The callback must be processed by Spring Security's OAuth2 callback handler
+            boolean isOAuth2Callback = path.startsWith("/login/oauth2/code/");
+
+            if (isOAuth2Callback) {
+                // Callback endpoint - must not redirect, let Spring Security handle it
+                // Complete the response normally to allow the filter chain to continue
+                exchange.getResponse().setStatusCode(HttpStatus.OK);
+                return exchange.getResponse().setComplete();
+            }
+
+            // For /oauth2/authorization/** endpoints, redirect to Keycloak is normal
+            // But these should also be permitAll() and not trigger entry point
+            // If they do, redirect normally
+            boolean isOAuth2Authorization = path.startsWith("/oauth2/authorization/");
+
+            if (isOAuth2Authorization) {
+                // This shouldn't happen, but if it does, let it proceed normally
+                // The resolver will handle building the authorization request
+                String redirectUrl = "/oauth2/authorization/oidc";
+                exchange.getResponse().setStatusCode(HttpStatus.FOUND);
+                exchange.getResponse().getHeaders().setLocation(URI.create(redirectUrl));
+                return exchange.getResponse().setComplete();
+            }
+
+            // Check if this is an API request
+            boolean isApiRequest =
+                path.startsWith("/api/") ||
+                path.startsWith("/management/") ||
+                path.startsWith("/services/") ||
+                path.startsWith("/v3/api-docs");
+
+            // Check if request accepts JSON (typical for API calls)
+            String acceptHeader = exchange.getRequest().getHeaders().getFirst("Accept");
+            boolean acceptsJson =
+                acceptHeader != null && (acceptHeader.contains(MediaType.APPLICATION_JSON_VALUE) || acceptHeader.contains("*/*"));
+
+            // Check if request is from XMLHttpRequest or fetch API
+            String xRequestedWith = exchange.getRequest().getHeaders().getFirst("X-Requested-With");
+            boolean isAjaxRequest = "XMLHttpRequest".equals(xRequestedWith);
+
+            // Return 401 for API requests to avoid CORS issues with Keycloak redirects
+            if (isApiRequest || (acceptsJson && isAjaxRequest)) {
+                // Apply CORS headers before setting the response
+                return applyCorsHeaders(exchange)
+                    .then(
+                        Mono.fromRunnable(() -> {
+                            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                        })
+                    )
+                    .then(exchange.getResponse().setComplete());
+            }
+
+            // For non-API requests (browser requests), redirect to OAuth2 authorization endpoint
+            // This endpoint will handle the redirect to Keycloak server-side
+            String redirectUrl = "/oauth2/authorization/oidc";
+            exchange.getResponse().setStatusCode(HttpStatus.FOUND);
+            exchange.getResponse().getHeaders().setLocation(URI.create(redirectUrl));
+            return exchange.getResponse().setComplete();
+        };
+    }
+
+    /**
+     * Apply CORS headers to the response using the configured CORS configuration source.
+     */
+    private Mono<Void> applyCorsHeaders(org.springframework.web.server.ServerWebExchange exchange) {
+        if (corsConfigurationSource != null) {
+            org.springframework.web.cors.CorsConfiguration corsConfig = corsConfigurationSource.getCorsConfiguration(exchange);
+            if (corsConfig != null) {
+                HttpHeaders headers = exchange.getResponse().getHeaders();
+                String origin = exchange.getRequest().getHeaders().getFirst("Origin");
+
+                // Set allowed origin
+                if (origin != null) {
+                    String allowedOrigin = corsConfig.checkOrigin(origin);
+                    if (allowedOrigin != null) {
+                        headers.setAccessControlAllowOrigin(allowedOrigin);
+                    }
+                }
+
+                // Set credentials
+                if (corsConfig.getAllowCredentials() != null && corsConfig.getAllowCredentials()) {
+                    headers.setAccessControlAllowCredentials(true);
+                }
+
+                // Set allowed methods
+                if (corsConfig.getAllowedMethods() != null && !corsConfig.getAllowedMethods().isEmpty()) {
+                    headers.setAccessControlAllowMethods(
+                        corsConfig.getAllowedMethods().stream().map(String::toUpperCase).map(HttpMethod::valueOf).toList()
+                    );
+                }
+
+                // Set allowed headers
+                if (corsConfig.getAllowedHeaders() != null && !corsConfig.getAllowedHeaders().isEmpty()) {
+                    headers.setAccessControlAllowHeaders(corsConfig.getAllowedHeaders());
+                }
+
+                // Set exposed headers
+                if (corsConfig.getExposedHeaders() != null && !corsConfig.getExposedHeaders().isEmpty()) {
+                    headers.setAccessControlExposeHeaders(corsConfig.getExposedHeaders());
+                }
+
+                // Set max age
+                if (corsConfig.getMaxAge() != null) {
+                    headers.setAccessControlMaxAge(corsConfig.getMaxAge());
+                }
+            }
+        }
+        return Mono.empty();
     }
 
     Converter<Jwt, Mono<AbstractAuthenticationToken>> jwtAuthenticationConverter() {

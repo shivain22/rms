@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.Query;
-import org.springframework.data.relational.core.query.Update;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -57,11 +56,7 @@ public class TenantRepository {
     }
 
     public Mono<Void> deleteById(Long id) {
-        return masterTemplate
-            .update(Tenant.class)
-            .matching(Query.query(Criteria.where("id").is(id)))
-            .apply(Update.update("active", false))
-            .then();
+        return masterTemplate.delete(Tenant.class).matching(Query.query(Criteria.where("id").is(id))).all().then();
     }
 
     public Mono<Boolean> existsByTenantId(String tenantId) {

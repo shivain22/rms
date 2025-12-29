@@ -10,9 +10,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.data.web.ReactivePageableHandlerMethodArgumentResolver;
 import org.springframework.data.web.ReactiveSortHandlerMethodArgumentResolver;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -33,17 +35,69 @@ public class WebConfigurer implements WebFluxConfigurer {
     private static final Logger LOG = LoggerFactory.getLogger(WebConfigurer.class);
 
     private final JHipsterProperties jHipsterProperties;
+    private final Environment environment;
 
-    public WebConfigurer(JHipsterProperties jHipsterProperties) {
+    public WebConfigurer(JHipsterProperties jHipsterProperties, Environment environment) {
         this.jHipsterProperties = jHipsterProperties;
+        this.environment = environment;
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = jHipsterProperties.getCors();
+
+        // Override with environment variable if present
+        // Check for CORS_ALLOWED_ORIGINS or JHIPSTER_CORS_ALLOWED_ORIGINS
+        String corsAllowedOrigins = environment.getProperty("CORS_ALLOWED_ORIGINS");
+        if (corsAllowedOrigins == null) {
+            corsAllowedOrigins = environment.getProperty("JHIPSTER_CORS_ALLOWED_ORIGINS");
+        }
+        if (corsAllowedOrigins == null) {
+            corsAllowedOrigins = environment.getProperty("jhipster.cors.allowed-origins");
+        }
+
+        if (StringUtils.hasText(corsAllowedOrigins)) {
+            LOG.info("Using CORS allowed origins from environment variable: {}", corsAllowedOrigins);
+            config.setAllowedOrigins(java.util.Arrays.asList(corsAllowedOrigins.split(",")));
+        }
+
+        // Override allowed methods if present in environment
+        String corsAllowedMethods = environment.getProperty("CORS_ALLOWED_METHODS");
+        if (corsAllowedMethods == null) {
+            corsAllowedMethods = environment.getProperty("JHIPSTER_CORS_ALLOWED_METHODS");
+        }
+        if (corsAllowedMethods == null) {
+            corsAllowedMethods = environment.getProperty("jhipster.cors.allowed-methods");
+        }
+        if (StringUtils.hasText(corsAllowedMethods)) {
+            LOG.info("Using CORS allowed methods from environment variable: {}", corsAllowedMethods);
+            if ("*".equals(corsAllowedMethods)) {
+                config.addAllowedMethod("*");
+            } else {
+                config.setAllowedMethods(java.util.Arrays.asList(corsAllowedMethods.split(",")));
+            }
+        }
+
+        // Override allowed headers if present in environment
+        String corsAllowedHeaders = environment.getProperty("CORS_ALLOWED_HEADERS");
+        if (corsAllowedHeaders == null) {
+            corsAllowedHeaders = environment.getProperty("JHIPSTER_CORS_ALLOWED_HEADERS");
+        }
+        if (corsAllowedHeaders == null) {
+            corsAllowedHeaders = environment.getProperty("jhipster.cors.allowed-headers");
+        }
+        if (StringUtils.hasText(corsAllowedHeaders)) {
+            LOG.info("Using CORS allowed headers from environment variable: {}", corsAllowedHeaders);
+            if ("*".equals(corsAllowedHeaders)) {
+                config.addAllowedHeader("*");
+            } else {
+                config.setAllowedHeaders(java.util.Arrays.asList(corsAllowedHeaders.split(",")));
+            }
+        }
+
         if (!CollectionUtils.isEmpty(config.getAllowedOrigins()) || !CollectionUtils.isEmpty(config.getAllowedOriginPatterns())) {
-            LOG.debug("Registering CORS filter");
+            LOG.debug("Registering CORS filter with allowed origins: {}", config.getAllowedOrigins());
             source.registerCorsConfiguration("/api/**", config);
             source.registerCorsConfiguration("/management/**", config);
             source.registerCorsConfiguration("/v3/api-docs", config);
@@ -54,6 +108,8 @@ public class WebConfigurer implements WebFluxConfigurer {
             // Add CORS for OAuth2 endpoints
             source.registerCorsConfiguration("/oauth2/**", config);
             source.registerCorsConfiguration("/login/**", config);
+        } else {
+            LOG.warn("CORS is not configured - no allowed origins or patterns found");
         }
         return source;
     }

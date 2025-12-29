@@ -34,7 +34,7 @@ public class TenantLiquibaseService {
     @Value("${tenant.liquibase.repository.local-path:${java.io.tmpdir}/rms-service-repo}")
     private String localRepositoryPath;
 
-    @Value("${tenant.liquibase.changelog-path:src/main/resources/config/liquibase/master.xml}")
+    @Value("${tenant.liquibase.changelog-path:config/liquibase/master.xml}")
     private String changelogPath;
 
     /**
@@ -92,8 +92,12 @@ public class TenantLiquibaseService {
         // Convert R2DBC URL to JDBC if needed
         String jdbcUrl = convertToJdbcUrl(databaseUrl);
 
-        // Path to the changelog file in the repository
-        Path changelogFile = repoPath.resolve(changelogPath);
+        // Path to the src/main/resources directory in the repository
+        // This is where the config/liquibase directory is located
+        Path resourcesPath = repoPath.resolve("src/main/resources");
+
+        // Path to the changelog file relative to resourcesPath
+        Path changelogFile = resourcesPath.resolve(changelogPath);
 
         if (!Files.exists(changelogFile)) {
             throw new RuntimeException("Changelog file not found: " + changelogFile);
@@ -106,9 +110,11 @@ public class TenantLiquibaseService {
             Database database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(connection));
 
             // Use CompositeResourceAccessor with FileSystemResourceAccessor
+            // Set the root to src/main/resources so that paths in master.xml (like config/liquibase/changelog/...)
+            // resolve correctly relative to the resource accessor root
             // Note: FileSystemResourceAccessor is deprecated but still functional
             @SuppressWarnings("deprecation")
-            FileSystemResourceAccessor fileSystemAccessor = new FileSystemResourceAccessor(repoPath.toFile());
+            FileSystemResourceAccessor fileSystemAccessor = new FileSystemResourceAccessor(resourcesPath.toFile());
             CompositeResourceAccessor resourceAccessor = new CompositeResourceAccessor(fileSystemAccessor);
 
             try (Liquibase liquibase = new Liquibase(changelogPath, resourceAccessor, database)) {

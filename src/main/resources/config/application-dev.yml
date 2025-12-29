@@ -134,6 +134,10 @@ jhipster:
       limit: 100000
       duration-in-seconds: 3600
   # CORS is only enabled by default with the "dev" profile
+  # Can be overridden by environment variables:
+  #   - CORS_ALLOWED_ORIGINS (comma-separated list)
+  #   - JHIPSTER_CORS_ALLOWED_ORIGINS (comma-separated list)
+  #   - jhipster.cors.allowed-origins (Spring Boot property format)
   cors:
     # Allow Ionic for JHipster by default (* no longer allowed in Spring Boot 2.4+)
     # Ports 9061-9069 are allowed for microfrontend development

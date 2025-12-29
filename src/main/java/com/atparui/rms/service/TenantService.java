@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -29,6 +30,9 @@ public class TenantService {
     private final TenantLiquibaseService tenantLiquibaseService;
     private final TransactionalOperator transactionalOperator;
     private final ConcurrentHashMap<String, ConnectionFactory> connectionFactoryCache = new ConcurrentHashMap<>();
+
+    @Value("${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}")
+    private String keycloakBaseUrl;
 
     public TenantService(
         TenantRepository tenantRepository,
@@ -339,38 +343,48 @@ public class TenantService {
                 String tenantKey = tenant.getTenantKey();
                 log.info("Starting deletion process for tenant: {} (ID: {})", tenantKey, id);
 
-                // Delete in order: Keycloak realm -> Database -> Tenant entity
+                // Delete in order: Keycloak realm -> Database (includes user) -> Tenant clients -> Tenant entity
                 return Mono.fromRunnable(() -> {
                     try {
                         // 1. Delete Keycloak realm (includes clients, roles, flows)
-                        log.debug("Deleting Keycloak realm for tenant: {}", tenantId);
-                        keycloakRealmService.deleteTenantRealm(tenantId);
-                        log.info("Successfully deleted Keycloak realm for tenant: {}", tenantId);
+                        // Use tenantKey to match the realm name created during tenant creation
+                        log.debug("Deleting Keycloak realm for tenant: {}", tenantKey);
+                        keycloakRealmService.deleteTenantRealm(tenantKey);
+                        log.info("Successfully deleted Keycloak realm for tenant: {}", tenantKey);
                     } catch (Exception e) {
-                        log.warn("Failed to delete Keycloak realm for tenant: {}, continuing with deletion", tenantId, e);
+                        log.error("Failed to delete Keycloak realm for tenant: {}", tenantKey, e);
                     }
                 })
                     .then(
                         Mono.fromRunnable(() -> {
                             try {
-                                // 2. Delete tenant database
-                                log.debug("Deleting database for tenant: {}", tenantKey);
+                                // 2. Delete tenant database and database user
+                                // This method handles both database and user deletion
+                                log.debug("Deleting database and user for tenant: {}", tenantKey);
                                 databaseProvisioningService.deleteTenantDatabase(tenantKey);
-                                log.info("Successfully deleted database for tenant: {}", tenantKey);
+                                log.info("Successfully deleted database and user for tenant: {}", tenantKey);
                             } catch (Exception e) {
-                                log.warn("Failed to delete database for tenant: {}, continuing with deletion", tenantKey, e);
+                                log.error("Failed to delete database/user for tenant: {}", tenantKey, e);
                             }
                         })
                     )
                     .then(
+                        // 3. Delete tenant clients from database (before deleting tenant entity)
+                        tenantClientRepository
+                            .deleteByTenantId(tenant.getId())
+                            .doOnSuccess(v -> log.debug("Deleted tenant clients for tenant: {}", tenantKey))
+                            .doOnError(e -> log.warn("Failed to delete tenant clients for tenant: {}, continuing", tenantKey, e))
+                            .onErrorResume(e -> Mono.empty()) // Continue even if client deletion fails
+                    )
+                    .then(
                         Mono.fromRunnable(() -> {
-                            // 3. Clear cache
+                            // 4. Clear cache
                             clearCache(tenantId);
                         })
                     )
                     .then(tenantRepository.deleteById(id))
-                    .doOnSuccess(v -> log.info("Successfully deleted tenant entity with ID: {}", id))
-                    .doOnError(error -> log.error("Failed to delete tenant with ID: {}", id, error));
+                    .doOnSuccess(v -> log.info("Successfully deleted tenant entity with ID: {} (tenantKey: {})", id, tenantKey))
+                    .doOnError(error -> log.error("Failed to delete tenant with ID: {} (tenantKey: {})", id, tenantKey, error));
             })
             .then();
     }
@@ -479,6 +493,10 @@ public class TenantService {
             30000, // default connectionTimeout
             "SELECT 1" // default validationQuery
         );
+
+        // Set Keycloak configuration
+        dto.setKeycloakBaseUrl(keycloakBaseUrl);
+        dto.setRealmName(tenant.getRealmName() != null ? tenant.getRealmName() : tenant.getTenantId() + "_realm");
 
         // Set clients list
         java.util.List<com.atparui.rms.service.dto.TenantClientDTO> clientDTOs = clients

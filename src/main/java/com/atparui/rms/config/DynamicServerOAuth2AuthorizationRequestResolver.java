@@ -26,6 +26,48 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
 
     @Override
     public Mono<OAuth2AuthorizationRequest> resolve(ServerWebExchange exchange) {
+        String path = exchange.getRequest().getURI().getPath();
+
+        // OAuth2 callback endpoints (/login/oauth2/code/**) should NOT trigger authorization request building
+        // They are handled by Spring Security's OAuth2 callback handler
+        // Only /oauth2/authorization/** endpoints should build authorization requests
+        boolean isOAuth2Callback = path.startsWith("/login/oauth2/code/");
+
+        if (isOAuth2Callback) {
+            // This is the OAuth2 callback - don't build authorization request, let Spring Security handle it
+            return Mono.empty();
+        }
+
+        // For /oauth2/authorization/** endpoints, proceed with building authorization request
+        boolean isOAuth2Authorization = path.startsWith("/oauth2/authorization/");
+
+        if (isOAuth2Authorization) {
+            // Let OAuth2 authorization flow proceed normally
+            return dynamicOAuth2ConfigService
+                .getClientRegistration(exchange)
+                .flatMap(clientRegistration -> buildAuthorizationRequest(exchange, clientRegistration));
+        }
+
+        // Don't redirect API requests - let the authentication entry point handle them with 401
+        // This prevents CORS issues when browser follows redirects to Keycloak
+        boolean isApiRequest =
+            path.startsWith("/api/") || path.startsWith("/management/") || path.startsWith("/services/") || path.startsWith("/v3/api-docs");
+
+        // Check if request accepts JSON (typical for API calls)
+        String acceptHeader = exchange.getRequest().getHeaders().getFirst("Accept");
+        boolean acceptsJson = acceptHeader != null && (acceptHeader.contains("application/json") || acceptHeader.contains("*/*"));
+
+        // Check if request is from XMLHttpRequest or fetch API
+        String xRequestedWith = exchange.getRequest().getHeaders().getFirst("X-Requested-With");
+        boolean isAjaxRequest = "XMLHttpRequest".equals(xRequestedWith);
+
+        // Return empty for API requests to prevent OAuth2 redirect
+        // The authentication entry point will handle these with 401
+        if (isApiRequest || (acceptsJson && isAjaxRequest)) {
+            return Mono.empty();
+        }
+
+        // For browser requests (non-API, non-OAuth2), proceed with OAuth2 flow
         return dynamicOAuth2ConfigService
             .getClientRegistration(exchange)
             .flatMap(clientRegistration -> buildAuthorizationRequest(exchange, clientRegistration));

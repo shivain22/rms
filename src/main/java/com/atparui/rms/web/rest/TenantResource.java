@@ -156,4 +156,26 @@ public class TenantResource {
                 return Mono.just(ResponseEntity.badRequest().<Void>build());
             });
     }
+
+    /**
+     * {@code POST /api/tenants/{tenantId}/invalidate-cache} : Invalidate cache for a tenant configuration.
+     * This endpoint notifies the RMS Service to clear its cache for a specific tenant.
+     * Useful when tenant configuration is updated, OAuth2 client secrets are rotated, or realm is deleted/renamed.
+     *
+     * @param tenantId the tenant ID
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} if successful, or {@code 404 (Not Found)} if tenant doesn't exist.
+     */
+    @PostMapping("/{tenantId}/invalidate-cache")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public Mono<ResponseEntity<Void>> invalidateCache(@PathVariable String tenantId) {
+        log.debug("REST request to invalidate cache for tenant: {}", tenantId);
+        return tenantService
+            .findTenant(tenantId)
+            .doOnNext(tenant -> {
+                tenantService.clearCache(tenantId);
+                log.info("Cache invalidated for tenant: {}", tenantId);
+            })
+            .then(Mono.just(ResponseEntity.ok().<Void>build()))
+            .switchIfEmpty(Mono.just(ResponseEntity.notFound().<Void>build()));
+    }
 }

@@ -13,4 +13,6 @@
 
     <include file="config/liquibase/changelog/00000000000000_initial_schema.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20241201000001_tenant_table.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20241202000001_add_rms_service_client_columns.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20241202000002_create_tenant_clients_table.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

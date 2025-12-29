@@ -12,7 +12,7 @@
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="tenant_id" type="bigint">
-                <constraints nullable="false" foreignKeyName="fk_tenant_clients_tenant" references="tenants(id)" onDelete="CASCADE"/>
+                <constraints nullable="false"/>
             </column>
             <column name="client_id" type="varchar(100)">
                 <constraints nullable="false"/>
@@ -32,6 +32,14 @@
             <column name="created_date" type="timestamp"/>
             <column name="last_modified_date" type="timestamp"/>
         </createTable>
+        
+        <addForeignKeyConstraint
+            baseTableName="tenant_clients"
+            baseColumnNames="tenant_id"
+            constraintName="fk_tenant_clients_tenant"
+            referencedTableName="tenants"
+            referencedColumnNames="id"
+            onDelete="CASCADE"/>
         
         <createIndex indexName="idx_tenant_clients_tenant_id" tableName="tenant_clients">
             <column name="tenant_id"/>
