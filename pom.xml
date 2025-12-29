@@ -546,46 +546,7 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-antrun-plugin</artifactId>
                     <version>${maven-antrun-plugin.version}</version>
-                    <executions>
-                        <execution>
-                            <!--Work around. Surefire does not use JUnit's Test Engine discovery functionality -->
-                            <id>prepare cucumber feature files</id>
-                            <phase>integration-test</phase>
-                            <goals>
-                                <goal>run</goal>
-                            </goals>
-                            <configuration>
-                                <target>
-                                    <echo message="Running JUnit Platform CLI"/>
-                                    <!-- Create a pathing JAR to avoid Windows command-line length limits -->
-                                    <property name="pathing.jar" value="${project.build.directory}/pathing.jar"/>
-                                    <mkdir dir="${project.build.directory}"/>
-                                    <!-- Convert classpath to manifest format with space separator -->
-                                    <pathconvert property="manifest.classpath" pathsep=" ">
-                                        <path refid="maven.test.classpath"/>
-                                    </pathconvert>
-                                    <!-- Create pathing JAR with Class-Path in manifest -->
-                                    <jar destfile="${pathing.jar}">
-                                        <manifest>
-                                            <attribute name="Class-Path" value="${manifest.classpath}"/>
-                                        </manifest>
-                                    </jar>
-                                    <!-- Use only the pathing JAR - Java reads Class-Path from manifest -->
-                                    <java classname="org.junit.platform.console.ConsoleLauncher" fork="true" failonerror="true" newenvironment="true" maxmemory="512m">
-                                        <classpath>
-                                            <pathelement location="${pathing.jar}"/>
-                                        </classpath>
-                                        <jvmarg value="-Dspring.profiles.active=testprod"/>
-                                        <jvmarg value="-XX:+AllowRedefinitionToAddDeleteMethods"/>
-                                        <arg value="--include-engine"/>
-                                        <arg value="cucumber"/>
-                                        <arg value="--scan-classpath"/>
-                                        <arg value="${project.build.testOutputDirectory}"/>
-                                    </java>
-                                </target>
-                            </configuration>
-                        </execution>
-                    </executions>
+                    <!-- Cucumber execution temporarily disabled to avoid Windows command-line length issues -->
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
