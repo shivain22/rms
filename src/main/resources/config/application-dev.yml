@@ -53,11 +53,11 @@ spring:
   cloud:
     consul:
       discovery:
-        enabled: false
+        enabled: true
         healthCheckPath: /management/health
         instanceId: rms:${spring.application.instance-id:${random.value}}
         service-name: rms
-        prefer-ip-address: true
+        prefer-ip-address: false
         tags:
           - profile=${spring.profiles.active}
           - version='@project.version@'
