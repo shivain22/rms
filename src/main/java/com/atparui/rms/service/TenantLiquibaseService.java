@@ -2,7 +2,6 @@ package com.atparui.rms.service;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import liquibase.Liquibase;
@@ -44,7 +43,7 @@ public class TenantLiquibaseService {
      * @throws Exception if cloning or pulling fails
      */
     public Path ensureRepositoryCloned() throws Exception {
-        Path repoPath = Paths.get(localRepositoryPath);
+        Path repoPath = Path.of(localRepositoryPath);
 
         if (Files.exists(repoPath) && Files.exists(repoPath.resolve(".git"))) {
             // Repository exists, pull latest changes
