@@ -41,18 +41,26 @@ spring:
     consul:
       discovery:
         prefer-ip-address: true
-      host: localhost
-      port: 8500
+      # host and port should be set via environment variables (SPRING_CLOUD_CONSUL_HOST, SPRING_CLOUD_CONSUL_PORT)
+      # Default values for local development (overridden by env vars in Docker)
+      host: ${SPRING_CLOUD_CONSUL_HOST:localhost}
+      port: ${SPRING_CLOUD_CONSUL_PORT:8500}
   elasticsearch:
-    uris: http://localhost:9200
+    # uris should be set via environment variable (SPRING_ELASTICSEARCH_URIS)
+    # Default value for local development (overridden by env vars in Docker)
+    uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
   # Replace by 'prod, faker' to add the faker context and have sample data loaded in production
   liquibase:
     contexts: prod
-    url: jdbc:postgresql://localhost:5432/rms
+    # url should be set via environment variable (SPRING_LIQUIBASE_URL)
+    # Default value for local development (overridden by env vars in Docker)
+    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:5432/rms}
   r2dbc:
-    url: r2dbc:postgresql://localhost:5432/rms
-    username: rms
-    password: rms
+    # url, username, password should be set via environment variables (SPRING_R2DBC_URL, SPRING_R2DBC_USERNAME, SPRING_R2DBC_PASSWORD)
+    # Default values for local development (overridden by env vars in Docker)
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://localhost:5432/rms}
+    username: ${SPRING_R2DBC_USERNAME:rms}
+    password: ${SPRING_R2DBC_PASSWORD:rms}
   thymeleaf:
     cache: true
 
