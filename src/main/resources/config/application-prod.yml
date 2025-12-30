@@ -31,10 +31,11 @@ management:
     sampling:
       probability: 1.0 # report 100% of traces
   health:
-    # Disable R2DBC health check - we use manual ConnectionFactory beans for multi-tenant setup
-    # The health check is not tenant-aware and will always use the default ConnectionFactory
+    # R2DBC health check is enabled and will use the @Primary ConnectionFactory bean
+    # The @Primary ConnectionFactory in MultiTenantDatabaseConfig is configured with
+    # the correct Docker service name (rms-postgresql) and will be used automatically
     r2dbc:
-      enabled: false
+      enabled: true
 
 spring:
   devtools:
