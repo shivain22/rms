@@ -63,6 +63,12 @@ management:
           include: livenessState
         readiness:
           include: readinessState
+  health:
+    # Disable R2DBC health check - we use manual ConnectionFactory beans for multi-tenant setup
+    # The health check is not tenant-aware and will always use the default ConnectionFactory
+    # which may point to localhost in Docker environments
+    r2dbc:
+      enabled: false
     jhimetrics:
       enabled: true
   info:

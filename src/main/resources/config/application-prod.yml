@@ -30,6 +30,11 @@ management:
   tracing:
     sampling:
       probability: 1.0 # report 100% of traces
+  health:
+    # Disable R2DBC health check - we use manual ConnectionFactory beans for multi-tenant setup
+    # The health check is not tenant-aware and will always use the default ConnectionFactory
+    r2dbc:
+      enabled: false
 
 spring:
   devtools:
