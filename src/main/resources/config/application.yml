@@ -155,6 +155,7 @@ spring:
           content-type: text/plain
           group: rms
         kafkaProducer-out-0:
+          destination: sse-topic
           content-type: text/plain
           group: rms
   docker:
