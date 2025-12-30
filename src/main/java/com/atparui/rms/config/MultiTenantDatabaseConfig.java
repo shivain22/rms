@@ -10,11 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
+import org.springframework.core.annotation.Order;
 import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
 import org.springframework.r2dbc.connection.R2dbcTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @Configuration
+@Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
 @EnableR2dbcRepositories(
     basePackages = "com.atparui.rms.repository",
     excludeFilters = @ComponentScan.Filter(type = FilterType.REGEX, pattern = ".*search.*")
@@ -53,18 +55,37 @@ public class MultiTenantDatabaseConfig {
     public void initializeTenantConnections() {
         // Simple initialization - all data goes to rms database
         // Tenant-specific databases will be created separately when needed
+        log.info("=== MultiTenantDatabaseConfig Initialization ===");
+        log.info("DB_HOST from @Value: {}", dbHost);
+        log.info("DB_HOST from environment: {}", System.getenv("DB_HOST"));
+        log.info("DB_PORT: {}", dbPort);
+        log.info("DB_NAME: {}", dbName);
+        log.info("DB_USERNAME: {}", dbUsername);
+        log.info("DB_SCHEMA: {}", dbSchema);
         log.info("Initialized database connection to: {} at {}:{}", dbName, dbHost, dbPort);
         log.info("Using database credentials - username: {}, schema: {}", dbUsername, dbSchema);
+        log.info("================================================");
     }
 
-    @Bean
+    @Bean(name = "connectionFactory")
     @Primary
     public ConnectionFactory connectionFactory() {
         // Use simple connection factory pointing to rms database
         // Tenant data is stored in the same database for now
-        log.info("Creating primary ConnectionFactory for database: {} at {}:{}", dbName, dbHost, dbPort);
+        // This bean is marked @Primary to ensure it's used by health indicators
+        log.info("=== Creating PRIMARY ConnectionFactory ===");
+        log.info("Database: {} at {}:{}", dbName, dbHost, dbPort);
+        log.info("DB_HOST from @Value: {}", dbHost);
+        log.info("DB_HOST from environment: {}", System.getenv("DB_HOST"));
+        log.info("DB_USERNAME: {}", dbUsername);
+
+        if ("localhost".equals(dbHost) || "127.0.0.1".equals(dbHost)) {
+            log.error("WARNING: DB_HOST is set to localhost! This will fail in Docker. Expected: rms-postgresql");
+        }
+
         ConnectionFactory factory = createTenantConnectionFactory(dbName);
         log.info("ConnectionFactory created successfully for host: {}", dbHost);
+        log.info("==========================================");
         return factory;
     }
 
