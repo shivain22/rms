@@ -72,7 +72,7 @@ public class MultiTenantDatabaseConfig {
     public ConnectionFactory connectionFactory() {
         // Use simple connection factory pointing to rms database
         // Tenant data is stored in the same database for now
-        // This bean is marked @Primary to ensure it's used by health indicators
+        // This bean is marked @Primary to ensure it's used by application logic
         log.info("=== Creating PRIMARY ConnectionFactory ===");
         log.info("Database: {} at {}:{}", dbName, dbHost, dbPort);
         log.info("DB_HOST from @Value: {}", dbHost);
@@ -85,6 +85,27 @@ public class MultiTenantDatabaseConfig {
 
         ConnectionFactory factory = createTenantConnectionFactory(dbName);
         log.info("ConnectionFactory created successfully for host: {}", dbHost);
+        log.info("==========================================");
+        return factory;
+    }
+
+    /**
+     * Dedicated ConnectionFactory for health checks.
+     * This ensures the health indicator always uses the correct database connection
+     * (rms-postgresql) instead of falling back to localhost.
+     */
+    @Bean(name = "healthCheckConnectionFactory")
+    public ConnectionFactory healthCheckConnectionFactory() {
+        log.info("=== Creating Health Check ConnectionFactory ===");
+        log.info("Database: {} at {}:{}", dbName, dbHost, dbPort);
+        log.info("DB_HOST: {}", dbHost);
+
+        if ("localhost".equals(dbHost) || "127.0.0.1".equals(dbHost)) {
+            log.error("ERROR: DB_HOST is set to localhost! This will fail in Docker. Expected: rms-postgresql");
+        }
+
+        ConnectionFactory factory = createTenantConnectionFactory(dbName);
+        log.info("Health check ConnectionFactory created successfully for host: {}", dbHost);
         log.info("==========================================");
         return factory;
     }

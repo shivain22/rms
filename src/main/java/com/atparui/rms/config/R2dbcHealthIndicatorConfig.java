@@ -3,6 +3,7 @@ package com.atparui.rms.config;
 import io.r2dbc.spi.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator;
 import org.springframework.boot.actuate.r2dbc.ConnectionFactoryHealthIndicator;
 import org.springframework.context.annotation.Bean;
@@ -11,11 +12,12 @@ import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Primary;
 
 /**
- * Configuration to ensure R2DBC health check uses the @Primary ConnectionFactory
+ * Configuration to ensure R2DBC health check uses a dedicated ConnectionFactory
  * which is configured with the correct Docker service name (rms-postgresql).
  *
- * This explicitly configures the health indicator to use the @Primary ConnectionFactory
+ * This explicitly configures the health indicator to use the healthCheckConnectionFactory
  * bean from MultiTenantDatabaseConfig, ensuring it uses rms-postgresql instead of localhost.
+ * Using @Qualifier ensures we get the specific health check factory, not the @Primary one.
  */
 @Configuration
 @ConditionalOnEnabledHealthIndicator("r2dbc")
@@ -25,16 +27,18 @@ public class R2dbcHealthIndicatorConfig {
 
     /**
      * Explicitly configure the ConnectionFactoryHealthIndicator to use the
-     * @Primary ConnectionFactory bean. This ensures the health check uses
+     * dedicated healthCheckConnectionFactory bean. This ensures the health check uses
      * the correct database connection (rms-postgresql) instead of localhost.
      *
-     * The @Primary annotation ensures this bean takes precedence over any
-     * auto-configured ConnectionFactoryHealthIndicator.
+     * Using @Qualifier ensures we get the specific health check factory, avoiding
+     * any ambiguity with the @Primary ConnectionFactory used by application logic.
      */
     @Bean
     @Primary
-    @DependsOn("connectionFactory")
-    public ConnectionFactoryHealthIndicator connectionFactoryHealthIndicator(ConnectionFactory connectionFactory) {
+    @DependsOn("healthCheckConnectionFactory")
+    public ConnectionFactoryHealthIndicator connectionFactoryHealthIndicator(
+        @Qualifier("healthCheckConnectionFactory") ConnectionFactory connectionFactory
+    ) {
         log.info("=== Configuring R2DBC Health Indicator ===");
         log.info("Using ConnectionFactory: {}", connectionFactory);
         log.info("ConnectionFactory class: {}", connectionFactory.getClass().getName());
