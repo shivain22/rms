@@ -44,8 +44,6 @@ services:
       - DB_NAME=${DB_NAME:-rms}
       - DB_USERNAME=${DB_USERNAME:-rms}
       - DB_PASSWORD=${DB_PASSWORD:-}
-      - DB_TENANT1_NAME=${DB_TENANT1_NAME:-rms_tenant1}
-      - DB_TENANT2_NAME=${DB_TENANT2_NAME:-rms_tenant2}
       - KEYCLOAK_HOST=${KEYCLOAK_HOST:-rmsauth.atparui.com}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-gateway}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-gateway-web}
