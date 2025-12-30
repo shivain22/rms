@@ -39,10 +39,10 @@ public class MultiTenantDatabaseConfig {
     @Value("${DB_PASSWORD:rms_gateway}")
     private String dbPassword;
 
-    @Value("${DB_NAME:rms}")
+    @Value("${DB_NAME:rms_gateway}")
     private String dbName;
 
-    @Value("${DB_SCHEMA:rms_gateway}")
+    @Value("${DB_SCHEMA:public}")
     private String dbSchema;
 
     @Value("${DB_TENANT1_NAME:rms_tenant1}")
