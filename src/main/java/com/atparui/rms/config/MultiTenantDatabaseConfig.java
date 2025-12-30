@@ -53,7 +53,8 @@ public class MultiTenantDatabaseConfig {
     public void initializeTenantConnections() {
         // Simple initialization - all data goes to rms database
         // Tenant-specific databases will be created separately when needed
-        log.info("Initialized database connection to: {}", dbName);
+        log.info("Initialized database connection to: {} at {}:{}", dbName, dbHost, dbPort);
+        log.info("Using database credentials - username: {}, schema: {}", dbUsername, dbSchema);
     }
 
     @Bean
@@ -61,12 +62,16 @@ public class MultiTenantDatabaseConfig {
     public ConnectionFactory connectionFactory() {
         // Use simple connection factory pointing to rms database
         // Tenant data is stored in the same database for now
-        return createTenantConnectionFactory(dbName);
+        log.info("Creating primary ConnectionFactory for database: {} at {}:{}", dbName, dbHost, dbPort);
+        ConnectionFactory factory = createTenantConnectionFactory(dbName);
+        log.info("ConnectionFactory created successfully for host: {}", dbHost);
+        return factory;
     }
 
     private ConnectionFactory createTenantConnectionFactory(String databaseName) {
         // Schema is set via SPRING_R2DBC_URL parameter (?schema=rms_gateway)
         // This manual connection factory is used for tenant-specific connections
+        log.info("Creating ConnectionFactory - host: {}, port: {}, database: {}, username: {}", dbHost, dbPort, databaseName, dbUsername);
         return new PostgresqlConnectionFactory(
             PostgresqlConnectionConfiguration.builder()
                 .host(dbHost)

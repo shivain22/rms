@@ -17,6 +17,11 @@ import reactor.core.publisher.Mono;
     basePackages = "com.atparui.rms.repository",
     excludeFilters = @ComponentScan.Filter(type = FilterType.REGEX, pattern = ".*search.*")
 )
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+    name = "multi-tenant.routing.enabled",
+    havingValue = "true",
+    matchIfMissing = false
+)
 public class DatabaseBasedMultiTenantConfig extends AbstractR2dbcConfiguration {
 
     private final TenantService tenantService;
