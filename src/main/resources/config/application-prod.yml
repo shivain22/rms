@@ -26,7 +26,7 @@ management:
         enabled: false
   zipkin: # Use the "zipkin" Maven profile to have the Spring Cloud Zipkin dependencies
     tracing:
-      endpoint: http://localhost:9411/api/v2/spans
+      endpoint: http://zipkin:9411/api/v2/spans
   tracing:
     sampling:
       probability: 1.0 # report 100% of traces
@@ -41,29 +41,27 @@ spring:
     consul:
       discovery:
         prefer-ip-address: true
-      # host and port should be set via environment variables (SPRING_CLOUD_CONSUL_HOST, SPRING_CLOUD_CONSUL_PORT)
-      # Default values for local development (overridden by env vars in Docker)
-      host: ${SPRING_CLOUD_CONSUL_HOST:localhost}
+      # Production defaults use Docker service names
+      host: ${SPRING_CLOUD_CONSUL_HOST:consul}
       port: ${SPRING_CLOUD_CONSUL_PORT:8500}
   elasticsearch:
-    # uris should be set via environment variable (SPRING_ELASTICSEARCH_URIS)
-    # Default value for local development (overridden by env vars in Docker)
-    uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
+    # Production defaults use Docker service names
+    uris: ${SPRING_ELASTICSEARCH_URIS:http://elasticsearch:9200}
   # Replace by 'prod, faker' to add the faker context and have sample data loaded in production
   liquibase:
     contexts: prod
-    # url should be set via environment variable (SPRING_LIQUIBASE_URL)
-    # Default value for local development (overridden by env vars in Docker)
-    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:5432/rms}
+    # Production defaults use Docker service names (Gateway uses database 'rms' with schema 'rms_gateway')
+    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://rms-postgresql:5432/rms?currentSchema=rms_gateway}
+    user: ${SPRING_LIQUIBASE_USER:rms_gateway}
+    password: ${SPRING_LIQUIBASE_PASSWORD:rms_gateway}
     # default-schema-name should be set via environment variable (SPRING_LIQUIBASE_DEFAULT_SCHEMA)
     # This is required when using schema-specific connections
     default-schema-name: ${SPRING_LIQUIBASE_DEFAULT_SCHEMA:rms_gateway}
   r2dbc:
-    # url, username, password should be set via environment variables (SPRING_R2DBC_URL, SPRING_R2DBC_USERNAME, SPRING_R2DBC_PASSWORD)
-    # Default values for local development (overridden by env vars in Docker)
-    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://localhost:5432/rms}
-    username: ${SPRING_R2DBC_USERNAME:rms}
-    password: ${SPRING_R2DBC_PASSWORD:rms}
+    # Production defaults use Docker service names (Gateway uses database 'rms' with schema 'rms_gateway')
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://rms-postgresql:5432/rms?schema=rms_gateway}
+    username: ${SPRING_R2DBC_USERNAME:rms_gateway}
+    password: ${SPRING_R2DBC_PASSWORD:rms_gateway}
   thymeleaf:
     cache: true
 
@@ -108,7 +106,7 @@ jhipster:
     use-json-format: false # By default, logs are not in Json format
     logstash: # Forward logs to logstash over a socket, used by LoggingConfiguration
       enabled: false
-      host: localhost
+      host: logstash
       port: 5000
       ring-buffer-size: 512
 # ===================================================================
