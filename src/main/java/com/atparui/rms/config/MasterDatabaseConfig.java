@@ -14,30 +14,30 @@ import org.springframework.transaction.ReactiveTransactionManager;
 @Configuration
 public class MasterDatabaseConfig {
 
-    @Value("${TENANT_DB_HOST:localhost}")
-    private String tenantDbHost;
+    @Value("${DB_HOST:rms-postgresql}")
+    private String dbHost;
 
-    @Value("${TENANT_DB_PORT:5432}")
-    private int tenantDbPort;
+    @Value("${DB_PORT:5432}")
+    private int dbPort;
 
-    @Value("${TENANT_DB_NAME:rms}")
-    private String tenantDbName;
+    @Value("${DB_NAME:rms}")
+    private String dbName;
 
-    @Value("${TENANT_DB_USERNAME:rms}")
-    private String tenantDbUsername;
+    @Value("${DB_USERNAME:rms_gateway}")
+    private String dbUsername;
 
-    @Value("${TENANT_DB_PASSWORD:rms}")
-    private String tenantDbPassword;
+    @Value("${DB_PASSWORD:rms_gateway}")
+    private String dbPassword;
 
     @Bean("masterConnectionFactory")
     public ConnectionFactory masterConnectionFactory() {
         return new PostgresqlConnectionFactory(
             PostgresqlConnectionConfiguration.builder()
-                .host(tenantDbHost)
-                .port(tenantDbPort)
-                .database(tenantDbName)
-                .username(tenantDbUsername)
-                .password(tenantDbPassword)
+                .host(dbHost)
+                .port(dbPort)
+                .database(dbName)
+                .username(dbUsername)
+                .password(dbPassword)
                 .build()
         );
     }

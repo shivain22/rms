@@ -25,20 +25,23 @@ public class MultiTenantDatabaseConfig {
     private static final Logger log = LoggerFactory.getLogger(MultiTenantDatabaseConfig.class);
     private final Map<String, ConnectionFactory> tenantConnectionFactories = new ConcurrentHashMap<>();
 
-    @Value("${DB_HOST:localhost}")
+    @Value("${DB_HOST:rms-postgresql}")
     private String dbHost;
 
     @Value("${DB_PORT:5432}")
     private int dbPort;
 
-    @Value("${DB_USERNAME:rms}")
+    @Value("${DB_USERNAME:rms_gateway}")
     private String dbUsername;
 
-    @Value("${DB_PASSWORD:}")
+    @Value("${DB_PASSWORD:rms_gateway}")
     private String dbPassword;
 
     @Value("${DB_NAME:rms}")
     private String dbName;
+
+    @Value("${DB_SCHEMA:rms_gateway}")
+    private String dbSchema;
 
     @Value("${DB_TENANT1_NAME:rms_tenant1}")
     private String tenant1DbName;
@@ -62,6 +65,8 @@ public class MultiTenantDatabaseConfig {
     }
 
     private ConnectionFactory createTenantConnectionFactory(String databaseName) {
+        // Schema is set via SPRING_R2DBC_URL parameter (?schema=rms_gateway)
+        // This manual connection factory is used for tenant-specific connections
         return new PostgresqlConnectionFactory(
             PostgresqlConnectionConfiguration.builder()
                 .host(dbHost)
