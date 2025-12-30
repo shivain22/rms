@@ -50,6 +50,25 @@ public class R2dbcHealthIndicatorConfig {
         }
 
         log.info("Health indicator will use ConnectionFactory with host from DB_HOST: {}", System.getenv("DB_HOST"));
+
+        // Try to extract host information from PostgresqlConnectionFactory
+        if (connectionFactory instanceof io.r2dbc.postgresql.PostgresqlConnectionFactory) {
+            try {
+                // Use reflection to get the configuration
+                var configField = connectionFactory.getClass().getDeclaredField("configuration");
+                configField.setAccessible(true);
+                var config = configField.get(connectionFactory);
+                var hostMethod = config.getClass().getMethod("getHost");
+                var host = hostMethod.invoke(config);
+                log.info("ConnectionFactory host from configuration: {}", host);
+                if ("localhost".equals(host) || "127.0.0.1".equals(host)) {
+                    log.error("ERROR: ConnectionFactory is configured with localhost! Expected: rms-postgresql");
+                }
+            } catch (Exception e) {
+                log.warn("Could not extract host from ConnectionFactory: {}", e.getMessage());
+            }
+        }
+
         log.info("=========================================");
         return new ConnectionFactoryHealthIndicator(connectionFactory);
     }
