@@ -1,0 +1,110 @@
+# ===================================================================
+# Spring Boot configuration for the "local" profile.
+#
+# This configuration is for local development where:
+# - Infrastructure services (PostgreSQL, Kafka, Consul, etc.) run on remote server
+# - Gateway runs locally on laptop
+# - SSH tunnel is used to connect to remote PostgreSQL
+# ===================================================================
+
+logging:
+  level:
+    ROOT: INFO
+    tech.jhipster: INFO
+    com.atparui.rms: DEBUG
+    org.springframework.security.oauth2: DEBUG
+    com.jcraft.jsch: DEBUG
+
+# SSH Tunnel Configuration
+# Enable SSH tunnels to connect to all remote services
+ssh:
+  tunnel:
+    enabled: ${SSH_TUNNEL_ENABLED:true}
+    host: ${SSH_TUNNEL_HOST:your-server.com}
+    port: ${SSH_TUNNEL_PORT:22}
+    username: ${SSH_TUNNEL_USERNAME:your-username}
+    password: ${SSH_TUNNEL_PASSWORD:}
+    # Alternative: use private key instead of password
+    private-key: ${SSH_TUNNEL_PRIVATE_KEY:}
+    private-key-passphrase: ${SSH_TUNNEL_PRIVATE_KEY_PASSPHRASE:}
+    # PostgreSQL Tunnel
+    postgres:
+      remote-host: ${SSH_TUNNEL_POSTGRES_REMOTE_HOST:localhost}
+      remote-port: ${SSH_TUNNEL_POSTGRES_REMOTE_PORT:5435}
+      local-port: ${SSH_TUNNEL_POSTGRES_LOCAL_PORT:5433}
+    # Kafka Tunnel
+    kafka:
+      remote-host: ${SSH_TUNNEL_KAFKA_REMOTE_HOST:localhost}
+      remote-port: ${SSH_TUNNEL_KAFKA_REMOTE_PORT:9295}
+      local-port: ${SSH_TUNNEL_KAFKA_LOCAL_PORT:9092}
+    # Consul Tunnel
+    consul:
+      remote-host: ${SSH_TUNNEL_CONSUL_REMOTE_HOST:localhost}
+      remote-port: ${SSH_TUNNEL_CONSUL_REMOTE_PORT:8500}
+      local-port: ${SSH_TUNNEL_CONSUL_LOCAL_PORT:8500}
+    # Elasticsearch Tunnel
+    elasticsearch:
+      remote-host: ${SSH_TUNNEL_ELASTICSEARCH_REMOTE_HOST:localhost}
+      remote-port: ${SSH_TUNNEL_ELASTICSEARCH_REMOTE_PORT:9200}
+      local-port: ${SSH_TUNNEL_ELASTICSEARCH_LOCAL_PORT:9200}
+    # Keycloak Tunnel
+    keycloak:
+      remote-host: ${SSH_TUNNEL_KEYCLOAK_REMOTE_HOST:localhost}
+      remote-port: ${SSH_TUNNEL_KEYCLOAK_REMOTE_PORT:9292}
+      local-port: ${SSH_TUNNEL_KEYCLOAK_LOCAL_PORT:8080}
+
+spring:
+  # Database Configuration (Gateway uses SSH tunnel to remote database)
+  # The tunnel forwards localhost:5433 -> remote-server:5435
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/rms_gateway}
+    username: ${SPRING_DATASOURCE_USERNAME:rms_gateway}
+    password: ${SPRING_DATASOURCE_PASSWORD:rms_gateway}
+
+  r2dbc:
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://localhost:5433/rms_gateway}
+    username: ${SPRING_R2DBC_USERNAME:rms_gateway}
+    password: ${SPRING_R2DBC_PASSWORD:rms_gateway}
+
+  liquibase:
+    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:5433/rms_gateway?currentSchema=public}
+    user: ${SPRING_LIQUIBASE_USER:rms_gateway}
+    password: ${SPRING_LIQUIBASE_PASSWORD:rms_gateway}
+    default-schema-name: ${SPRING_LIQUIBASE_DEFAULT_SCHEMA:public}
+
+  # Infrastructure Services (all via SSH tunnels to localhost)
+  cloud:
+    consul:
+      host: ${SPRING_CLOUD_CONSUL_HOST:localhost}
+      port: ${SPRING_CLOUD_CONSUL_PORT:8500}
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  elasticsearch:
+    uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
+
+# Custom R2DBC config variables (used by MultiTenantDatabaseConfig)
+# These point to localhost because SSH tunnel forwards to remote
+DB_HOST: ${DB_HOST:localhost}
+DB_PORT: ${DB_PORT:5433}
+DB_NAME: ${DB_NAME:rms_gateway}
+DB_USERNAME: ${DB_USERNAME:rms_gateway}
+DB_PASSWORD: ${DB_PASSWORD:rms_gateway}
+
+# Keycloak Configuration (via SSH tunnel to localhost:8080)
+security:
+  oauth2:
+    client:
+      provider:
+        oidc:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/gateway}
+
+management:
+  health:
+    r2dbc:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
