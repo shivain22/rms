@@ -13,10 +13,10 @@ import org.springframework.context.annotation.Primary;
 
 /**
  * Configuration to ensure R2DBC health check uses a dedicated ConnectionFactory
- * which is configured with the correct Docker service name (rms-postgresql).
+ * which is configured with the correct Docker service name (postgresql).
  *
  * This explicitly configures the health indicator to use the healthCheckConnectionFactory
- * bean from MultiTenantDatabaseConfig, ensuring it uses rms-postgresql instead of localhost.
+ * bean from MultiTenantDatabaseConfig, ensuring it uses postgresql service name instead of localhost.
  * Using @Qualifier ensures we get the specific health check factory, not the @Primary one.
  */
 @Configuration
@@ -28,7 +28,7 @@ public class R2dbcHealthIndicatorConfig {
     /**
      * Explicitly configure the ConnectionFactoryHealthIndicator to use the
      * dedicated healthCheckConnectionFactory bean. This ensures the health check uses
-     * the correct database connection (rms-postgresql) instead of localhost.
+     * the correct database connection (postgresql service name) instead of localhost.
      *
      * Using @Qualifier ensures we get the specific health check factory, avoiding
      * any ambiguity with the @Primary ConnectionFactory used by application logic.
@@ -66,7 +66,7 @@ public class R2dbcHealthIndicatorConfig {
                 var host = hostMethod.invoke(config);
                 log.info("ConnectionFactory host from configuration: {}", host);
                 if ("localhost".equals(host) || "127.0.0.1".equals(host)) {
-                    log.error("ERROR: ConnectionFactory is configured with localhost! Expected: rms-postgresql");
+                    log.error("ERROR: ConnectionFactory is configured with localhost! Expected: postgresql");
                 }
             } catch (Exception e) {
                 log.warn("Could not extract host from ConnectionFactory: {}", e.getMessage());

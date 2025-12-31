@@ -3,7 +3,7 @@
   "java.compile.nullAnalysis.mode": "automatic",
   "java.configuration.runtimes": [
     {
-      "name": "JavaSE-17",
+      "name": "JavaSE-21",
       "path": "${env:JAVA_HOME}",
       "default": true
     }

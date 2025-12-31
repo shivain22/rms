@@ -23,7 +23,7 @@
             The spring-boot version should match the one managed by https://mvnrepository.com/artifact/tech.jhipster/jhipster-dependencies/${jhipster-dependencies.version}
         -->
         <maven.version>3.2.5</maven.version>
-        <java.version>17</java.version>
+        <java.version>21</java.version>
         <node.version>v22.15.0</node.version>
         <npm.version>11.3.0</npm.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -51,10 +51,11 @@
         <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
         <jhipster-framework.version>8.11.0</jhipster-framework.version>
         <jib-maven-plugin.architecture>amd64</jib-maven-plugin.architecture>
-        <jib-maven-plugin.image>eclipse-temurin:17-jre-focal</jib-maven-plugin.image>
+        <jib-maven-plugin.image>eclipse-temurin:21-jre-focal</jib-maven-plugin.image>
         <jib-maven-plugin.version>3.4.5</jib-maven-plugin.version>
         <docker.registry>docker.io</docker.registry>
         <docker.username>shivain22</docker.username>
+        <docker.password></docker.password>
         <docker.image.name>rms-gateway</docker.image.name>
         <docker.image.tag>latest</docker.image.tag>
         <lifecycle-mapping.version>1.0.0</lifecycle-mapping.version>
@@ -810,6 +811,7 @@
                     <configuration>
                         <from>
                             <image>${jib-maven-plugin.image}</image>
+                            <!-- No authentication needed for public base image -->
                             <platforms>
                                 <platform>
                                     <architecture>${jib-maven-plugin.architecture}</architecture>
@@ -819,11 +821,15 @@
                         </from>
                         <to>
                             <image>${docker.registry}/${docker.username}/${docker.image.name}:${docker.image.tag}</image>
+                            <!-- Authentication only needed when pushing to registry, not for pulling base image -->
                             <auth>
                                 <username>${docker.username}</username>
                                 <password>${docker.password}</password>
                             </auth>
                         </to>
+                        <!-- Skip authentication for base image pull (public image) -->
+                        <allowInsecureRegistries>false</allowInsecureRegistries>
+                        <skip>false</skip>
                         <container>
                             <entrypoint>
                                 <shell>bash</shell>

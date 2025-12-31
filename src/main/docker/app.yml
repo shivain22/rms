@@ -9,8 +9,21 @@ services:
       - MANAGEMENT_PROMETHEUS_METRICS_EXPORT_ENABLED=true
       - SPRING_CLOUD_CONSUL_HOST=consul
       - SPRING_CLOUD_CONSUL_PORT=8500
-      - SPRING_R2DBC_URL=r2dbc:postgresql://postgresql:5432/rms
-      - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgresql:5432/rms
+      # Gateway database configuration - using rms_gateway database
+      - DB_HOST=postgresql
+      - DB_PORT=5432
+      - DB_NAME=rms_gateway
+      - DB_USERNAME=rms_gateway
+      - DB_PASSWORD=rms_gateway
+      - DB_SCHEMA=public
+      # Spring R2DBC configuration (for compatibility, but MultiTenantDatabaseConfig uses DB_* vars)
+      - SPRING_R2DBC_URL=r2dbc:postgresql://postgresql:5432/rms_gateway
+      - SPRING_R2DBC_USERNAME=rms_gateway
+      - SPRING_R2DBC_PASSWORD=rms_gateway
+      - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgresql:5432/rms_gateway?currentSchema=public
+      - SPRING_LIQUIBASE_USER=rms_gateway
+      - SPRING_LIQUIBASE_PASSWORD=rms_gateway
+      - SPRING_LIQUIBASE_DEFAULT_SCHEMA=public
       - SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OIDC_ISSUER_URI=http://keycloak:9080/realms/jhipster
       - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID=web_app
       - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_SECRET=web_app
