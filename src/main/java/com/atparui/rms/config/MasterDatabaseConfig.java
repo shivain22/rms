@@ -14,7 +14,7 @@ import org.springframework.transaction.ReactiveTransactionManager;
 @Configuration
 public class MasterDatabaseConfig {
 
-    @Value("${DB_HOST:rms-postgresql}")
+    @Value("${DB_HOST:localhost}")
     private String dbHost;
 
     @Value("${DB_PORT:5432}")
@@ -23,10 +23,10 @@ public class MasterDatabaseConfig {
     @Value("${DB_NAME:rms}")
     private String dbName;
 
-    @Value("${DB_USERNAME:rms_gateway}")
+    @Value("${DB_USERNAME:rms}")
     private String dbUsername;
 
-    @Value("${DB_PASSWORD:rms_gateway}")
+    @Value("${DB_PASSWORD:rms}")
     private String dbPassword;
 
     @Bean("masterConnectionFactory")
