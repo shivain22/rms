@@ -51,7 +51,7 @@
         <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
         <jhipster-framework.version>8.11.0</jhipster-framework.version>
         <jib-maven-plugin.architecture>amd64</jib-maven-plugin.architecture>
-        <jib-maven-plugin.image>eclipse-temurin:21-jre-focal</jib-maven-plugin.image>
+        <jib-maven-plugin.image>eclipse-temurin:21-jre</jib-maven-plugin.image>
         <jib-maven-plugin.version>3.4.5</jib-maven-plugin.version>
         <docker.registry>docker.io</docker.registry>
         <docker.username>shivain22</docker.username>
@@ -811,7 +811,8 @@
                     <configuration>
                         <from>
                             <image>${jib-maven-plugin.image}</image>
-                            <!-- No authentication needed for public base image -->
+                            <!-- Public base image - explicitly no authentication -->
+                            <!-- Jib should not use credentials from system or to-section for base image -->
                             <platforms>
                                 <platform>
                                     <architecture>${jib-maven-plugin.architecture}</architecture>
@@ -821,13 +822,13 @@
                         </from>
                         <to>
                             <image>${docker.registry}/${docker.username}/${docker.image.name}:${docker.image.tag}</image>
-                            <!-- Authentication only needed when pushing to registry, not for pulling base image -->
+                            <!-- Authentication only needed when pushing to registry -->
+                            <!-- Only use auth if password is provided -->
                             <auth>
                                 <username>${docker.username}</username>
                                 <password>${docker.password}</password>
                             </auth>
                         </to>
-                        <!-- Skip authentication for base image pull (public image) -->
                         <allowInsecureRegistries>false</allowInsecureRegistries>
                         <skip>false</skip>
                         <container>

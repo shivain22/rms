@@ -6,36 +6,32 @@ REM Run this after installing Java 21
 echo Checking for Java 21 installation...
 echo.
 
-set FOUND=0
 set JAVA21_HOME=
 
 REM Check common installation paths for Temurin/Adoptium Java 21
 for /d %%P in ("C:\Program Files\Eclipse Adoptium\jdk-21*") do (
     if exist "%%P\bin\java.exe" (
         set "JAVA21_HOME=%%P"
-        set FOUND=1
-        goto found
     )
 )
+
+if defined JAVA21_HOME goto :configure
 
 for /d %%P in ("C:\Program Files\Java\jdk-21*") do (
     if exist "%%P\bin\java.exe" (
         set "JAVA21_HOME=%%P"
-        set FOUND=1
-        goto found
     )
 )
+
+if defined JAVA21_HOME goto :configure
 
 for /d %%P in ("C:\Program Files (x86)\Eclipse Adoptium\jdk-21*") do (
     if exist "%%P\bin\java.exe" (
         set "JAVA21_HOME=%%P"
-        set FOUND=1
-        goto found
     )
 )
 
-:found
-if !FOUND!==0 (
+if not defined JAVA21_HOME (
     echo ERROR: Java 21 not found in common installation locations.
     echo.
     echo Please install Java 21 from:
@@ -49,6 +45,7 @@ if !FOUND!==0 (
     exit /b 1
 )
 
+:configure
 echo Found Java 21 at: !JAVA21_HOME!
 echo.
 
