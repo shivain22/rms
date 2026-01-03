@@ -67,11 +67,10 @@ management:
       enabled: true
   # prettier-ignore - management.health and management.endpoint.health are different keys in Spring Boot
   health:
-    # R2DBC health check is enabled and will use the @Primary ConnectionFactory bean
-    # The @Primary ConnectionFactory in MultiTenantDatabaseConfig is configured with
-    # the correct Docker service name (rms-postgresql) and will be used automatically
+    # R2DBC health check is disabled by default
+    # Can be enabled per profile if needed (e.g., in dev profile)
     r2dbc:
-      enabled: true
+      enabled: false
     mail:
       enabled: false # When using the MailService, configure an SMTP server and set this to true
   info:
