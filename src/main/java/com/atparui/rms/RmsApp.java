@@ -111,7 +111,15 @@ public class RmsApp {
 
         String configServerStatus = env.getProperty("configserver.status");
         if (configServerStatus == null) {
-            configServerStatus = "Not found or not setup for this application";
+            // Check if Consul Config is enabled
+            String consulConfigEnabled = env.getProperty("spring.cloud.consul.config.enabled");
+            String consulHost = env.getProperty("spring.cloud.consul.host", "localhost");
+            String consulPort = env.getProperty("spring.cloud.consul.port", "8500");
+            if ("true".equalsIgnoreCase(consulConfigEnabled)) {
+                configServerStatus = String.format("Consul Config (enabled) - %s:%s", consulHost, consulPort);
+            } else {
+                configServerStatus = "Not found or not setup for this application";
+            }
         }
         LOG.info(
             CRLFLogConverter.CRLF_SAFE_MARKER,
