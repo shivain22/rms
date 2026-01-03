@@ -223,27 +223,50 @@ public class SecurityConfiguration {
                     host = exchange.getRequest().getURI().getHost();
                 }
 
-                // Check if request came from frontend port (9000 or 9060)
+                // Determine the correct port for redirect
+                // Priority: X-Forwarded-Port > request port > default based on scheme
                 int requestPort = exchange.getRequest().getURI().getPort();
                 String forwardedPort = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Port");
 
-                int frontendPort = 9000; // Default frontend port
-                if (requestPort == 9000 || requestPort == 9060) {
-                    frontendPort = requestPort;
-                } else if (forwardedPort != null) {
-                    try {
-                        int port = Integer.parseInt(forwardedPort);
-                        if (port == 9000 || port == 9060) {
-                            frontendPort = port;
+                // Check if we're behind a reverse proxy
+                boolean isReverseProxy =
+                    forwardedPort != null ||
+                    exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host") != null ||
+                    exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto") != null;
+
+                int frontendPort = -1; // -1 means don't append port (use standard port for scheme)
+
+                if (isReverseProxy) {
+                    // Behind reverse proxy: use forwarded port or standard port for scheme
+                    if (forwardedPort != null) {
+                        try {
+                            int port = Integer.parseInt(forwardedPort);
+                            // Only append port if it's not a standard port
+                            if (port != 443 && port != 80) {
+                                frontendPort = port;
+                            }
+                        } catch (NumberFormatException e) {
+                            // Invalid port, use standard port for scheme
                         }
-                    } catch (NumberFormatException e) {
-                        // Use default
+                    }
+                    // If no forwarded port or standard port, frontendPort remains -1 (no port in URL)
+                } else {
+                    // Local development: check for dev ports (9000, 9060) or container port (8080)
+                    if (requestPort == 9000 || requestPort == 9060) {
+                        frontendPort = requestPort;
+                    } else if (requestPort == 8080 || requestPort == -1) {
+                        // Container port or default: use 9000 for local dev
+                        frontendPort = 9000;
+                    } else {
+                        // Other port: use it
+                        frontendPort = requestPort;
                     }
                 }
 
                 // Build frontend URL
                 String frontendUrl = scheme + "://" + host;
-                if (frontendPort != 443 && frontendPort != 80) {
+                // Only append port if it's not a standard port (80 for HTTP, 443 for HTTPS)
+                if (frontendPort != -1 && frontendPort != 443 && frontendPort != 80) {
                     frontendUrl += ":" + frontendPort;
                 }
                 frontendUrl += "/";
