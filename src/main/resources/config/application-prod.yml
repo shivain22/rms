@@ -67,10 +67,10 @@ spring:
   liquibase:
     contexts: prod
     # Production defaults use Docker service names (Gateway uses database 'rms_gateway' with schema 'public')
+    # Schema is specified in the URL via currentSchema=public parameter
     url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://rms-postgresql:5432/rms_gateway?currentSchema=public}
     user: ${SPRING_LIQUIBASE_USER:rms_gateway}
     password: ${SPRING_LIQUIBASE_PASSWORD:rms_gateway}
-    default-schema: ${SPRING_LIQUIBASE_DEFAULT_SCHEMA:public}
   r2dbc:
     # Production defaults use Docker service names (Gateway uses database 'rms_gateway' with 'public' schema)
     url: ${SPRING_R2DBC_URL:r2dbc:postgresql://rms-postgresql:5432/rms_gateway}
