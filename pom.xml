@@ -810,8 +810,12 @@
                     <configuration>
                         <from>
                             <image>${jib-maven-plugin.image}</image>
-                            <!-- Public base image - explicitly no authentication -->
-                            <!-- Jib should not use credentials from system or to-section for base image -->
+                            <!-- Docker Hub now requires authentication even for public images -->
+                            <!-- Use Docker Hub credentials for pulling base image -->
+                            <auth>
+                                <username>${docker.username}</username>
+                                <password>${docker.password}</password>
+                            </auth>
                             <platforms>
                                 <platform>
                                     <architecture>${jib-maven-plugin.architecture}</architecture>
