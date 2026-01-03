@@ -6,18 +6,22 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator;
 import org.springframework.boot.actuate.r2dbc.ConnectionFactoryHealthIndicator;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Primary;
 
 /**
- * Configuration to ensure R2DBC health check uses a dedicated ConnectionFactory
- * which is configured with the correct Docker service name (postgresql).
+ * Advanced configuration for R2DBC health checks in a multi-tenant setup.
  *
- * This explicitly configures the health indicator to use the healthCheckConnectionFactory
- * bean from MultiTenantDatabaseConfig, ensuring it uses postgresql service name instead of localhost.
- * Using @Qualifier ensures we get the specific health check factory, not the @Primary one.
+ * This configuration ensures that:
+ * 1. Only the correct ConnectionFactory (healthCheckConnectionFactory) is health-checked
+ * 2. Other ConnectionFactory beans (like masterConnectionFactory) are excluded from health checks
+ * 3. Spring Actuator's auto-discovery is overridden to prevent checking all factories
+ *
+ * The healthCheckConnectionFactory is configured with the correct Docker service name
+ * (rms-postgresql) instead of localhost.
  */
 @Configuration
 @ConditionalOnEnabledHealthIndicator("r2dbc")
@@ -26,15 +30,21 @@ public class R2dbcHealthIndicatorConfig {
     private static final Logger log = LoggerFactory.getLogger(R2dbcHealthIndicatorConfig.class);
 
     /**
-     * Explicitly configure the ConnectionFactoryHealthIndicator to use the
-     * dedicated healthCheckConnectionFactory bean. This ensures the health check uses
-     * the correct database connection (postgresql service name) instead of localhost.
+     * Explicitly configure the ConnectionFactoryHealthIndicator to use ONLY the
+     * dedicated healthCheckConnectionFactory bean. This overrides Spring Boot's
+     * auto-configuration which would discover ALL ConnectionFactory beans.
      *
-     * Using @Qualifier ensures we get the specific health check factory, avoiding
-     * any ambiguity with the @Primary ConnectionFactory used by application logic.
+     * By marking this as @Primary, we ensure that:
+     * - This is the PRIMARY ConnectionFactoryHealthIndicator in the context
+     * - Spring Actuator will use this instead of auto-creating indicators for other factories
+     * - Only the healthCheckConnectionFactory (with correct Docker hostname) is checked
+     *
+     * The @ConditionalOnMissingBean prevents conflicts if another indicator is already defined,
+     * but our @Primary ensures this takes precedence.
      */
     @Bean
     @Primary
+    @ConditionalOnMissingBean(ConnectionFactoryHealthIndicator.class)
     @DependsOn("healthCheckConnectionFactory")
     public ConnectionFactoryHealthIndicator connectionFactoryHealthIndicator(
         @Qualifier("healthCheckConnectionFactory") ConnectionFactory connectionFactory

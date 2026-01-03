@@ -31,9 +31,11 @@ management:
     sampling:
       probability: 1.0 # report 100% of traces
   health:
-    # R2DBC health check disabled
+    # R2DBC health check enabled with advanced multi-tenant configuration
+    # Only the healthCheckConnectionFactory from MultiTenantDatabaseConfig is checked
+    # Other ConnectionFactory beans (masterConnectionFactory) are excluded via @Role(ROLE_INFRASTRUCTURE)
     r2dbc:
-      enabled: false
+      enabled: true
 
 spring:
   devtools:
