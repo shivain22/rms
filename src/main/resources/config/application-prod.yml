@@ -66,11 +66,11 @@ spring:
   # Replace by 'prod, faker' to add the faker context and have sample data loaded in production
   liquibase:
     contexts: prod
-    # Production defaults use Docker service names (Gateway uses database 'rms_gateway' with schema 'rms_gateway')
+    # Production defaults use Docker service names (Gateway uses database 'rms_gateway' with schema 'public')
     url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://rms-postgresql:5432/rms_gateway?currentSchema=public}
     user: ${SPRING_LIQUIBASE_USER:rms_gateway}
     password: ${SPRING_LIQUIBASE_PASSWORD:rms_gateway}
-    default-schema-name: ${SPRING_LIQUIBASE_DEFAULT_SCHEMA:public}
+    default-schema: ${SPRING_LIQUIBASE_DEFAULT_SCHEMA:public}
   r2dbc:
     # Production defaults use Docker service names (Gateway uses database 'rms_gateway' with 'public' schema)
     url: ${SPRING_R2DBC_URL:r2dbc:postgresql://rms-postgresql:5432/rms_gateway}
