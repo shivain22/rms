@@ -142,17 +142,17 @@ jhipster:
       host: logstash
       port: 5000
       ring-buffer-size: 512
+  # CORS configuration for production
+  # Configure via environment variables: CORS_ALLOWED_ORIGINS, CORS_ALLOWED_METHODS, etc.
+  # Example: CORS_ALLOWED_ORIGINS=https://rmsgateway.atparui.com
+  # The WebConfigurer uses jHipsterProperties.getCors() and can be overridden by environment variables
   cors:
-    # CORS configuration for production
-    # Configure via environment variables: CORS_ALLOWED_ORIGINS, CORS_ALLOWED_METHODS, etc.
-    # Example: CORS_ALLOWED_ORIGINS=https://rmsdashboard.atparui.com
-    # If not set via environment, defaults below will be used
-    # allowed-origins: "https://rmsdashboard.atparui.com"
-    # allowed-methods: "*"
-    # allowed-headers: "*"
-    # exposed-headers: "Authorization,Link,X-Total-Count,X-${jhipster.clientApp.name}-alert,X-${jhipster.clientApp.name}-error,X-${jhipster.clientApp.name}-params"
-    # allow-credentials: true
-    # max-age: 1800
+    allowed-origins: "https://rmsgateway.atparui.com"
+    allowed-methods: "*"
+    allowed-headers: "*"
+    exposed-headers: "Authorization,Link,X-Total-Count,X-${jhipster.clientApp.name}-alert,X-${jhipster.clientApp.name}-error,X-${jhipster.clientApp.name}-params"
+    allow-credentials: true
+    max-age: 1800
 # ===================================================================
 # Application specific properties
 # Add your own application properties here, see the ApplicationProperties class
