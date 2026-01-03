@@ -75,6 +75,9 @@ public class SecurityConfiguration {
     @Value("${spring.security.oauth2.client.provider.oidc.issuer-uri}")
     private String issuerUri;
 
+    @Value("${jhipster.cors.allowed-origins:#{null}}")
+    private String allowedOrigins;
+
     private final ReactiveClientRegistrationRepository clientRegistrationRepository;
     private final TenantFilter tenantFilter;
     private final DynamicOAuth2ConfigService dynamicOAuth2ConfigService;
@@ -264,14 +267,33 @@ public class SecurityConfiguration {
                 }
 
                 // Build frontend URL
-                String frontendUrl = scheme + "://" + host;
-                // Only append port if it's not a standard port (80 for HTTP, 443 for HTTPS)
-                if (frontendPort != -1 && frontendPort != 443 && frontendPort != 80) {
-                    frontendUrl += ":" + frontendPort;
+                // Check if we have a configured frontend URL from CORS allowed origins
+                String frontendUrl = null;
+                if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
+                    // Use the first allowed origin as the frontend URL (typically the dashboard)
+                    String[] origins = allowedOrigins.split(",");
+                    if (origins.length > 0) {
+                        frontendUrl = origins[0].trim();
+                        // Remove trailing slash if present
+                        if (frontendUrl.endsWith("/")) {
+                            frontendUrl = frontendUrl.substring(0, frontendUrl.length() - 1);
+                        }
+                        frontendUrl += "/";
+                    }
                 }
-                frontendUrl += "/";
+
+                // Fallback: build from request if no configured frontend URL
+                if (frontendUrl == null) {
+                    frontendUrl = scheme + "://" + host;
+                    // Only append port if it's not a standard port (80 for HTTP, 443 for HTTPS)
+                    if (frontendPort != -1 && frontendPort != 443 && frontendPort != 80) {
+                        frontendUrl += ":" + frontendPort;
+                    }
+                    frontendUrl += "/";
+                }
 
                 // Redirect to frontend
+                // Note: Spring Security automatically saves the session when the response is committed
                 exchange.getResponse().setStatusCode(HttpStatus.FOUND);
                 exchange.getResponse().getHeaders().setLocation(URI.create(frontendUrl));
                 return exchange.getResponse().setComplete();
