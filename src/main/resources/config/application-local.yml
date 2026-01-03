@@ -102,7 +102,7 @@ security:
 management:
   health:
     r2dbc:
-      enabled: true
+      enabled: false
   endpoints:
     web:
       exposure:
