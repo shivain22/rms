@@ -57,9 +57,25 @@ spring:
     consul:
       discovery:
         prefer-ip-address: true
+        enabled: true
+      config:
+        enabled: true
+        format: YAML
+        data-key: data
+        default-context: application
+        prefix: config
+        profile-separator: ","
+        watch:
+          enabled: true
+          delay: 1000
+        fail-fast: false
       # Production defaults use Docker service names
       host: ${SPRING_CLOUD_CONSUL_HOST:consul}
       port: ${SPRING_CLOUD_CONSUL_PORT:8500}
+      retry:
+        initial-interval: 1000
+        max-attempts: 100
+        max-interval: 2000
   elasticsearch:
     # Production defaults use Docker service names
     uris: ${SPRING_ELASTICSEARCH_URIS:http://elasticsearch:9200}
