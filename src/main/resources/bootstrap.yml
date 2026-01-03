@@ -11,7 +11,7 @@ spring:
       host: localhost
       port: 8500
       config:
-        enabled: false
+        enabled: true
         format: YAML
         data-key: data
         prefix: config
