@@ -19,6 +19,7 @@ import org.springframework.data.r2dbc.convert.MappingR2dbcConverter;
 import org.springframework.data.r2dbc.convert.R2dbcCustomConversions;
 import org.springframework.data.r2dbc.dialect.DialectResolver;
 import org.springframework.data.r2dbc.dialect.R2dbcDialect;
+import org.springframework.data.r2dbc.mapping.R2dbcMappingContext;
 import org.springframework.data.r2dbc.query.UpdateMapper;
 import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
 import org.springframework.data.relational.core.dialect.RenderContextFactory;
@@ -49,6 +50,35 @@ public class DatabaseConfiguration {
     @Bean
     public R2dbcDialect dialect(ConnectionFactory connectionFactory) {
         return DialectResolver.getDialect(connectionFactory);
+    }
+
+    @Bean
+    public R2dbcMappingContext r2dbcMappingContext() {
+        return new R2dbcMappingContext();
+    }
+
+    @Bean
+    public MappingR2dbcConverter mappingR2dbcConverter(R2dbcMappingContext mappingContext, R2dbcCustomConversions r2dbcCustomConversions) {
+        return new MappingR2dbcConverter(mappingContext, r2dbcCustomConversions);
+    }
+
+    @Bean
+    @org.springframework.context.annotation.Primary
+    public org.springframework.r2dbc.core.DatabaseClient databaseClient(ConnectionFactory connectionFactory) {
+        return org.springframework.r2dbc.core.DatabaseClient.builder().connectionFactory(connectionFactory).build();
+    }
+
+    @Bean
+    public org.springframework.data.r2dbc.core.R2dbcEntityTemplate r2dbcEntityTemplate(
+        org.springframework.r2dbc.core.DatabaseClient databaseClient,
+        R2dbcDialect dialect
+    ) {
+        return new org.springframework.data.r2dbc.core.R2dbcEntityTemplate(databaseClient, dialect);
+    }
+
+    @Bean
+    public org.springframework.boot.autoconfigure.r2dbc.R2dbcProperties r2dbcProperties() {
+        return new org.springframework.boot.autoconfigure.r2dbc.R2dbcProperties();
     }
 
     @Bean

@@ -20,10 +20,10 @@ logging:
 ssh:
   tunnel:
     enabled: ${SSH_TUNNEL_ENABLED:true}
-    host: ${SSH_TUNNEL_HOST:your-server.com}
+    host: ${SSH_TUNNEL_HOST:203.192.210.121}
     port: ${SSH_TUNNEL_PORT:22}
-    username: ${SSH_TUNNEL_USERNAME:your-username}
-    password: ${SSH_TUNNEL_PASSWORD:}
+    username: ${SSH_TUNNEL_USERNAME:sivakumar}
+    password: ${SSH_TUNNEL_PASSWORD:AzBy791833!}
     # Alternative: use private key instead of password
     private-key: ${SSH_TUNNEL_PRIVATE_KEY:}
     private-key-passphrase: ${SSH_TUNNEL_PRIVATE_KEY_PASSPHRASE:}
@@ -70,7 +70,6 @@ spring:
     url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:5433/rms_gateway?currentSchema=public}
     user: ${SPRING_LIQUIBASE_USER:rms_gateway}
     password: ${SPRING_LIQUIBASE_PASSWORD:rms_gateway}
-    default-schema-name: ${SPRING_LIQUIBASE_DEFAULT_SCHEMA:public}
 
   # Infrastructure Services (all via SSH tunnels to localhost)
   cloud:
