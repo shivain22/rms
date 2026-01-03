@@ -90,36 +90,59 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
             host = exchange.getRequest().getURI().getHost();
         }
 
-        // For OAuth2 redirect, always use the backend port (8082) not the frontend port (9000)
-        // Check if this is coming from frontend proxy (port 9000 or 9060) and use backend port instead
+        // Determine the correct port for OAuth2 redirect URI
+        // Priority: Detect reverse proxy > Use standard ports > Handle local dev ports
         int requestPort = exchange.getRequest().getURI().getPort();
-        int redirectPort = requestPort;
+        String forwardedPort = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Port");
+        String forwardedHost = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
+        String forwardedProto = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
 
-        // If request is coming from webpack dev server (frontend), use backend port for redirect
-        if (requestPort == 9000 || requestPort == 9060) {
-            redirectPort = 8082;
-        } else if (requestPort == -1) {
-            // No port in request, check X-Forwarded-Port header
-            String forwardedPort = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Port");
+        // Check if we're behind a reverse proxy
+        boolean isReverseProxy = forwardedPort != null || forwardedHost != null || forwardedProto != null;
+
+        int redirectPort = -1; // -1 means don't append port (use standard port for scheme)
+
+        if (isReverseProxy) {
+            // Behind reverse proxy: use forwarded port or standard port for scheme
+            // In production, we should never use port 9000/9060
             if (forwardedPort != null) {
                 try {
                     int port = Integer.parseInt(forwardedPort);
-                    if (port == 9000 || port == 9060) {
-                        redirectPort = 8082;
-                    } else {
+                    // Only append port if it's not a standard port
+                    // Always ignore port 9000/9060 in production (likely misconfigured proxy)
+                    if (port != 443 && port != 80 && port != 9000 && port != 9060) {
                         redirectPort = port;
                     }
+                    // If port is 9000/9060 or standard port, use standard port (don't append)
                 } catch (NumberFormatException e) {
-                    redirectPort = "https".equals(scheme) ? 443 : 80;
+                    // Invalid port, use standard port for scheme
                 }
+            }
+            // Also check if request port is 9000/9060 (shouldn't happen in production, but handle it)
+            if (requestPort == 9000 || requestPort == 9060) {
+                // Ignore dev ports in production - use standard port
+                redirectPort = -1;
+            }
+            // If no forwarded port or standard port, redirectPort remains -1 (no port in URL)
+        } else {
+            // Local development: handle dev ports
+            if (requestPort == 9000 || requestPort == 9060) {
+                // Request from webpack dev server: OAuth callback should go to gateway port
+                // Gateway serves both UI and API, so use gateway port (9293 on host)
+                redirectPort = 9293;
+            } else if (requestPort == 8080 || requestPort == 9293 || requestPort == -1) {
+                // Gateway container port (8080) or host port (9293) or no port: use gateway port
+                redirectPort = requestPort == -1 ? 9293 : requestPort;
             } else {
-                redirectPort = "https".equals(scheme) ? 443 : 80;
+                // Other port: use it
+                redirectPort = requestPort;
             }
         }
 
-        // Build base URL for redirect - always use backend port
+        // Build base URL for redirect
         String baseUrl = scheme + "://" + host;
-        if (redirectPort != 443 && redirectPort != 80) {
+        // Only append port if it's not a standard port (80 for HTTP, 443 for HTTPS)
+        if (redirectPort != -1 && redirectPort != 443 && redirectPort != 80) {
             baseUrl += ":" + redirectPort;
         }
 
