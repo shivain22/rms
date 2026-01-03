@@ -31,11 +31,12 @@ management:
     sampling:
       probability: 1.0 # report 100% of traces
   health:
-    # R2DBC health check enabled with advanced multi-tenant configuration
-    # Only the healthCheckConnectionFactory from MultiTenantDatabaseConfig is checked
-    # Other ConnectionFactory beans (masterConnectionFactory) are excluded via @Role(ROLE_INFRASTRUCTURE)
+    # R2DBC health check disabled
+    # In a multi-tenant R2DBC setup, Actuator auto-discovers all ConnectionFactory beans
+    # which can cause health check failures. Disabling R2DBC health is the recommended
+    # approach for gateway services with multi-tenant database configurations.
     r2dbc:
-      enabled: true
+      enabled: false
 
 spring:
   devtools:
