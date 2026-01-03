@@ -20,6 +20,15 @@ logging:
     com.atparui.rms: INFO
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - configprops
+          - env
+          - health
+          - info
+          - prometheus
   prometheus:
     metrics:
       export:
