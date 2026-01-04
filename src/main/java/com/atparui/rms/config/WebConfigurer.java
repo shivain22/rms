@@ -1,5 +1,6 @@
 package com.atparui.rms.config;
 
+import com.atparui.rms.web.filter.SpaWebFilter;
 import com.atparui.rms.web.rest.errors.ExceptionTranslator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.concurrent.TimeUnit;
@@ -21,6 +22,8 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import org.springframework.web.reactive.config.WebFluxConfigurer;
 import org.springframework.web.reactive.result.method.HandlerMethodArgumentResolver;
 import org.springframework.web.server.WebExceptionHandler;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
 import tech.jhipster.config.JHipsterConstants;
 import tech.jhipster.config.JHipsterProperties;
 import tech.jhipster.web.filter.reactive.CachingHttpHeadersFilter;
@@ -143,5 +146,58 @@ public class WebConfigurer implements WebFluxConfigurer {
     public CachingHttpHeadersFilter cachingHttpHeadersFilter() {
         // Use a cache filter that only match selected paths
         return new CachingHttpHeadersFilter(TimeUnit.DAYS.toMillis(jHipsterProperties.getHttp().getCache().getTimeToLiveInDays()));
+    }
+
+    /**
+     * Register SpaWebFilter as a global WebFilter that runs before Spring Security.
+     * This ensures that static resources (like / and /index.html) are handled
+     * even when excluded from the security chain.
+     */
+    @Bean
+    @Order(-100) // Run before Spring Security
+    public WebFilter spaWebFilter() {
+        return new SpaWebFilter();
+    }
+
+    /**
+     * Request logging filter to track all incoming API requests.
+     * This helps debug authentication and endpoint access issues.
+     */
+    @Bean
+    @Order(-50) // Run early but after SpaWebFilter
+    public WebFilter requestLoggingFilter() {
+        return (exchange, chain) -> {
+            String path = exchange.getRequest().getURI().getPath();
+            String method = exchange.getRequest().getMethod().name();
+
+            // Log API requests
+            if (path.startsWith("/api") || path.startsWith("/management")) {
+                LOG.info("=== Incoming API Request ===");
+                LOG.info("Method: {}, Path: {}", method, path);
+                LOG.info("Query: {}", exchange.getRequest().getURI().getQuery());
+                LOG.info("Headers: {}", exchange.getRequest().getHeaders().toSingleValueMap());
+
+                // Check for Authorization header
+                String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+                if (authHeader != null) {
+                    LOG.info("Authorization header present: {}...", authHeader.length() > 50 ? authHeader.substring(0, 50) : authHeader);
+                } else {
+                    LOG.warn("No Authorization header in request");
+                }
+            }
+
+            return chain
+                .filter(exchange)
+                .doOnSuccess(v -> {
+                    if (path.startsWith("/api") || path.startsWith("/management")) {
+                        LOG.info("API Request completed: {} {}", method, path);
+                    }
+                })
+                .doOnError(error -> {
+                    if (path.startsWith("/api") || path.startsWith("/management")) {
+                        LOG.error("API Request failed: {} {} - {}", method, path, error.getMessage(), error);
+                    }
+                });
+        };
     }
 }

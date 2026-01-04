@@ -46,9 +46,22 @@ public class AccountResource {
      */
     @GetMapping("/account")
     public Mono<AdminUserDTO> getAccount(Principal principal) {
+        LOG.info("=== Account Endpoint Called ===");
+        LOG.info("Principal: {}", principal != null ? principal.getName() : "null");
+        LOG.info("Principal class: {}", principal != null ? principal.getClass().getName() : "null");
+
         if (principal instanceof AbstractAuthenticationToken) {
-            return userService.getUserFromAuthentication((AbstractAuthenticationToken) principal);
+            AbstractAuthenticationToken authToken = (AbstractAuthenticationToken) principal;
+            LOG.info("Authentication authorities: {}", authToken.getAuthorities());
+            LOG.info("Authentication name: {}", authToken.getName());
+            LOG.info("Authentication details: {}", authToken.getDetails());
+
+            return userService
+                .getUserFromAuthentication(authToken)
+                .doOnSuccess(user -> LOG.info("Account retrieved successfully for user: {}", user.getLogin()))
+                .doOnError(error -> LOG.error("Error retrieving account: {}", error.getMessage(), error));
         } else {
+            LOG.warn("Principal is not an AbstractAuthenticationToken, cannot retrieve account");
             throw new AccountResourceException("User could not be found");
         }
     }

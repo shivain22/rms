@@ -7,7 +7,6 @@ import static org.springframework.security.web.server.util.matcher.ServerWebExch
 import com.atparui.rms.security.AuthoritiesConstants;
 import com.atparui.rms.security.SecurityUtils;
 import com.atparui.rms.security.oauth2.AudienceValidator;
-import com.atparui.rms.web.filter.SpaWebFilter;
 import com.atparui.rms.web.filter.TenantFilter;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -19,6 +18,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -70,6 +71,8 @@ import tech.jhipster.web.filter.reactive.CookieCsrfFilter;
 @EnableReactiveMethodSecurity
 public class SecurityConfiguration {
 
+    private static final Logger LOG = LoggerFactory.getLogger(SecurityConfiguration.class);
+
     private final JHipsterProperties jHipsterProperties;
 
     @Value("${spring.security.oauth2.client.provider.oidc.issuer-uri}")
@@ -110,7 +113,27 @@ public class SecurityConfiguration {
         http
             .securityMatcher(
                 new NegatedServerWebExchangeMatcher(
-                    new OrServerWebExchangeMatcher(pathMatchers("/app/**", "/i18n/**", "/content/**", "/swagger-ui/**"))
+                    new OrServerWebExchangeMatcher(
+                        pathMatchers(
+                            "/",
+                            "/index.html",
+                            "/app/**",
+                            "/i18n/**",
+                            "/content/**",
+                            "/swagger-ui/**",
+                            "/*.js",
+                            "/*.css",
+                            "/*.png",
+                            "/*.jpg",
+                            "/*.gif",
+                            "/*.svg",
+                            "/*.ico",
+                            "/*.woff",
+                            "/*.woff2",
+                            "/*.ttf",
+                            "/*.eot"
+                        )
+                    )
                 )
             )
             .cors(withDefaults())
@@ -123,7 +146,7 @@ public class SecurityConfiguration {
             // See https://github.com/spring-projects/spring-security/issues/5766
             .addFilterAt(new CookieCsrfFilter(), SecurityWebFiltersOrder.REACTOR_CONTEXT)
             .addFilterBefore(tenantFilter, SecurityWebFiltersOrder.AUTHENTICATION)
-            .addFilterAfter(new SpaWebFilter(), SecurityWebFiltersOrder.HTTPS_REDIRECT)
+            // SpaWebFilter is now registered as a global WebFilter in WebConfigurer (runs before security)
             .headers(headers ->
                 headers
                     .contentSecurityPolicy(csp -> csp.policyDirectives(jHipsterProperties.getSecurity().getContentSecurityPolicy()))
@@ -216,6 +239,42 @@ public class SecurityConfiguration {
             ) {
                 ServerWebExchange exchange = webFilterExchange.getExchange();
 
+                // Log authentication success
+                String username = "unknown";
+                String tokenValue = null;
+                if (authentication != null) {
+                    username = authentication.getName();
+                    LOG.info("=== OAuth2 Authentication Success ===");
+                    LOG.info("Authenticated user: {}", username);
+                    LOG.info("Authentication class: {}", authentication.getClass().getName());
+                    LOG.info("Authorities: {}", authentication.getAuthorities());
+
+                    // Try to extract token information
+                    if (authentication.getPrincipal() instanceof OidcUser) {
+                        OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
+                        LOG.info("OIDC User ID: {}", oidcUser.getIdToken().getSubject());
+                        LOG.info("OIDC User Email: {}", oidcUser.getEmail());
+                        LOG.info("OIDC User Name: {}", oidcUser.getFullName());
+                        if (oidcUser.getIdToken() != null) {
+                            tokenValue = oidcUser.getIdToken().getTokenValue();
+                            LOG.info(
+                                "ID Token (first 50 chars): {}...",
+                                tokenValue != null && tokenValue.length() > 50 ? tokenValue.substring(0, 50) : tokenValue
+                            );
+                        }
+                    } else if (authentication.getPrincipal() instanceof Jwt) {
+                        Jwt jwt = (Jwt) authentication.getPrincipal();
+                        tokenValue = jwt.getTokenValue();
+                        LOG.info("JWT Subject: {}", jwt.getSubject());
+                        LOG.info("JWT Claims: {}", jwt.getClaims());
+                        LOG.info(
+                            "JWT Token (first 50 chars): {}...",
+                            tokenValue != null && tokenValue.length() > 50 ? tokenValue.substring(0, 50) : tokenValue
+                        );
+                    }
+                    LOG.info("Redirecting to frontend after successful authentication");
+                }
+
                 // Get the original request to determine the frontend URL
                 String scheme = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
                 if (scheme == null) {
@@ -295,6 +354,9 @@ public class SecurityConfiguration {
 
                 // Redirect to frontend
                 // Note: Spring Security automatically saves the session when the response is committed
+                LOG.info("Redirecting to frontend URL: {}", frontendUrl);
+                LOG.info("Session will be saved automatically by Spring Security");
+                LOG.info("Frontend should call /api/account after redirect to get user information");
                 exchange.getResponse().setStatusCode(HttpStatus.FOUND);
                 exchange.getResponse().getHeaders().setLocation(URI.create(frontendUrl));
                 return exchange.getResponse().setComplete();
@@ -461,7 +523,17 @@ public class SecurityConfiguration {
             new Converter<Jwt, Flux<GrantedAuthority>>() {
                 @Override
                 public Flux<GrantedAuthority> convert(Jwt jwt) {
-                    return Flux.fromIterable(SecurityUtils.extractAuthorityFromClaims(jwt.getClaims()));
+                    LOG.info("=== JWT Authentication Converter Called ===");
+                    LOG.info("JWT Subject: {}", jwt.getSubject());
+                    LOG.info("JWT Claims: {}", jwt.getClaims());
+                    LOG.info(
+                        "JWT Token Value (first 50 chars): {}...",
+                        jwt.getTokenValue() != null && jwt.getTokenValue().length() > 50
+                            ? jwt.getTokenValue().substring(0, 50)
+                            : jwt.getTokenValue()
+                    );
+                    Flux<GrantedAuthority> authorities = Flux.fromIterable(SecurityUtils.extractAuthorityFromClaims(jwt.getClaims()));
+                    return authorities.doOnNext(auth -> LOG.info("Granted Authority: {}", auth.getAuthority()));
                 }
             }
         );
@@ -527,7 +599,16 @@ public class SecurityConfiguration {
         return new ReactiveJwtDecoder() {
             @Override
             public Mono<Jwt> decode(String token) throws JwtException {
-                return jwtDecoder.decode(token).flatMap(jwt -> enrich(token, jwt));
+                LOG.info("=== JWT Decoder Called ===");
+                LOG.info(
+                    "Decoding JWT token (first 50 chars): {}...",
+                    token != null && token.length() > 50 ? token.substring(0, 50) : token
+                );
+                return jwtDecoder
+                    .decode(token)
+                    .flatMap(jwt -> enrich(token, jwt))
+                    .doOnNext(jwt -> LOG.info("JWT decoded successfully for subject: {}", jwt.getSubject()))
+                    .doOnError(error -> LOG.error("JWT decode error: {}", error.getMessage(), error));
             }
 
             private Mono<Jwt> enrich(String token, Jwt jwt) {
