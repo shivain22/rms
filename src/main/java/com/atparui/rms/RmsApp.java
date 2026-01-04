@@ -89,11 +89,11 @@ public class RmsApp {
             LOG.warn("The host name could not be determined, using `localhost` as fallback");
         }
         // Get build version information
-        String buildVersion = env.getProperty("jhipster.build.short-version", env.getProperty("jhipster.api-docs.version", "0.0.1"));
-        String buildCommitHash = env.getProperty("jhipster.build.commit-hash", "unknown");
-        String buildCommitCount = env.getProperty("jhipster.build.commit-count", "0");
-        String buildBranch = env.getProperty("jhipster.build.branch", "unknown");
-        String buildTimestamp = env.getProperty("jhipster.build.timestamp", "unknown");
+        String buildVersion = env.getProperty("app.build.short-version", env.getProperty("jhipster.api-docs.version", "0.0.1"));
+        String buildCommitHash = env.getProperty("app.build.commit-hash", "unknown");
+        String buildCommitCount = env.getProperty("app.build.commit-count", "0");
+        String buildBranch = env.getProperty("app.build.branch", "unknown");
+        String buildTimestamp = env.getProperty("app.build.timestamp", "unknown");
 
         LOG.info(
             CRLFLogConverter.CRLF_SAFE_MARKER,
