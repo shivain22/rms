@@ -781,8 +781,8 @@ export const TenantManagementUpdate = () => {
                       color="info"
                       onClick={e => {
                         e.preventDefault();
-                        const form = document.querySelector('form') as HTMLFormElement;
-                        if (form) {
+                        const form = document.querySelector('form');
+                        if (form instanceof HTMLFormElement) {
                           const formData = new FormData(form);
                           const values: any = {};
                           formData.forEach((value, key) => {
