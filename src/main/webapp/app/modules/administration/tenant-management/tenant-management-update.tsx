@@ -264,7 +264,7 @@ export const TenantManagementUpdate = () => {
       tenantId: tenantKeyValue,
       subdomain: tenantKeyValue ? `${tenantKeyValue}.atparui.com` : '',
       databaseVendorCode: vendorCode,
-      databaseUrl: databaseUrl,
+      databaseUrl,
       databaseUsername: `rms_${tenantKeyValue}`,
       databasePassword: 'auto-generated',
       schemaName: `${tenantKeyValue}_schema`,
