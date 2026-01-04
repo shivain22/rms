@@ -102,7 +102,7 @@ export const AdministrationSlice = createSlice({
       .addCase(getLoggers.fulfilled, (state, action) => {
         state.loading = false;
         state.logs = {
-          loggers: action.payload.data.loggers,
+          loggers: action.payload.data || [],
         };
       })
       .addCase(getConfigurations.fulfilled, (state, action) => {
