@@ -103,6 +103,23 @@ export const Home = () => {
           </a>
           !
         </p>
+        <div className="mt-4">
+          <Alert color="info" className="small">
+            <strong>Application Version:</strong> {VERSION}
+            {typeof APP_COMMIT_HASH !== 'undefined' && APP_COMMIT_HASH !== 'unknown' && (
+              <>
+                <br />
+                <strong>Build Info:</strong> Commit {APP_COMMIT_HASH} (Count: {APP_COMMIT_COUNT || '0'}, Branch: {APP_BRANCH || 'unknown'})
+                {typeof APP_BUILD_TIMESTAMP !== 'undefined' && APP_BUILD_TIMESTAMP !== 'unknown' && (
+                  <>
+                    <br />
+                    <strong>Build Time:</strong> {APP_BUILD_TIMESTAMP}
+                  </>
+                )}
+              </>
+            )}
+          </Alert>
+        </div>
       </Col>
     </Row>
   );

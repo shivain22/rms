@@ -98,6 +98,12 @@ module.exports = async options => {
           DEVELOPMENT: JSON.stringify(development),
           VERSION: JSON.stringify(environment.VERSION),
           SERVER_API_URL: JSON.stringify(environment.SERVER_API_URL),
+          APP_VERSION: JSON.stringify(environment.APP_VERSION),
+          APP_BUILD_VERSION: JSON.stringify(environment.APP_BUILD_VERSION),
+          APP_COMMIT_HASH: JSON.stringify(environment.APP_COMMIT_HASH),
+          APP_COMMIT_COUNT: JSON.stringify(environment.APP_COMMIT_COUNT),
+          APP_BRANCH: JSON.stringify(environment.APP_BRANCH),
+          APP_BUILD_TIMESTAMP: JSON.stringify(environment.APP_BUILD_TIMESTAMP),
         }),
         new ESLintPlugin({
           configType: 'flat',

@@ -263,7 +263,14 @@ jhipster:
     management-include-pattern: /management/**
     title: Rms API
     description: Rms API documentation
-    version: 0.0.1
+    version: ${build.short.version:0.0.1}
+    build:
+      version: ${build.version:${jhipster.api-docs.version:0.0.1}}
+      short-version: ${build.short.version:${jhipster.api-docs.version:0.0.1}}
+      commit-hash: ${build.commit.hash:${git.commit.id.abbrev:unknown}}
+      commit-count: ${build.commit.count:0}
+      branch: ${build.branch:${git.branch:unknown}}
+      timestamp: ${build.timestamp:${maven.build.timestamp:unknown}}
     terms-of-service-url:
     contact-name:
     contact-url:
