@@ -15,8 +15,11 @@ import org.springframework.stereotype.Component;
 /**
  * Component to print all environment variables and Spring configuration properties
  * at application startup using System.out.println for debugging purposes.
+ *
+ * NOTE: Currently commented out to reduce startup log verbosity.
+ * Uncomment @Component annotation below to re-enable configuration dumping.
  */
-@Component
+// @Component
 public class StartupConfigPrinter {
 
     @Autowired
