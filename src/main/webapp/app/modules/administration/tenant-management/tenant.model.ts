@@ -5,6 +5,12 @@ export interface ITenant {
   name?: string;
   subdomain?: string;
   databaseVendorCode?: string;
+  databaseVendorVersionId?: number;
+  databaseDriverId?: number;
+  databaseProvisioningMode?: string; // AUTO_CREATE or USE_EXISTING
+  databaseHost?: string;
+  databasePort?: number;
+  databaseName?: string;
   databaseUrl?: string;
   databaseUsername?: string;
   databasePassword?: string;

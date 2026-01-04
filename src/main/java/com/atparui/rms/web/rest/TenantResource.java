@@ -1,7 +1,10 @@
 package com.atparui.rms.web.rest;
 
 import com.atparui.rms.domain.Tenant;
+import com.atparui.rms.service.DatabaseConnectionTestService;
 import com.atparui.rms.service.TenantService;
+import com.atparui.rms.service.dto.DatabaseConnectionTestDTO;
+import com.atparui.rms.service.dto.DatabaseConnectionTestResult;
 import com.atparui.rms.service.dto.TenantDatabaseConfigDTO;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -23,9 +26,11 @@ public class TenantResource {
     private static final Logger log = LoggerFactory.getLogger(TenantResource.class);
     private static final String ENTITY_NAME = "tenant";
     private final TenantService tenantService;
+    private final DatabaseConnectionTestService databaseConnectionTestService;
 
-    public TenantResource(TenantService tenantService) {
+    public TenantResource(TenantService tenantService, DatabaseConnectionTestService databaseConnectionTestService) {
         this.tenantService = tenantService;
+        this.databaseConnectionTestService = databaseConnectionTestService;
     }
 
     @PostMapping
@@ -177,5 +182,31 @@ public class TenantResource {
             })
             .then(Mono.just(ResponseEntity.ok().<Void>build()))
             .switchIfEmpty(Mono.just(ResponseEntity.notFound().<Void>build()));
+    }
+
+    /**
+     * {@code POST /api/tenants/test-database-connection} : Test database connection before tenant creation.
+     * This endpoint tests the database connection using provided credentials.
+     *
+     * @param testDTO the database connection test DTO
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and test result.
+     */
+    @PostMapping("/test-database-connection")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public Mono<ResponseEntity<DatabaseConnectionTestResult>> testDatabaseConnection(
+        @Valid @RequestBody DatabaseConnectionTestDTO testDTO
+    ) {
+        log.debug("REST request to test database connection for vendor: {}", testDTO.getVendorCode());
+        return databaseConnectionTestService
+            .testConnection(testDTO)
+            .map(result -> ResponseEntity.ok().body(result))
+            .onErrorResume(throwable -> {
+                log.error("Error testing database connection", throwable);
+                DatabaseConnectionTestResult errorResult = new DatabaseConnectionTestResult(
+                    false,
+                    "Connection test failed: " + throwable.getMessage()
+                );
+                return Mono.just(ResponseEntity.ok().body(errorResult));
+            });
     }
 }

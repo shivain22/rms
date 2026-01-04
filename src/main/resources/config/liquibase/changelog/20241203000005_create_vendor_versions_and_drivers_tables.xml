@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20241203000005-1" author="system">
+        <createTable tableName="database_vendor_versions">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_name" type="varchar(200)"/>
+            <column name="release_date" type="date"/>
+            <column name="end_of_life_date" type="date"/>
+            <column name="release_notes" type="varchar(1000)"/>
+            <column name="is_supported" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_recommended" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+        </createTable>
+        
+        <createIndex indexName="idx_vendor_version" tableName="database_vendor_versions">
+            <column name="vendor_id"/>
+            <column name="version"/>
+        </createIndex>
+        
+        <addUniqueConstraint tableName="database_vendor_versions" columnNames="vendor_id,version" constraintName="uk_vendor_version"/>
+        
+        <comment>Create database_vendor_versions table to track vendor versions</comment>
+    </changeSet>
+
+    <changeSet id="20241203000005-2" author="system">
+        <createTable tableName="database_drivers">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version_id" type="bigint"/>
+            <column name="driver_type" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_path" type="varchar(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_name" type="varchar(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_size" type="bigint"/>
+            <column name="driver_class_name" type="varchar(200)"/>
+            <column name="md5_hash" type="varchar(100)"/>
+            <column name="description" type="varchar(1000)"/>
+            <column name="is_default" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="uploaded_by" type="varchar(100)"/>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+        </createTable>
+        
+        <createIndex indexName="idx_driver_vendor_version" tableName="database_drivers">
+            <column name="vendor_id"/>
+            <column name="version_id"/>
+            <column name="driver_type"/>
+        </createIndex>
+        
+        <comment>Create database_drivers table to store driver JAR metadata</comment>
+    </changeSet>
+
+    <changeSet id="20241203000005-3" author="system">
+        <addColumn tableName="tenants">
+            <column name="database_vendor_version_id" type="bigint">
+                <constraints nullable="true"/>
+            </column>
+            <column name="database_driver_id" type="bigint">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <comment>Add version and driver ID columns to tenants table</comment>
+    </changeSet>
+
+</databaseChangeLog>
+

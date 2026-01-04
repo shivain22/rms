@@ -1,0 +1,71 @@
+package com.atparui.rms.service;
+
+import com.atparui.rms.domain.DatabaseVendorVersion;
+import com.atparui.rms.repository.DatabaseVendorVersionRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+@Service
+public class DatabaseVendorVersionService {
+
+    private static final Logger log = LoggerFactory.getLogger(DatabaseVendorVersionService.class);
+
+    private final DatabaseVendorVersionRepository versionRepository;
+
+    public DatabaseVendorVersionService(DatabaseVendorVersionRepository versionRepository) {
+        this.versionRepository = versionRepository;
+    }
+
+    public Mono<DatabaseVendorVersion> findById(Long id) {
+        return versionRepository.findById(id);
+    }
+
+    public Flux<DatabaseVendorVersion> findByVendorId(Long vendorId) {
+        return versionRepository.findByVendorIdAndActiveTrue(vendorId);
+    }
+
+    /**
+     * Get versions from last N years (default 3).
+     *
+     * @param vendorId the vendor ID
+     * @param years number of years (default 3)
+     * @return Flux of versions
+     */
+    public Flux<DatabaseVendorVersion> findRecentVersions(Long vendorId, int years) {
+        return versionRepository.findRecentVersions(vendorId, years);
+    }
+
+    public Flux<DatabaseVendorVersion> findAll() {
+        return versionRepository.findAll();
+    }
+
+    public Mono<DatabaseVendorVersion> save(DatabaseVendorVersion version) {
+        if (version.getId() == null) {
+            // Check if version already exists for this vendor
+            return versionRepository
+                .existsByVendorIdAndVersion(version.getVendorId(), version.getVersion())
+                .flatMap(exists -> {
+                    if (exists) {
+                        return Mono.error(new RuntimeException("Version " + version.getVersion() + " already exists for this vendor"));
+                    }
+                    return versionRepository.save(version);
+                });
+        } else {
+            return versionRepository.save(version);
+        }
+    }
+
+    public Mono<Void> delete(Long id) {
+        return versionRepository
+            .findById(id)
+            .switchIfEmpty(Mono.error(new RuntimeException("Version not found with ID: " + id)))
+            .flatMap(version -> {
+                log.info("Deleting database vendor version: {} (ID: {})", version.getVersion(), id);
+                return versionRepository.deleteById(id);
+            })
+            .then();
+    }
+}

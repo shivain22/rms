@@ -1,5 +1,6 @@
 package com.atparui.rms.service;
 
+import com.atparui.rms.domain.DatabaseVendor;
 import com.atparui.rms.domain.Tenant;
 import com.atparui.rms.repository.DatabaseVendorRepository;
 import com.atparui.rms.repository.TenantRepository;
@@ -123,17 +124,30 @@ public class TenantService {
             tenant.setDatabaseVendorCode("POSTGRESQL");
         }
 
+        // Set default provisioning mode if not provided
+        if (tenant.getDatabaseProvisioningMode() == null || tenant.getDatabaseProvisioningMode().isEmpty()) {
+            tenant.setDatabaseProvisioningMode("AUTO_CREATE");
+        }
+
         // Validate database vendor exists and is active
         return databaseVendorRepository
             .findByVendorCodeAndActiveTrue(tenant.getDatabaseVendorCode())
             .switchIfEmpty(Mono.error(new RuntimeException("Invalid or inactive database vendor code: " + tenant.getDatabaseVendorCode())))
             .flatMap(vendor -> {
+                // Generate database URL if not provided and we have host/port/database
+                if (tenant.getDatabaseUrl() == null || tenant.getDatabaseUrl().isEmpty()) {
+                    if ("USE_EXISTING".equals(tenant.getDatabaseProvisioningMode())) {
+                        // Generate URL from host/port/database using vendor template
+                        tenant.setDatabaseUrl(buildDatabaseUrl(vendor, tenant));
+                    }
+                }
+
                 // Continue with tenant creation after validation
-                return createTenantWithKeycloakInternal(tenant, applyLiquibaseImmediately);
+                return createTenantWithKeycloakInternal(tenant, applyLiquibaseImmediately, vendor);
             });
     }
 
-    private Mono<Tenant> createTenantWithKeycloakInternal(Tenant tenant, boolean applyLiquibaseImmediately) {
+    private Mono<Tenant> createTenantWithKeycloakInternal(Tenant tenant, boolean applyLiquibaseImmediately, DatabaseVendor vendor) {
         // Create context to track external resources for rollback (database, Keycloak)
         TenantCreationContext context = new TenantCreationContext(
             tenant.getTenantId() != null ? tenant.getTenantId() : tenant.getTenantKey(),
@@ -149,24 +163,60 @@ public class TenantService {
                 context.setTenantEntityId(savedTenant.getId());
                 log.debug("Step 1: Saved tenant entity (within transaction): {}", savedTenant.getTenantKey());
             })
-            // Step 2: Create database (external resource - not part of transaction)
-            .flatMap(savedTenant ->
-                Mono.fromRunnable(() -> {
-                    try {
-                        databaseProvisioningService.createTenantDatabase(savedTenant.getTenantKey(), applyLiquibaseImmediately);
-                        context.setDatabaseCreated(true);
-                        log.debug("Step 2: Created database for tenant: {}", savedTenant.getTenantKey());
-                    } catch (Exception e) {
-                        log.error("Failed to create database for tenant: {}", savedTenant.getTenantKey(), e);
-                        throw new RuntimeException("Failed to create database", e);
+            // Step 2: Handle database provisioning based on mode
+            .flatMap(savedTenant -> {
+                if ("USE_EXISTING".equals(savedTenant.getDatabaseProvisioningMode())) {
+                    // Use existing database - no need to create, just validate connection details are set
+                    log.debug("Step 2: Using existing database for tenant: {}", savedTenant.getTenantKey());
+                    if (savedTenant.getDatabaseUrl() == null || savedTenant.getDatabaseUrl().isEmpty()) {
+                        return Mono.error(new RuntimeException("Database URL is required when using existing database"));
                     }
-                }).thenReturn(savedTenant)
-            )
+                    if (savedTenant.getDatabaseUsername() == null || savedTenant.getDatabaseUsername().isEmpty()) {
+                        return Mono.error(new RuntimeException("Database username is required when using existing database"));
+                    }
+                    if (savedTenant.getDatabasePassword() == null || savedTenant.getDatabasePassword().isEmpty()) {
+                        return Mono.error(new RuntimeException("Database password is required when using existing database"));
+                    }
+                    // Set database name and host/port if not already set
+                    if (savedTenant.getDatabaseName() == null || savedTenant.getDatabaseName().isEmpty()) {
+                        // Extract database name from URL if possible
+                        String dbName = extractDatabaseNameFromUrl(savedTenant.getDatabaseUrl(), vendor);
+                        savedTenant.setDatabaseName(dbName);
+                    }
+                    return Mono.just(savedTenant);
+                } else {
+                    // AUTO_CREATE mode - create database
+                    return Mono.fromRunnable(() -> {
+                        try {
+                            databaseProvisioningService.createTenantDatabase(savedTenant.getTenantKey(), applyLiquibaseImmediately);
+                            context.setDatabaseCreated(true);
+                            log.debug("Step 2: Created database for tenant: {}", savedTenant.getTenantKey());
+                        } catch (Exception e) {
+                            log.error("Failed to create database for tenant: {}", savedTenant.getTenantKey(), e);
+                            throw new RuntimeException("Failed to create database", e);
+                        }
+                    }).thenReturn(savedTenant);
+                }
+            })
             // Step 3: Update tenant with database info (within transaction)
             .flatMap(savedTenant -> {
-                savedTenant.setDatabaseUrl(databaseProvisioningService.getTenantDatabaseUrl(savedTenant.getTenantKey()));
-                savedTenant.setDatabaseUsername(databaseProvisioningService.getTenantDatabaseUsername(savedTenant.getTenantKey()));
-                savedTenant.setDatabasePassword(databaseProvisioningService.getTenantDatabasePassword(savedTenant.getTenantKey()));
+                if ("AUTO_CREATE".equals(savedTenant.getDatabaseProvisioningMode())) {
+                    // Set auto-generated database details
+                    savedTenant.setDatabaseUrl(databaseProvisioningService.getTenantDatabaseUrl(savedTenant.getTenantKey()));
+                    savedTenant.setDatabaseUsername(databaseProvisioningService.getTenantDatabaseUsername(savedTenant.getTenantKey()));
+                    savedTenant.setDatabasePassword(databaseProvisioningService.getTenantDatabasePassword(savedTenant.getTenantKey()));
+                    // Set host/port/database name for auto-created databases
+                    if (savedTenant.getDatabaseHost() == null) {
+                        savedTenant.setDatabaseHost("localhost"); // Default for auto-created
+                    }
+                    if (savedTenant.getDatabasePort() == null) {
+                        savedTenant.setDatabasePort(vendor.getDefaultPort());
+                    }
+                    if (savedTenant.getDatabaseName() == null) {
+                        savedTenant.setDatabaseName("rms_" + savedTenant.getTenantKey());
+                    }
+                }
+                // For USE_EXISTING, details are already set from form
                 return tenantRepository.save(savedTenant);
             })
             // Step 4: Create Keycloak realm (external resource - not part of transaction)
@@ -348,6 +398,89 @@ public class TenantService {
                 // Return empty to allow the rollback to complete, but the error is logged
                 return Mono.empty();
             });
+    }
+
+    /**
+     * Extract database name from JDBC URL.
+     *
+     * @param jdbcUrl the JDBC URL
+     * @param vendor the database vendor
+     * @return database name or default
+     */
+    private String extractDatabaseNameFromUrl(String jdbcUrl, DatabaseVendor vendor) {
+        try {
+            if (vendor.getVendorCode().equals("MSSQL")) {
+                // MSSQL: jdbc:sqlserver://host:port;databaseName=dbname
+                int dbNameIndex = jdbcUrl.indexOf("databaseName=");
+                if (dbNameIndex > 0) {
+                    String dbPart = jdbcUrl.substring(dbNameIndex + "databaseName=".length());
+                    int endIndex = dbPart.indexOf(";");
+                    if (endIndex > 0) {
+                        return dbPart.substring(0, endIndex);
+                    }
+                    return dbPart;
+                }
+            } else {
+                // Standard format: jdbc:driver://host:port/database
+                String[] parts = jdbcUrl.split("/");
+                if (parts.length > 0) {
+                    String lastPart = parts[parts.length - 1];
+                    // Remove query parameters
+                    int queryIndex = lastPart.indexOf("?");
+                    if (queryIndex > 0) {
+                        return lastPart.substring(0, queryIndex);
+                    }
+                    return lastPart;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not extract database name from URL: {}", jdbcUrl, e);
+        }
+        return "rms_database"; // Default fallback
+    }
+
+    /**
+     * Build database URL from vendor template and tenant connection details.
+     *
+     * @param vendor the database vendor
+     * @param tenant the tenant with connection details
+     * @return JDBC URL string
+     */
+    private String buildDatabaseUrl(DatabaseVendor vendor, Tenant tenant) {
+        String template = vendor.getJdbcUrlTemplate();
+        if (template == null || template.isEmpty()) {
+            // Fallback to default format
+            template = "jdbc:" + vendor.getDriverKey() + "://{host}:{port}/{database}";
+        }
+
+        String host = tenant.getDatabaseHost() != null ? tenant.getDatabaseHost() : "localhost";
+        Integer port = tenant.getDatabasePort() != null ? tenant.getDatabasePort() : vendor.getDefaultPort();
+        String database = tenant.getDatabaseName() != null ? tenant.getDatabaseName() : "rms_" + tenant.getTenantKey();
+
+        String url = template.replace("{host}", host).replace("{port}", String.valueOf(port));
+
+        // Handle database name replacement
+        if (url.contains("{database}")) {
+            url = url.replace("{database}", database);
+        } else if (vendor.getVendorCode().equals("MSSQL")) {
+            // MSSQL uses databaseName parameter
+            url += ";databaseName=" + database;
+        }
+
+        // Add schema if provided and vendor supports it
+        if (tenant.getSchemaName() != null && !tenant.getSchemaName().isEmpty()) {
+            if (vendor.getVendorCode().equals("POSTGRESQL")) {
+                url += "?currentSchema=" + tenant.getSchemaName();
+            } else if (vendor.getVendorCode().equals("ORACLE")) {
+                if (!url.contains("?")) {
+                    url += "?current_schema=" + tenant.getSchemaName();
+                } else {
+                    url += "&current_schema=" + tenant.getSchemaName();
+                }
+            }
+        }
+
+        return url;
     }
 
     private String generateClientSecret() {

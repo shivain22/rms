@@ -33,6 +33,24 @@ public class Tenant {
     @Column("database_vendor_code")
     private String databaseVendorCode;
 
+    @Column("database_vendor_version_id")
+    private Long databaseVendorVersionId;
+
+    @Column("database_driver_id")
+    private Long databaseDriverId;
+
+    @Column("database_provisioning_mode")
+    private String databaseProvisioningMode; // AUTO_CREATE or USE_EXISTING
+
+    @Column("database_host")
+    private String databaseHost;
+
+    @Column("database_port")
+    private Integer databasePort;
+
+    @Column("database_name")
+    private String databaseName;
+
     @NotNull
     @Column("database_url")
     private String databaseUrl;
@@ -156,6 +174,54 @@ public class Tenant {
 
     public void setDatabaseVendorCode(String databaseVendorCode) {
         this.databaseVendorCode = databaseVendorCode;
+    }
+
+    public Long getDatabaseVendorVersionId() {
+        return databaseVendorVersionId;
+    }
+
+    public void setDatabaseVendorVersionId(Long databaseVendorVersionId) {
+        this.databaseVendorVersionId = databaseVendorVersionId;
+    }
+
+    public Long getDatabaseDriverId() {
+        return databaseDriverId;
+    }
+
+    public void setDatabaseDriverId(Long databaseDriverId) {
+        this.databaseDriverId = databaseDriverId;
+    }
+
+    public String getDatabaseProvisioningMode() {
+        return databaseProvisioningMode;
+    }
+
+    public void setDatabaseProvisioningMode(String databaseProvisioningMode) {
+        this.databaseProvisioningMode = databaseProvisioningMode;
+    }
+
+    public String getDatabaseHost() {
+        return databaseHost;
+    }
+
+    public void setDatabaseHost(String databaseHost) {
+        this.databaseHost = databaseHost;
+    }
+
+    public Integer getDatabasePort() {
+        return databasePort;
+    }
+
+    public void setDatabasePort(Integer databasePort) {
+        this.databasePort = databasePort;
+    }
+
+    public String getDatabaseName() {
+        return databaseName;
+    }
+
+    public void setDatabaseName(String databaseName) {
+        this.databaseName = databaseName;
     }
 
     public String getDatabaseUrl() {

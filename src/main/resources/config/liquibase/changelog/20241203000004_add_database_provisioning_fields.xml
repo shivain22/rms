@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20241203000004-1" author="system">
+        <addColumn tableName="tenants">
+            <column name="database_provisioning_mode" type="varchar(20)" defaultValue="AUTO_CREATE">
+                <constraints nullable="true"/>
+            </column>
+            <column name="database_host" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="database_port" type="integer">
+                <constraints nullable="true"/>
+            </column>
+            <column name="database_name" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <comment>Add database provisioning fields to support existing databases and connection details</comment>
+    </changeSet>
+
+    <changeSet id="20241203000004-2" author="system">
+        <update tableName="tenants">
+            <column name="database_provisioning_mode" value="AUTO_CREATE"/>
+            <where>database_provisioning_mode IS NULL</where>
+        </update>
+        
+        <comment>Set default database_provisioning_mode to AUTO_CREATE for existing tenants</comment>
+    </changeSet>
+
+</databaseChangeLog>
+

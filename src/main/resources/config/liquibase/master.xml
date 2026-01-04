@@ -18,4 +18,6 @@
     <include file="config/liquibase/changelog/20241203000001_add_database_type_column.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20241203000002_create_database_vendors_table.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20241203000003_rename_database_type_to_vendor_code.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20241203000004_add_database_provisioning_fields.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20241203000005_create_vendor_versions_and_drivers_tables.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>
