@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
  * Controller for viewing and managing Logback configuration at runtime.
  */
 @RestController
-@RequestMapping("/api/admin/loggers")
+@RequestMapping("/management/loggers")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
 public class LoggersResource {
 
