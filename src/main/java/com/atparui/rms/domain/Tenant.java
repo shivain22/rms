@@ -30,6 +30,9 @@ public class Tenant {
     @Size(max = 100)
     private String subdomain;
 
+    @Column("database_vendor_code")
+    private String databaseVendorCode;
+
     @NotNull
     @Column("database_url")
     private String databaseUrl;
@@ -145,6 +148,14 @@ public class Tenant {
 
     public void setSubdomain(String subdomain) {
         this.subdomain = subdomain;
+    }
+
+    public String getDatabaseVendorCode() {
+        return databaseVendorCode;
+    }
+
+    public void setDatabaseVendorCode(String databaseVendorCode) {
+        this.databaseVendorCode = databaseVendorCode;
     }
 
     public String getDatabaseUrl() {

@@ -4,6 +4,7 @@ export interface ITenant {
   tenantId?: string;
   name?: string;
   subdomain?: string;
+  databaseVendorCode?: string;
   databaseUrl?: string;
   databaseUsername?: string;
   databasePassword?: string;
@@ -17,6 +18,7 @@ export interface ITenant {
 
 export const defaultValue: Readonly<ITenant> = {
   active: true,
+  databaseVendorCode: 'POSTGRESQL',
   realmName: '',
   clientId: '',
   clientSecret: '',

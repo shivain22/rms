@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20241203000003-1" author="system">
+        <!-- Rename database_type column to database_vendor_code -->
+        <renameColumn tableName="tenants" oldColumnName="database_type" newColumnName="database_vendor_code" columnDataType="varchar(50)"/>
+        
+        <comment>Rename database_type to database_vendor_code to reference database_vendors table</comment>
+    </changeSet>
+
+    <changeSet id="20241203000003-2" author="system">
+        <!-- Update existing tenant records to use vendor codes from database_vendors table -->
+        <!-- This ensures consistency with the new database_vendors table -->
+        <update tableName="tenants">
+            <column name="database_vendor_code" value="POSTGRESQL"/>
+            <where>database_vendor_code IS NULL OR database_vendor_code = ''</where>
+        </update>
+        
+        <comment>Set default database_vendor_code to POSTGRESQL for existing tenants</comment>
+    </changeSet>
+
+</databaseChangeLog>
+

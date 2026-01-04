@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20241203000001-1" author="system">
+        <addColumn tableName="tenants">
+            <column name="database_type" type="varchar(50)" defaultValue="POSTGRESQL">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <comment>Add database_type column to support multiple database vendors (PostgreSQL, MySQL, Oracle, MSSQL, DB2)</comment>
+    </changeSet>
+
+    <changeSet id="20241203000001-2" author="system">
+        <update tableName="tenants">
+            <column name="database_type" value="POSTGRESQL"/>
+            <where>database_type IS NULL</where>
+        </update>
+        
+        <comment>Set default database_type to POSTGRESQL for existing tenants</comment>
+    </changeSet>
+
+</databaseChangeLog>
+

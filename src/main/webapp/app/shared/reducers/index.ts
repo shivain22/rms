@@ -8,6 +8,7 @@ import applicationProfile from './application-profile';
 
 import userManagement from './user-management';
 import tenantManagement from 'app/modules/administration/tenant-management/tenant-management.reducer';
+import databaseVendor from 'app/modules/administration/tenant-management/database-vendor.reducer';
 /* jhipster-needle-add-reducer-import - JHipster will add reducer here */
 
 const rootReducer: ReducersMapObject = {
@@ -17,6 +18,7 @@ const rootReducer: ReducersMapObject = {
   administration,
   userManagement,
   tenantManagement,
+  databaseVendor,
   loadingBar,
   /* jhipster-needle-add-reducer-combine - JHipster will add reducer here */
 };

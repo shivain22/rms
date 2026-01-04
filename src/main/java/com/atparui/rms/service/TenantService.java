@@ -1,6 +1,7 @@
 package com.atparui.rms.service;
 
 import com.atparui.rms.domain.Tenant;
+import com.atparui.rms.repository.DatabaseVendorRepository;
 import com.atparui.rms.repository.TenantRepository;
 import com.atparui.rms.service.dto.TenantCreationContext;
 import com.atparui.rms.service.dto.TenantDatabaseConfigDTO;
@@ -25,6 +26,7 @@ public class TenantService {
 
     private final TenantRepository tenantRepository;
     private final com.atparui.rms.repository.TenantClientRepository tenantClientRepository;
+    private final DatabaseVendorRepository databaseVendorRepository;
     private final KeycloakRealmService keycloakRealmService;
     private final DatabaseProvisioningService databaseProvisioningService;
     private final TenantLiquibaseService tenantLiquibaseService;
@@ -37,6 +39,7 @@ public class TenantService {
     public TenantService(
         TenantRepository tenantRepository,
         com.atparui.rms.repository.TenantClientRepository tenantClientRepository,
+        DatabaseVendorRepository databaseVendorRepository,
         KeycloakRealmService keycloakRealmService,
         DatabaseProvisioningService databaseProvisioningService,
         TenantLiquibaseService tenantLiquibaseService,
@@ -44,6 +47,7 @@ public class TenantService {
     ) {
         this.tenantRepository = tenantRepository;
         this.tenantClientRepository = tenantClientRepository;
+        this.databaseVendorRepository = databaseVendorRepository;
         this.keycloakRealmService = keycloakRealmService;
         this.databaseProvisioningService = databaseProvisioningService;
         this.tenantLiquibaseService = tenantLiquibaseService;
@@ -114,6 +118,22 @@ public class TenantService {
             );
         }
 
+        // Set default database vendor code if not provided
+        if (tenant.getDatabaseVendorCode() == null || tenant.getDatabaseVendorCode().isEmpty()) {
+            tenant.setDatabaseVendorCode("POSTGRESQL");
+        }
+
+        // Validate database vendor exists and is active
+        return databaseVendorRepository
+            .findByVendorCodeAndActiveTrue(tenant.getDatabaseVendorCode())
+            .switchIfEmpty(Mono.error(new RuntimeException("Invalid or inactive database vendor code: " + tenant.getDatabaseVendorCode())))
+            .flatMap(vendor -> {
+                // Continue with tenant creation after validation
+                return createTenantWithKeycloakInternal(tenant, applyLiquibaseImmediately);
+            });
+    }
+
+    private Mono<Tenant> createTenantWithKeycloakInternal(Tenant tenant, boolean applyLiquibaseImmediately) {
         // Create context to track external resources for rollback (database, Keycloak)
         TenantCreationContext context = new TenantCreationContext(
             tenant.getTenantId() != null ? tenant.getTenantId() : tenant.getTenantKey(),

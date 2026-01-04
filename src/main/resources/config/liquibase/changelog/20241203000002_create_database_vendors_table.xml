@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20241203000002-1" author="system">
+        <createTable tableName="database_vendors">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_code" type="varchar(50)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="display_name" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="default_port" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="driver_key" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="varchar(500)"/>
+            <column name="jdbc_url_template" type="varchar(500)"/>
+            <column name="r2dbc_url_template" type="varchar(500)"/>
+            <column name="driver_class_name" type="varchar(200)"/>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+        </createTable>
+        
+        <createIndex indexName="idx_vendor_code" tableName="database_vendors">
+            <column name="vendor_code"/>
+        </createIndex>
+        
+        <comment>Create database_vendors table to support multiple database vendors dynamically</comment>
+    </changeSet>
+
+    <changeSet id="20241203000002-2" author="system">
+        <!-- Insert default database vendors -->
+        <insert tableName="database_vendors">
+            <column name="vendor_code" value="POSTGRESQL"/>
+            <column name="display_name" value="PostgreSQL"/>
+            <column name="default_port" value="5432"/>
+            <column name="driver_key" value="postgresql"/>
+            <column name="description" value="PostgreSQL is a powerful, open source object-relational database system"/>
+            <column name="jdbc_url_template" value="jdbc:postgresql://{host}:{port}/{database}"/>
+            <column name="r2dbc_url_template" value="r2dbc:postgresql://{host}:{port}/{database}"/>
+            <column name="driver_class_name" value="org.postgresql.Driver"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="database_vendors">
+            <column name="vendor_code" value="MYSQL"/>
+            <column name="display_name" value="MySQL"/>
+            <column name="default_port" value="3306"/>
+            <column name="driver_key" value="mysql"/>
+            <column name="description" value="MySQL is an open-source relational database management system"/>
+            <column name="jdbc_url_template" value="jdbc:mysql://{host}:{port}/{database}"/>
+            <column name="r2dbc_url_template" value="r2dbc:mysql://{host}:{port}/{database}"/>
+            <column name="driver_class_name" value="com.mysql.cj.jdbc.Driver"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="database_vendors">
+            <column name="vendor_code" value="ORACLE"/>
+            <column name="display_name" value="Oracle"/>
+            <column name="default_port" value="1521"/>
+            <column name="driver_key" value="oracle"/>
+            <column name="description" value="Oracle Database is a multi-model database management system"/>
+            <column name="jdbc_url_template" value="jdbc:oracle:thin:@{host}:{port}:{database}"/>
+            <column name="r2dbc_url_template" value="r2dbc:oracle://{host}:{port}/{database}"/>
+            <column name="driver_class_name" value="oracle.jdbc.OracleDriver"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="database_vendors">
+            <column name="vendor_code" value="MSSQL"/>
+            <column name="display_name" value="Microsoft SQL Server"/>
+            <column name="default_port" value="1433"/>
+            <column name="driver_key" value="mssql"/>
+            <column name="description" value="Microsoft SQL Server is a relational database management system"/>
+            <column name="jdbc_url_template" value="jdbc:sqlserver://{host}:{port};databaseName={database}"/>
+            <column name="r2dbc_url_template" value="r2dbc:mssql://{host}:{port}/{database}"/>
+            <column name="driver_class_name" value="com.microsoft.sqlserver.jdbc.SQLServerDriver"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="database_vendors">
+            <column name="vendor_code" value="DB2"/>
+            <column name="display_name" value="IBM DB2"/>
+            <column name="default_port" value="50000"/>
+            <column name="driver_key" value="db2"/>
+            <column name="description" value="IBM DB2 is a family of data management products"/>
+            <column name="jdbc_url_template" value="jdbc:db2://{host}:{port}/{database}"/>
+            <column name="r2dbc_url_template" value="r2dbc:db2://{host}:{port}/{database}"/>
+            <column name="driver_class_name" value="com.ibm.db2.jcc.DB2Driver"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <comment>Seed initial database vendors (PostgreSQL, MySQL, Oracle, MSSQL, DB2)</comment>
+    </changeSet>
+
+</databaseChangeLog>
+
