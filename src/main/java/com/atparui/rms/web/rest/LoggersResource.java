@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,10 +19,13 @@ import reactor.core.publisher.Mono;
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
 public class LoggersResource {
 
+    private static final Logger LOG = LoggerFactory.getLogger(LoggersResource.class);
+
     private final LoggerContext loggerContext;
 
     public LoggersResource() {
         this.loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        LOG.info("LoggersResource initialized - LoggerContext: {}", loggerContext);
     }
 
     /**
@@ -31,7 +35,11 @@ public class LoggersResource {
      */
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<List<LoggerVM>> getLoggers() {
-        return Mono.just(loggerContext.getLoggerList().stream().map(LoggerVM::new).collect(Collectors.toList()));
+        LOG.info("=== Loggers Endpoint Called ===");
+        LOG.info("Getting all loggers from LoggerContext");
+        List<LoggerVM> loggers = loggerContext.getLoggerList().stream().map(LoggerVM::new).collect(Collectors.toList());
+        LOG.info("Found {} loggers", loggers.size());
+        return Mono.just(loggers);
     }
 
     /**
