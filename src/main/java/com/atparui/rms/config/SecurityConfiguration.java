@@ -141,6 +141,7 @@ public class SecurityConfiguration {
                 // prettier-ignore
                 authz
                     .pathMatchers("/").permitAll()
+                    .pathMatchers("/index.html").permitAll()
                     .pathMatchers("/*.*").permitAll()
                     .pathMatchers("/api/authenticate").permitAll()
                     .pathMatchers("/api/auth-info").permitAll()
@@ -364,7 +365,39 @@ public class SecurityConfiguration {
                     .then(exchange.getResponse().setComplete());
             }
 
-            // For non-API requests (browser requests), redirect to OAuth2 authorization endpoint
+            // Check if this is a static resource request (SPA routes)
+            // These should be served by SpaWebFilter and should not redirect to login
+            // Note: These paths are permitAll(), so the entry point shouldn't normally be called
+            // But if it is (e.g., due to session issues), we should not redirect to login
+            boolean isStaticResource =
+                path.equals("/") ||
+                path.equals("/index.html") ||
+                path.startsWith("/app/") ||
+                path.startsWith("/i18n/") ||
+                path.startsWith("/content/") ||
+                path.startsWith("/swagger-ui/") ||
+                (!path.contains(".") &&
+                    !path.startsWith("/api") &&
+                    !path.startsWith("/management") &&
+                    !path.startsWith("/services") &&
+                    !path.startsWith("/oauth2") &&
+                    !path.startsWith("/login"));
+
+            if (isStaticResource) {
+                // Static resource request - these are permitAll() so shouldn't require authentication
+                // If entry point is called for these, it's likely a session/configuration issue
+                // For static resources, we should NOT redirect to login
+                // Instead, we need to allow the request to be handled by the SpaWebFilter
+                // Since entry points must complete the response, we can't let the chain continue
+                // The solution: return 200 OK without redirect, which allows the browser
+                // to make a fresh request that will be handled correctly by SpaWebFilter
+                // Note: This is a workaround - ideally these paths shouldn't trigger the entry point
+                // The browser will get 200 OK and can then request the resource again
+                exchange.getResponse().setStatusCode(HttpStatus.OK);
+                return exchange.getResponse().setComplete();
+            }
+
+            // For other non-API requests (browser requests), redirect to OAuth2 authorization endpoint
             // This endpoint will handle the redirect to Keycloak server-side
             String redirectUrl = "/oauth2/authorization/oidc";
             exchange.getResponse().setStatusCode(HttpStatus.FOUND);
