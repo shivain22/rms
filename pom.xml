@@ -894,15 +894,19 @@
                     <version>${git-commit-id-maven-plugin.version}</version>
                     <executions>
                         <execution>
+                            <id>get-the-git-infos</id>
                             <goals>
                                 <goal>revision</goal>
                             </goals>
+                            <phase>initialize</phase>
                         </execution>
                     </executions>
                     <configuration>
                         <failOnNoGitDirectory>false</failOnNoGitDirectory>
                         <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
                         <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                        <injectAllReactorProjects>true</injectAllReactorProjects>
+                        <injectIntoSysProperties>true</injectIntoSysProperties>
                         <includeOnlyProperties>
                             <includeOnlyProperty>^git.commit.id.abbrev$</includeOnlyProperty>
                             <includeOnlyProperty>^git.commit.id.describe$</includeOnlyProperty>
