@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -35,7 +34,7 @@ public class DriverStorageService {
      */
     public String storeDriver(String vendorCode, String version, String driverType, MultipartFile file) throws IOException {
         // Create directory structure: drivers/{vendor}/{version}/{type}/
-        Path vendorDir = Paths.get(storageBasePath, vendorCode.toLowerCase());
+        Path vendorDir = Path.of(storageBasePath, vendorCode.toLowerCase());
         Path versionDir = vendorDir.resolve(version);
         Path typeDir = versionDir.resolve(driverType.toLowerCase());
 
@@ -60,7 +59,7 @@ public class DriverStorageService {
         }
 
         // Return relative path from storage base
-        Path relativePath = Paths.get(storageBasePath).relativize(targetFile);
+        Path relativePath = Path.of(storageBasePath).relativize(targetFile);
         log.info("Stored driver JAR: {} -> {}", originalFilename, relativePath);
         return relativePath.toString().replace("\\", "/"); // Normalize path separators
     }
@@ -72,7 +71,7 @@ public class DriverStorageService {
      * @return Resource for the file
      */
     public Resource loadDriverAsResource(String filePath) throws IOException {
-        Path file = Paths.get(storageBasePath, filePath);
+        Path file = Path.of(storageBasePath, filePath);
         Resource resource = new UrlResource(file.toUri());
 
         if (resource.exists() && resource.isReadable()) {
@@ -89,7 +88,7 @@ public class DriverStorageService {
      * @return absolute Path
      */
     public Path getDriverPath(String filePath) {
-        return Paths.get(storageBasePath, filePath);
+        return Path.of(storageBasePath, filePath);
     }
 
     /**
@@ -125,7 +124,7 @@ public class DriverStorageService {
      * @param filePath the relative file path
      */
     public void deleteDriver(String filePath) throws IOException {
-        Path file = Paths.get(storageBasePath, filePath);
+        Path file = Path.of(storageBasePath, filePath);
         if (Files.exists(file)) {
             Files.delete(file);
             log.info("Deleted driver file: {}", filePath);
@@ -139,7 +138,7 @@ public class DriverStorageService {
      * @return file size in bytes
      */
     public long getFileSize(String filePath) throws IOException {
-        Path file = Paths.get(storageBasePath, filePath);
+        Path file = Path.of(storageBasePath, filePath);
         return Files.size(file);
     }
 }

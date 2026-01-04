@@ -34,6 +34,10 @@ public class DatabaseDriverService {
         this.versionRepository = versionRepository;
     }
 
+    public Flux<DatabaseDriver> findAll() {
+        return driverRepository.findAll();
+    }
+
     public Mono<DatabaseDriver> findById(Long id) {
         return driverRepository.findById(id);
     }
