@@ -23,6 +23,12 @@ public class AudienceValidator implements OAuth2TokenValidator<Jwt> {
 
     public OAuth2TokenValidatorResult validate(Jwt jwt) {
         List<String> audience = jwt.getAudience();
+        // Service account tokens may not have an audience claim
+        // If audience is null or empty, skip validation for service accounts
+        if (audience == null || audience.isEmpty()) {
+            LOG.debug("JWT token has no audience claim - allowing token (likely a service account token)");
+            return OAuth2TokenValidatorResult.success();
+        }
         if (audience.stream().anyMatch(allowedAudience::contains)) {
             return OAuth2TokenValidatorResult.success();
         } else {
