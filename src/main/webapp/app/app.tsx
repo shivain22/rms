@@ -37,6 +37,21 @@ export const App = () => {
   const isInProduction = useAppSelector(state => state.applicationProfile.inProduction);
   const isOpenAPIEnabled = useAppSelector(state => state.applicationProfile.isOpenAPIEnabled);
 
+  // Show landing page layout when not authenticated
+  if (!isAuthenticated) {
+    return (
+      <BrowserRouter basename={baseHref}>
+        <div className="min-h-screen bg-background">
+          <ToastContainer position="top-left" className="toastify-container" toastClassName="toastify-toast" />
+          <ErrorBoundary>
+            <AppRoutes />
+          </ErrorBoundary>
+        </div>
+      </BrowserRouter>
+    );
+  }
+
+  // Show dashboard layout when authenticated
   return (
     <BrowserRouter basename={baseHref}>
       <div className="flex h-screen bg-background">
