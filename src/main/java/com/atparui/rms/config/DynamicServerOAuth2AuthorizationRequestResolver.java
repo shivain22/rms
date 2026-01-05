@@ -218,6 +218,28 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
         // Generate state parameter (CSRF token)
         String state = generateState();
 
+        // Store the original origin in state attributes for redirect after authentication
+        // (origin and referer are already declared at the top of the method)
+        String originalOriginValue = null;
+
+        if (origin != null && (origin.contains("localhost:9000") || origin.contains("127.0.0.1:9000"))) {
+            originalOriginValue = origin;
+        } else if (referer != null && (referer.contains("localhost:9000") || referer.contains("127.0.0.1:9000"))) {
+            try {
+                java.net.URI refererUri = java.net.URI.create(referer);
+                String refererBase = refererUri.getScheme() + "://" + refererUri.getHost();
+                if (refererUri.getPort() != -1 && refererUri.getPort() != 80 && refererUri.getPort() != 443) {
+                    refererBase += ":" + refererUri.getPort();
+                }
+                originalOriginValue = refererBase;
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+
+        // Make final for use in lambda
+        final String finalOriginalOrigin = originalOriginValue;
+
         // Build the authorization request
         OAuth2AuthorizationRequest.Builder builder = OAuth2AuthorizationRequest.authorizationCode()
             .clientId(clientRegistration.getClientId())
@@ -227,6 +249,9 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
             .state(state)
             .attributes(attributes -> {
                 attributes.put("registration_id", clientRegistration.getRegistrationId());
+                if (finalOriginalOrigin != null) {
+                    attributes.put("original_origin", finalOriginalOrigin);
+                }
             });
 
         return Mono.just(builder.build());

@@ -277,81 +277,129 @@ public class SecurityConfiguration {
                     LOG.info("Redirecting to frontend after successful authentication");
                 }
 
-                // Get the original request to determine the frontend URL
-                String scheme = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
-                if (scheme == null) {
-                    scheme = exchange.getRequest().getURI().getScheme();
-                }
+                // Check Origin header first (for CORS requests from webpack dev server)
+                String origin = exchange.getRequest().getHeaders().getFirst("Origin");
+                String referer = exchange.getRequest().getHeaders().getFirst("Referer");
 
-                String host = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
-                if (host == null) {
-                    host = exchange.getRequest().getURI().getHost();
-                }
+                String frontendUrl = null;
 
-                // Determine the correct port for redirect
-                // Priority: X-Forwarded-Port > request port > default based on scheme
-                int requestPort = exchange.getRequest().getURI().getPort();
-                String forwardedPort = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Port");
-
-                // Check if we're behind a reverse proxy
-                boolean isReverseProxy =
-                    forwardedPort != null ||
-                    exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host") != null ||
-                    exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto") != null;
-
-                int frontendPort = -1; // -1 means don't append port (use standard port for scheme)
-
-                if (isReverseProxy) {
-                    // Behind reverse proxy: use forwarded port or standard port for scheme
-                    if (forwardedPort != null) {
-                        try {
-                            int port = Integer.parseInt(forwardedPort);
-                            // Only append port if it's not a standard port
-                            if (port != 443 && port != 80) {
-                                frontendPort = port;
-                            }
-                        } catch (NumberFormatException e) {
-                            // Invalid port, use standard port for scheme
+                // Priority 1: Check Origin header for localhost:9000 (webpack dev server)
+                if (origin != null && (origin.contains("localhost:9000") || origin.contains("127.0.0.1:9000"))) {
+                    try {
+                        java.net.URI originUri = java.net.URI.create(origin);
+                        frontendUrl = originUri.toString();
+                        if (!frontendUrl.endsWith("/")) {
+                            frontendUrl += "/";
                         }
+                        LOG.info("Using Origin header for redirect: {}", frontendUrl);
+                    } catch (Exception e) {
+                        LOG.warn("Failed to parse Origin header: {}", origin, e);
                     }
-                    // If no forwarded port or standard port, frontendPort remains -1 (no port in URL)
-                } else {
-                    // Local development: check for dev ports (9000, 9060) or container port (8080)
-                    if (requestPort == 9000 || requestPort == 9060) {
-                        frontendPort = requestPort;
-                    } else if (requestPort == 8080 || requestPort == -1) {
-                        // Container port or default: use 9000 for local dev
+                } else if (referer != null && (referer.contains("localhost:9000") || referer.contains("127.0.0.1:9000"))) {
+                    // Priority 2: Check Referer header
+                    try {
+                        java.net.URI refererUri = java.net.URI.create(referer);
+                        String refererBase = refererUri.getScheme() + "://" + refererUri.getHost();
+                        if (refererUri.getPort() != -1 && refererUri.getPort() != 80 && refererUri.getPort() != 443) {
+                            refererBase += ":" + refererUri.getPort();
+                        }
+                        frontendUrl = refererBase + "/";
+                        LOG.info("Using Referer header for redirect: {}", frontendUrl);
+                    } catch (Exception e) {
+                        LOG.warn("Failed to parse Referer header: {}", referer, e);
+                    }
+                }
+
+                // Priority 3: Build from request if Origin/Referer not available
+                if (frontendUrl == null) {
+                    // Get the original request to determine the frontend URL
+                    String scheme = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
+                    if (scheme == null) {
+                        scheme = exchange.getRequest().getURI().getScheme();
+                    }
+
+                    String host = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
+                    String requestHost = exchange.getRequest().getURI().getHost();
+                    boolean isRequestLocalhost = "localhost".equals(requestHost) || "127.0.0.1".equals(requestHost);
+
+                    // Only use forwarded host if we're not in localhost context (avoid production domain in local dev)
+                    if (host == null || (isRequestLocalhost && !host.contains("localhost") && !host.contains("127.0.0.1"))) {
+                        host = requestHost;
+                    }
+
+                    // Determine the correct port for redirect
+                    int requestPort = exchange.getRequest().getURI().getPort();
+                    String forwardedPort = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Port");
+
+                    // Check if we're behind a reverse proxy
+                    boolean isReverseProxy =
+                        forwardedPort != null ||
+                        (exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host") != null && !isRequestLocalhost) ||
+                        (exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto") != null && !isRequestLocalhost);
+
+                    int frontendPort = -1; // -1 means don't append port (use standard port for scheme)
+
+                    if (isReverseProxy && !isRequestLocalhost) {
+                        // Behind reverse proxy in production: use forwarded port or standard port for scheme
+                        if (forwardedPort != null) {
+                            try {
+                                int port = Integer.parseInt(forwardedPort);
+                                // Only append port if it's not a standard port
+                                if (port != 443 && port != 80) {
+                                    frontendPort = port;
+                                }
+                            } catch (NumberFormatException e) {
+                                // Invalid port, use standard port for scheme
+                            }
+                        }
+                    } else if (isRequestLocalhost) {
+                        // Local development: always use port 9000 for webpack dev server
+                        // This is the standard port for JHipster webpack dev server
                         frontendPort = 9000;
                     } else {
-                        // Other port: use it
-                        frontendPort = requestPort;
-                    }
-                }
-
-                // Build frontend URL
-                // Check if we have a configured frontend URL from CORS allowed origins
-                String frontendUrl = null;
-                if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
-                    // Use the first allowed origin as the frontend URL (typically the dashboard)
-                    String[] origins = allowedOrigins.split(",");
-                    if (origins.length > 0) {
-                        frontendUrl = origins[0].trim();
-                        // Remove trailing slash if present
-                        if (frontendUrl.endsWith("/")) {
-                            frontendUrl = frontendUrl.substring(0, frontendUrl.length() - 1);
+                        // Production (not localhost): use request port or standard port
+                        if (requestPort == -1) {
+                            frontendPort = -1;
+                        } else if (requestPort != 443 && requestPort != 80) {
+                            frontendPort = requestPort;
+                        } else {
+                            frontendPort = -1;
                         }
-                        frontendUrl += "/";
                     }
-                }
 
-                // Fallback: build from request if no configured frontend URL
-                if (frontendUrl == null) {
+                    // Build frontend URL from request
                     frontendUrl = scheme + "://" + host;
                     // Only append port if it's not a standard port (80 for HTTP, 443 for HTTPS)
                     if (frontendPort != -1 && frontendPort != 443 && frontendPort != 80) {
                         frontendUrl += ":" + frontendPort;
                     }
                     frontendUrl += "/";
+                }
+
+                // Priority 4: Only use CORS allowed origins if we haven't determined a URL yet
+                // and we're not in localhost context (to avoid production domain in local dev)
+                if (frontendUrl == null || (!frontendUrl.contains("localhost") && !frontendUrl.contains("127.0.0.1"))) {
+                    String requestHost = exchange.getRequest().getURI().getHost();
+                    boolean isRequestLocalhost = "localhost".equals(requestHost) || "127.0.0.1".equals(requestHost);
+
+                    if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
+                        String[] origins = allowedOrigins.split(",");
+                        for (String allowedOrigin : origins) {
+                            String trimmed = allowedOrigin.trim();
+                            // Skip production domains if we're in localhost context
+                            if (isRequestLocalhost && !trimmed.contains("localhost") && !trimmed.contains("127.0.0.1")) {
+                                continue;
+                            }
+                            frontendUrl = trimmed;
+                            // Remove trailing slash if present
+                            if (frontendUrl.endsWith("/")) {
+                                frontendUrl = frontendUrl.substring(0, frontendUrl.length() - 1);
+                            }
+                            frontendUrl += "/";
+                            LOG.info("Using CORS allowed origin for redirect: {}", frontendUrl);
+                            break;
+                        }
+                    }
                 }
 
                 // Redirect to frontend
