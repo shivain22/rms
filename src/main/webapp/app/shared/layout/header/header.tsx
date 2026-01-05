@@ -50,21 +50,9 @@ const Header = (props: IHeaderProps) => {
     <div id="app-header">
       {renderDevRibbon()}
       <LoadingBar className="loading-bar" />
-      <nav data-cy="navbar" className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground shadow-md">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            {/* Brand */}
-            <Brand />
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-4 ms-auto">
-              <Home />
-              {props.isAuthenticated && <EntitiesMenu />}
-              {props.isAuthenticated && props.isAdmin && <AdminMenu showOpenAPI={props.isOpenAPIEnabled} />}
-              <LocaleMenu currentLocale={props.currentLocale} onClick={handleLocaleChange} />
-              <AccountMenu isAuthenticated={props.isAuthenticated} account={props.account} />
-            </div>
-
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center space-x-4">
             {/* Mobile Menu Button */}
             <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
               <SheetTrigger asChild>
@@ -72,7 +60,7 @@ const Header = (props: IHeaderProps) => {
                   <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <SheetContent side="left" className="w-[300px] sm:w-[400px]">
                 <nav className="flex flex-col space-y-4 mt-8">
                   <Home />
                   {props.isAuthenticated && <EntitiesMenu />}
@@ -83,8 +71,14 @@ const Header = (props: IHeaderProps) => {
               </SheetContent>
             </Sheet>
           </div>
+
+          {/* Right side - Locale and Account */}
+          <div className="flex items-center space-x-4">
+            <LocaleMenu currentLocale={props.currentLocale} onClick={handleLocaleChange} />
+            <AccountMenu isAuthenticated={props.isAuthenticated} account={props.account} />
+          </div>
         </div>
-      </nav>
+      </header>
     </div>
   );
 };

@@ -95,6 +95,12 @@ a {
   }
 }
 
+/* Dashboard layout styles */
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
 .fullscreen {
   position: fixed;
   top: 100px;

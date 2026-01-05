@@ -6,18 +6,18 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { cn } from '@/lib/utils';
 
 export const BrandIcon = props => (
-  <div {...props} className="brand-icon">
-    <img src="content/images/logo-jhipster.png" alt="Logo" />
+  <div {...props} className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-orange-500 to-green-500 rounded-lg">
+    <span className="text-white font-bold text-lg">a</span>
   </div>
 );
 
 export const Brand = () => (
   <Link to="/" className="flex items-center space-x-2 brand-logo">
     <BrandIcon />
-    <span className="brand-title">
-      <Translate contentKey="global.title">Rms</Translate>
-    </span>
-    <span className="navbar-version">{VERSION.toLowerCase().startsWith('v') ? VERSION : `v${VERSION}`}</span>
+    <div className="flex flex-col">
+      <span className="text-lg font-bold text-foreground">PAR</span>
+      <span className="text-xs text-muted-foreground">intelligence</span>
+    </div>
   </Link>
 );
 
