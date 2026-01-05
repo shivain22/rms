@@ -36,16 +36,21 @@ export const Home = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12">
-      {/* Logo Section - Centered */}
-      <div className="flex-1 flex items-center justify-center mb-auto">
-        <img src="content/images/atpar_logo.jpg" alt="aPAR Logo" className="max-w-md w-full h-auto" />
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-screen px-4">
+      {/* Logo and Sign In Section - Centered with spacing */}
+      <div className="flex flex-col items-center justify-center gap-8">
+        {/* Logo */}
+        <div className="flex items-center justify-center">
+          <img src="content/images/atpar_logo.jpg" alt="aPAR Logo" className="max-w-md w-full h-auto" />
+        </div>
 
-      {/* Sign In Button - Bottom Center */}
-      <div className="w-full flex justify-center mt-auto pb-12">
-        <Button size="lg" className="min-w-[200px]" onClick={() => navigate('/sign-in', { state: { from: pageLocation } })}>
-          <Translate contentKey="global.messages.info.authenticated.link">Sign In</Translate>
+        {/* Enter Button - Closer to logo, styled like login screen */}
+        <Button
+          size="lg"
+          className="min-w-[200px] bg-black text-white hover:bg-black/90 shadow-sm hover:shadow-md transition-shadow"
+          onClick={() => navigate('/sign-in', { state: { from: pageLocation } })}
+        >
+          Enter
         </Button>
       </div>
     </div>

@@ -36,6 +36,7 @@ module.exports = () => {
               'bootstrap',
               'bootswatch',
               // Exclude utility libraries from module federation to avoid import issues
+              // These will be bundled normally in each chunk that uses them
               'clsx',
               'tailwind-merge',
               'class-variance-authority',

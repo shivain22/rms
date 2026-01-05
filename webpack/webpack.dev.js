@@ -53,9 +53,10 @@ module.exports = async options =>
       proxy: [
         {
           context: ['/api', '/services', '/management', '/v3/api-docs', '/h2-console', '/auth', '/oauth2', '/login'],
-          target: `http${options.tls ? 's' : ''}://localhost:8082`,
-          secure: false,
-          changeOrigin: options.tls,
+          target: 'https://rmsgateway.atparui.com',
+          secure: true,
+          changeOrigin: true,
+          logLevel: 'debug',
         },
       ],
       historyApiFallback: true,
