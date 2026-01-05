@@ -64,6 +64,47 @@ public class WebConfigurer implements WebFluxConfigurer {
             config.setAllowedOrigins(java.util.Arrays.asList(corsAllowedOrigins.split(",")));
         }
 
+        // Development-friendly: If backend is running on localhost, automatically allow localhost:9000
+        // This allows frontend development even when backend is in prod profile
+        try {
+            java.net.InetAddress localhost = java.net.InetAddress.getLocalHost();
+            String hostAddress = localhost.getHostAddress();
+            String hostName = localhost.getHostName();
+            boolean isLocalhost =
+                "127.0.0.1".equals(hostAddress) ||
+                "localhost".equals(hostName) ||
+                hostName.contains("localhost") ||
+                hostAddress.startsWith("127.");
+
+            if (isLocalhost) {
+                // Add localhost:9000 and localhost:9060 to allowed origins if not already present
+                java.util.List<String> allowedOrigins = config.getAllowedOrigins();
+                if (allowedOrigins == null) {
+                    allowedOrigins = new java.util.ArrayList<>();
+                }
+                boolean hasLocalhost9000 = allowedOrigins
+                    .stream()
+                    .anyMatch(origin -> origin.contains("localhost:9000") || origin.contains("127.0.0.1:9000"));
+                boolean hasLocalhost9060 = allowedOrigins
+                    .stream()
+                    .anyMatch(origin -> origin.contains("localhost:9060") || origin.contains("127.0.0.1:9060"));
+
+                if (!hasLocalhost9000) {
+                    allowedOrigins.add("http://localhost:9000");
+                    allowedOrigins.add("https://localhost:9000");
+                    LOG.info("Auto-added localhost:9000 to CORS allowed origins for local development");
+                }
+                if (!hasLocalhost9060) {
+                    allowedOrigins.add("http://localhost:9060");
+                    allowedOrigins.add("https://localhost:9060");
+                }
+                config.setAllowedOrigins(allowedOrigins);
+            }
+        } catch (Exception e) {
+            // If we can't determine localhost, just continue without auto-adding
+            LOG.debug("Could not determine if running on localhost: {}", e.getMessage());
+        }
+
         // Override allowed methods if present in environment
         String corsAllowedMethods = environment.getProperty("CORS_ALLOWED_METHODS");
         if (corsAllowedMethods == null) {

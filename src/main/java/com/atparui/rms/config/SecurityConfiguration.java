@@ -283,6 +283,13 @@ public class SecurityConfiguration {
 
                 String frontendUrl = null;
 
+                // Get request details for localhost detection
+                String requestHost = exchange.getRequest().getURI().getHost();
+                String forwardedHost = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
+                boolean isRequestLocalhost = "localhost".equals(requestHost) || "127.0.0.1".equals(requestHost);
+                boolean isForwardedLocalhost =
+                    forwardedHost != null && (forwardedHost.contains("localhost") || forwardedHost.contains("127.0.0.1"));
+
                 // Priority 1: Check Origin header for localhost:9000 (webpack dev server)
                 if (origin != null && (origin.contains("localhost:9000") || origin.contains("127.0.0.1:9000"))) {
                     try {
@@ -310,7 +317,22 @@ public class SecurityConfiguration {
                     }
                 }
 
-                // Priority 3: Build from request if Origin/Referer not available
+                // Priority 3: If backend is running on localhost (regardless of profile), default to localhost:9000
+                // This allows frontend development even when backend is in prod profile
+                if (frontendUrl == null && (isRequestLocalhost || isForwardedLocalhost)) {
+                    String scheme = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
+                    if (scheme == null) {
+                        scheme = exchange.getRequest().getURI().getScheme();
+                    }
+                    // Default to http for localhost if not specified
+                    if (scheme == null) {
+                        scheme = "http";
+                    }
+                    frontendUrl = scheme + "://localhost:9000/";
+                    LOG.info("Backend running on localhost - defaulting to localhost:9000 for frontend redirect: {}", frontendUrl);
+                }
+
+                // Priority 4: Build from request if Origin/Referer not available and not localhost
                 if (frontendUrl == null) {
                     // Get the original request to determine the frontend URL
                     String scheme = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
@@ -318,12 +340,8 @@ public class SecurityConfiguration {
                         scheme = exchange.getRequest().getURI().getScheme();
                     }
 
-                    String host = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
-                    String requestHost = exchange.getRequest().getURI().getHost();
-                    boolean isRequestLocalhost = "localhost".equals(requestHost) || "127.0.0.1".equals(requestHost);
-
-                    // Only use forwarded host if we're not in localhost context (avoid production domain in local dev)
-                    if (host == null || (isRequestLocalhost && !host.contains("localhost") && !host.contains("127.0.0.1"))) {
+                    String host = forwardedHost;
+                    if (host == null) {
                         host = requestHost;
                     }
 
@@ -334,12 +352,12 @@ public class SecurityConfiguration {
                     // Check if we're behind a reverse proxy
                     boolean isReverseProxy =
                         forwardedPort != null ||
-                        (exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host") != null && !isRequestLocalhost) ||
+                        (forwardedHost != null && !isRequestLocalhost && !isForwardedLocalhost) ||
                         (exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto") != null && !isRequestLocalhost);
 
                     int frontendPort = -1; // -1 means don't append port (use standard port for scheme)
 
-                    if (isReverseProxy && !isRequestLocalhost) {
+                    if (isReverseProxy && !isRequestLocalhost && !isForwardedLocalhost) {
                         // Behind reverse proxy in production: use forwarded port or standard port for scheme
                         if (forwardedPort != null) {
                             try {
@@ -352,10 +370,6 @@ public class SecurityConfiguration {
                                 // Invalid port, use standard port for scheme
                             }
                         }
-                    } else if (isRequestLocalhost) {
-                        // Local development: always use port 9000 for webpack dev server
-                        // This is the standard port for JHipster webpack dev server
-                        frontendPort = 9000;
                     } else {
                         // Production (not localhost): use request port or standard port
                         if (requestPort == -1) {
@@ -376,18 +390,19 @@ public class SecurityConfiguration {
                     frontendUrl += "/";
                 }
 
-                // Priority 4: Only use CORS allowed origins if we haven't determined a URL yet
+                // Priority 5: Only use CORS allowed origins if we haven't determined a URL yet
                 // and we're not in localhost context (to avoid production domain in local dev)
                 if (frontendUrl == null || (!frontendUrl.contains("localhost") && !frontendUrl.contains("127.0.0.1"))) {
-                    String requestHost = exchange.getRequest().getURI().getHost();
-                    boolean isRequestLocalhost = "localhost".equals(requestHost) || "127.0.0.1".equals(requestHost);
-
                     if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
                         String[] origins = allowedOrigins.split(",");
                         for (String allowedOrigin : origins) {
                             String trimmed = allowedOrigin.trim();
                             // Skip production domains if we're in localhost context
-                            if (isRequestLocalhost && !trimmed.contains("localhost") && !trimmed.contains("127.0.0.1")) {
+                            if (
+                                (isRequestLocalhost || isForwardedLocalhost) &&
+                                !trimmed.contains("localhost") &&
+                                !trimmed.contains("127.0.0.1")
+                            ) {
                                 continue;
                             }
                             frontendUrl = trimmed;
