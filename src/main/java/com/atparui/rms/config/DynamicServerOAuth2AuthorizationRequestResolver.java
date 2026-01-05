@@ -2,6 +2,8 @@ package com.atparui.rms.config;
 
 import java.security.SecureRandom;
 import java.util.Base64;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
@@ -16,6 +18,8 @@ import reactor.core.publisher.Mono;
  * instead of the static default "web_app" from configuration.
  */
 public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOAuth2AuthorizationRequestResolver {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DynamicServerOAuth2AuthorizationRequestResolver.class);
 
     private final DynamicOAuth2ConfigService dynamicOAuth2ConfigService;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -168,9 +172,13 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
         String referer = exchange.getRequest().getHeaders().getFirst("Referer");
         String originalOriginValue = null;
 
+        // Priority 1: Check Origin header for localhost:9000
         if (origin != null && (origin.contains("localhost:9000") || origin.contains("127.0.0.1:9000"))) {
             originalOriginValue = origin;
-        } else if (referer != null && (referer.contains("localhost:9000") || referer.contains("127.0.0.1:9000"))) {
+            LOG.info("Detected frontend URL from Origin header: {}", originalOriginValue);
+        }
+        // Priority 2: Check Referer header for localhost:9000
+        else if (referer != null && (referer.contains("localhost:9000") || referer.contains("127.0.0.1:9000"))) {
             try {
                 java.net.URI refererUri = java.net.URI.create(referer);
                 String refererBase = refererUri.getScheme() + "://" + refererUri.getHost();
@@ -178,9 +186,23 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
                     refererBase += ":" + refererUri.getPort();
                 }
                 originalOriginValue = refererBase;
+                LOG.info("Detected frontend URL from Referer header: {}", originalOriginValue);
             } catch (Exception e) {
-                // Ignore
+                LOG.warn("Failed to parse Referer header: {}", referer, e);
             }
+        }
+        // Priority 3: If backend is on localhost and no Origin/Referer detected, default to localhost:9000
+        // This handles cases where the request doesn't have Origin/Referer headers (e.g., direct navigation)
+        else if (isRequestLocalhost) {
+            String frontendScheme = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
+            if (frontendScheme == null) {
+                frontendScheme = exchange.getRequest().getURI().getScheme();
+            }
+            if (frontendScheme == null) {
+                frontendScheme = "http";
+            }
+            originalOriginValue = frontendScheme + "://localhost:9000";
+            LOG.info("Backend on localhost but no Origin/Referer detected - defaulting to localhost:9000: {}", originalOriginValue);
         }
 
         // Store the original frontend URL in the session for retrieval after authentication
@@ -193,9 +215,18 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
                 // Store original frontend URL in session
                 if (finalOriginalOrigin != null) {
                     session.getAttributes().put("OAUTH2_ORIGINAL_FRONTEND_URL", finalOriginalOrigin);
+                    LOG.info("Stored frontend URL in session: {}", finalOriginalOrigin);
+                } else {
+                    LOG.warn(
+                        "No frontend URL detected - Origin: {}, Referer: {}, Backend localhost: {}",
+                        origin,
+                        referer,
+                        isRequestLocalhost
+                    );
                 }
                 // Also store if backend is on localhost (for fallback) - use the already declared isRequestLocalhost
                 session.getAttributes().put("OAUTH2_BACKEND_IS_LOCALHOST", isRequestLocalhost);
+                LOG.info("Stored backend localhost flag in session: {}", isRequestLocalhost);
 
                 // Build the authorization request
                 OAuth2AuthorizationRequest.Builder builder = OAuth2AuthorizationRequest.authorizationCode()
