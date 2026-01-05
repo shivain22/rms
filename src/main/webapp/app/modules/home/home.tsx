@@ -44,15 +44,7 @@ export const Home = () => {
 
       {/* Sign In Button - Bottom Center */}
       <div className="w-full flex justify-center mt-auto pb-12">
-        <Button
-          size="lg"
-          className="min-w-[200px]"
-          onClick={() =>
-            navigate(getLoginUrl(), {
-              state: { from: pageLocation },
-            })
-          }
-        >
+        <Button size="lg" className="min-w-[200px]" onClick={() => navigate('/sign-in', { state: { from: pageLocation } })}>
           <Translate contentKey="global.messages.info.authenticated.link">Sign In</Translate>
         </Button>
       </div>

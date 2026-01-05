@@ -51,9 +51,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isAuthenticated, isAdmin, isOpenAPIEn
 
           {/* Entities Menu */}
           {isAuthenticated && (
-            <Suspense fallback={null}>
-              <EntitiesMenuItems />
-            </Suspense>
+            <div className="space-y-1 mt-6">
+              <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <Translate contentKey="global.menu.entities.main">Entities</Translate>
+              </div>
+              <Suspense fallback={null}>
+                <EntitiesMenuItems />
+              </Suspense>
+            </div>
           )}
 
           {/* Administration Menu */}

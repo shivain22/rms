@@ -11,7 +11,9 @@ const shareDependencies = ({ skipList = [] } = {}) =>
   Object.fromEntries(
     Object.entries(packageJson.dependencies)
       .filter(([dependency]) => !skipList.includes(dependency))
-      .map(([dependency, version]) => [dependency, { ...sharedDefaults, version, requiredVersion: version }]),
+      .map(([dependency, version]) => {
+        return [dependency, { ...sharedDefaults, version, requiredVersion: version }];
+      }),
   );
 
 module.exports = () => {
@@ -28,7 +30,23 @@ module.exports = () => {
         dts: false,
         manifest: false,
         shared: {
-          ...shareDependencies(),
+          ...shareDependencies({
+            skipList: [
+              'reactstrap',
+              'bootstrap',
+              'bootswatch',
+              // Exclude utility libraries from module federation to avoid import issues
+              'clsx',
+              'tailwind-merge',
+              'class-variance-authority',
+              // Exclude Radix UI packages - they don't need to be shared
+              '@radix-ui/react-dialog',
+              '@radix-ui/react-dropdown-menu',
+              '@radix-ui/react-slot',
+              // Exclude icon library
+              'lucide-react',
+            ],
+          }),
           ...shareMappings(
             'app/config/constants',
             'app/config/store',

@@ -3,7 +3,6 @@ import './app.scss';
 import 'app/config/dayjs';
 
 import React, { useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { BrowserRouter } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 
@@ -32,53 +31,57 @@ export const App = () => {
   const currentLocale = useAppSelector(state => state.locale.currentLocale);
   const isAuthenticated = useAppSelector(state => state.authentication.isAuthenticated);
   const account = useAppSelector(state => state.authentication.account);
-  const isAdmin = useAppSelector(state => hasAnyAuthority(state.authentication.account.authorities, [AUTHORITIES.ADMIN]));
+  const sessionHasBeenFetched = useAppSelector(state => state.authentication.sessionHasBeenFetched);
+  const isAdmin = useAppSelector(state => hasAnyAuthority(state.authentication.account?.authorities, [AUTHORITIES.ADMIN]));
   const ribbonEnv = useAppSelector(state => state.applicationProfile.ribbonEnv);
-  const isInProduction = useAppSelector(state => state.applicationProfile.inProduction);
+  const isInProduction = useAppSelector(state => state.applicationProfile.isInProduction);
   const isOpenAPIEnabled = useAppSelector(state => state.applicationProfile.isOpenAPIEnabled);
 
-  // Show landing page layout when not authenticated
-  if (!isAuthenticated) {
-    return (
-      <BrowserRouter basename={baseHref}>
+  return (
+    <BrowserRouter basename={baseHref}>
+      <ToastContainer position="top-left" className="toastify-container" toastClassName="toastify-toast" />
+      {!sessionHasBeenFetched ? (
+        // Loading state while session is being fetched
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      ) : isAuthenticated ? (
+        // Dashboard layout when authenticated
+        <div className="flex h-screen bg-background">
+          <ErrorBoundary>
+            <Sidebar isAuthenticated={isAuthenticated} isAdmin={isAdmin} isOpenAPIEnabled={isOpenAPIEnabled} />
+          </ErrorBoundary>
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <ErrorBoundary>
+              <Header
+                isAuthenticated={isAuthenticated}
+                isAdmin={isAdmin}
+                currentLocale={currentLocale}
+                ribbonEnv={ribbonEnv}
+                isInProduction={isInProduction}
+                isOpenAPIEnabled={isOpenAPIEnabled}
+                account={account}
+              />
+            </ErrorBoundary>
+            <main className="flex-1 overflow-y-auto p-6 bg-muted/40">
+              <ErrorBoundary>
+                <AppRoutes />
+              </ErrorBoundary>
+            </main>
+            <Footer />
+          </div>
+        </div>
+      ) : (
+        // Landing page layout when not authenticated
         <div className="min-h-screen bg-background">
-          <ToastContainer position="top-left" className="toastify-container" toastClassName="toastify-toast" />
           <ErrorBoundary>
             <AppRoutes />
           </ErrorBoundary>
         </div>
-      </BrowserRouter>
-    );
-  }
-
-  // Show dashboard layout when authenticated
-  return (
-    <BrowserRouter basename={baseHref}>
-      <div className="flex h-screen bg-background">
-        <ToastContainer position="top-left" className="toastify-container" toastClassName="toastify-toast" />
-        <ErrorBoundary>
-          <Sidebar isAuthenticated={isAuthenticated} isAdmin={isAdmin} isOpenAPIEnabled={isOpenAPIEnabled} />
-        </ErrorBoundary>
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <ErrorBoundary>
-            <Header
-              isAuthenticated={isAuthenticated}
-              isAdmin={isAdmin}
-              currentLocale={currentLocale}
-              ribbonEnv={ribbonEnv}
-              isInProduction={isInProduction}
-              isOpenAPIEnabled={isOpenAPIEnabled}
-              account={account}
-            />
-          </ErrorBoundary>
-          <main className="flex-1 overflow-y-auto p-6 bg-muted/40">
-            <ErrorBoundary>
-              <AppRoutes />
-            </ErrorBoundary>
-          </main>
-          <Footer />
-        </div>
-      </div>
+      )}
     </BrowserRouter>
   );
 };
