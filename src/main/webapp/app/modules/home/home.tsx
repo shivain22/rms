@@ -247,8 +247,8 @@ export const Home = () => {
       {
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ row }) => {
-          const status = row.getValue('status') as string;
+        cell({ row }) {
+          const status = row.getValue('status');
           return (
             <div className="flex items-center space-x-2">
               {status === 'done' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Circle className="h-4 w-4 text-gray-400" />}
@@ -270,8 +270,8 @@ export const Home = () => {
       {
         accessorKey: 'reviewer',
         header: 'Reviewer',
-        cell: ({ row }) => {
-          const reviewer = row.getValue('reviewer') as string;
+        cell({ row }) {
+          const reviewer = row.getValue('reviewer');
           return reviewer === 'Assign reviewer' ? (
             <Button variant="outline" size="sm">
               Assign reviewer
