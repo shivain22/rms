@@ -46,6 +46,7 @@ module.exports = () => {
               '@radix-ui/react-slot',
               '@radix-ui/react-select',
               '@radix-ui/react-tabs',
+              '@radix-ui/react-checkbox',
               // Exclude icon library
               'lucide-react',
               // Exclude table library to avoid Module Federation version conflicts

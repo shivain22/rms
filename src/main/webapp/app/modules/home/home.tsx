@@ -39,13 +39,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 
-// Mock data types
+// Types
 type MetricCard = {
   title: string;
   value: string;
   change: string;
   changeType: 'positive' | 'negative';
   description: string;
+  subtitle: string;
   icon: React.ReactNode;
 };
 
@@ -67,6 +68,7 @@ const mockMetrics: MetricCard[] = [
     change: '+12.5%',
     changeType: 'positive',
     description: 'Trending up this month',
+    subtitle: 'Visitors for the last 6 months',
     icon: <DollarSign className="h-4 w-4" />,
   },
   {
@@ -75,6 +77,7 @@ const mockMetrics: MetricCard[] = [
     change: '-20%',
     changeType: 'negative',
     description: 'Down 20% this period',
+    subtitle: 'Acquisition needs attention',
     icon: <Users className="h-4 w-4" />,
   },
   {
@@ -83,6 +86,7 @@ const mockMetrics: MetricCard[] = [
     change: '+12.5%',
     changeType: 'positive',
     description: 'Strong user retention',
+    subtitle: 'Engagement exceed targets',
     icon: <Activity className="h-4 w-4" />,
   },
   {
@@ -91,6 +95,7 @@ const mockMetrics: MetricCard[] = [
     change: '+4.5%',
     changeType: 'positive',
     description: 'Steady performance increase',
+    subtitle: 'Meets growth projections',
     icon: <TrendingUp className="h-4 w-4" />,
   },
 ];
@@ -210,21 +215,27 @@ export const Home = () => {
     () => [
       {
         id: 'select',
-        header: ({ table }) => (
-          <div className="flex items-center gap-2">
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-            <Checkbox
-              checked={table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected() ? 'indeterminate' : false}
-              onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
-            />
-          </div>
-        ),
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
-            <Checkbox checked={row.getIsSelected()} onCheckedChange={value => row.toggleSelected(!!value)} />
-          </div>
-        ),
+        header({ table }) {
+          const isAllSelected = table.getIsAllPageRowsSelected();
+          const isSomeSelected = table.getIsSomePageRowsSelected();
+          return (
+            <div className="flex items-center gap-2">
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+              <Checkbox
+                checked={isAllSelected ? true : isSomeSelected ? ('indeterminate' as const) : false}
+                onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
+              />
+            </div>
+          );
+        },
+        cell({ row }) {
+          return (
+            <div className="flex items-center gap-2">
+              <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+              <Checkbox checked={row.getIsSelected()} onCheckedChange={value => row.toggleSelected(!!value)} />
+            </div>
+          );
+        },
         enableSorting: false,
         enableHiding: false,
       },
@@ -273,7 +284,7 @@ export const Home = () => {
         cell({ row }) {
           const reviewer = String(row.getValue('reviewer'));
           return reviewer === 'Assign reviewer' ? (
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="h-7">
               Assign reviewer
             </Button>
           ) : (
@@ -287,6 +298,7 @@ export const Home = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -351,7 +363,7 @@ export const Home = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Documents</h1>
-          <p className="text-muted-foreground mt-1">Manage your documents and sections</p>
+          <p className="text-muted-foreground mt-1.5">Manage your documents and sections</p>
         </div>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -380,18 +392,13 @@ export const Home = () => {
                 </span>
                 <span className="text-muted-foreground">{metric.description}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {index === 0 && 'Visitors for the last 6 months'}
-                {index === 1 && 'Acquisition needs attention'}
-                {index === 2 && 'Engagement exceed targets'}
-                {index === 3 && 'Meets growth projections'}
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">{metric.subtitle}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Chart Section Placeholder */}
+      {/* Chart Section */}
       <Card>
         <CardHeader>
           <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
@@ -446,28 +453,40 @@ export const Home = () => {
         <CardContent className="p-0">
           <Tabs defaultValue="outline" className="w-full">
             <div className="border-b px-6">
-              <TabsList className="bg-transparent">
-                <TabsTrigger value="outline" className="data-[state=active]:bg-transparent">
+              <TabsList className="bg-transparent h-auto p-0">
+                <TabsTrigger
+                  value="outline"
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-4 py-3"
+                >
                   Outline
                 </TabsTrigger>
-                <TabsTrigger value="past-performance" className="data-[state=active]:bg-transparent">
+                <TabsTrigger
+                  value="past-performance"
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-4 py-3"
+                >
                   Past Performance{' '}
-                  <Badge variant="secondary" className="ml-2 h-5">
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5">
                     3
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="key-personnel" className="data-[state=active]:bg-transparent">
+                <TabsTrigger
+                  value="key-personnel"
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-4 py-3"
+                >
                   Key Personnel{' '}
-                  <Badge variant="secondary" className="ml-2 h-5">
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5">
                     2
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="focus-documents" className="data-[state=active]:bg-transparent">
+                <TabsTrigger
+                  value="focus-documents"
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary px-4 py-3"
+                >
                   Focus Documents
                 </TabsTrigger>
               </TabsList>
             </div>
-            <TabsContent value="outline" className="space-y-4 p-6">
+            <TabsContent value="outline" className="space-y-4 p-6 m-0">
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -566,9 +585,15 @@ export const Home = () => {
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="past-performance">Past Performance content goes here</TabsContent>
-            <TabsContent value="key-personnel">Key Personnel content goes here</TabsContent>
-            <TabsContent value="focus-documents">Focus Documents content goes here</TabsContent>
+            <TabsContent value="past-performance" className="p-6 m-0">
+              <div className="text-center text-muted-foreground py-8">Past Performance content goes here</div>
+            </TabsContent>
+            <TabsContent value="key-personnel" className="p-6 m-0">
+              <div className="text-center text-muted-foreground py-8">Key Personnel content goes here</div>
+            </TabsContent>
+            <TabsContent value="focus-documents" className="p-6 m-0">
+              <div className="text-center text-muted-foreground py-8">Focus Documents content goes here</div>
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
