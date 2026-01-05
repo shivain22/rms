@@ -47,7 +47,8 @@ export const Home = () => {
         {/* Enter Button - Closer to logo, styled like login screen */}
         <Button
           size="lg"
-          className="min-w-[200px] bg-black text-white hover:bg-black/90 shadow-sm hover:shadow-md transition-shadow"
+          variant="black"
+          className="min-w-[200px] shadow-sm hover:shadow-md transition-shadow"
           onClick={() => navigate('/sign-in', { state: { from: pageLocation } })}
         >
           Enter

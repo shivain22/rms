@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
 @layer base {
   :root {
@@ -204,6 +202,16 @@ button.anchor-btn {
   align-items: initial;
   text-align: initial;
   width: 100%;
+}
+
+/* Ensure Tailwind button styles take precedence */
+button[class*='bg-black'] {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+button[class*='bg-black']:hover {
+  background-color: rgba(0, 0, 0, 0.9) !important;
 }
 
 a.anchor-btn:hover {
