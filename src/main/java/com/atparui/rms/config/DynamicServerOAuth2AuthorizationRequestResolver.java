@@ -79,69 +79,29 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
     }
 
     private Mono<OAuth2AuthorizationRequest> buildAuthorizationRequest(ServerWebExchange exchange, ClientRegistration clientRegistration) {
-        // Check Origin header first (for CORS requests from webpack dev server)
-        String origin = exchange.getRequest().getHeaders().getFirst("Origin");
-        String referer = exchange.getRequest().getHeaders().getFirst("Referer");
+        // IMPORTANT: The redirect URI must point to the BACKEND server, not the frontend!
+        // The backend handles the OAuth2 callback at /login/oauth2/code/oidc
+        // After authentication, the backend will redirect to the frontend
 
-        // If Origin header indicates localhost:9000 (webpack dev server), use that for redirect
-        String scheme = null;
-        String host = null;
-        int redirectPort = -1;
-
-        if (origin != null && (origin.contains("localhost:9000") || origin.contains("127.0.0.1:9000"))) {
-            // Request from webpack dev server - redirect back to localhost:9000
-            try {
-                java.net.URI originUri = java.net.URI.create(origin);
-                scheme = originUri.getScheme();
-                host = originUri.getHost();
-                redirectPort = originUri.getPort();
-            } catch (Exception e) {
-                // Fall through to default logic
-            }
-        } else if (referer != null && (referer.contains("localhost:9000") || referer.contains("127.0.0.1:9000"))) {
-            // Fallback to Referer header
-            try {
-                java.net.URI refererUri = java.net.URI.create(referer);
-                scheme = refererUri.getScheme();
-                host = refererUri.getHost();
-                redirectPort = refererUri.getPort();
-            } catch (Exception e) {
-                // Fall through to default logic
-            }
-        }
-
-        // If not set from Origin/Referer, use request headers/URI
-        // But prioritize localhost detection to avoid using production domain
+        // Get the backend server's address from the request
+        String scheme = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
         if (scheme == null) {
-            String forwardedProto = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
-            // Only use forwarded proto if we're not in localhost context
-            String requestHost = exchange.getRequest().getURI().getHost();
-            boolean isRequestLocalhost = "localhost".equals(requestHost) || "127.0.0.1".equals(requestHost);
-
-            if (forwardedProto != null && !isRequestLocalhost) {
-                scheme = forwardedProto;
-            } else {
-                scheme = exchange.getRequest().getURI().getScheme();
-            }
+            scheme = exchange.getRequest().getURI().getScheme();
+        }
+        if (scheme == null) {
+            scheme = "http"; // Default to http for localhost
         }
 
-        if (host == null) {
-            String forwardedHost = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
-            String requestHost = exchange.getRequest().getURI().getHost();
-            boolean isRequestLocalhost = "localhost".equals(requestHost) || "127.0.0.1".equals(requestHost);
+        String host = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
+        String requestHost = exchange.getRequest().getURI().getHost();
+        boolean isRequestLocalhost = "localhost".equals(requestHost) || "127.0.0.1".equals(requestHost);
 
-            // Only use forwarded host if we're not in localhost context (avoid production domain in local dev)
-            if (
-                forwardedHost != null && !isRequestLocalhost && !forwardedHost.contains("localhost") && !forwardedHost.contains("127.0.0.1")
-            ) {
-                host = forwardedHost;
-            } else {
-                host = requestHost;
-            }
+        // Only use forwarded host if we're not in localhost context (avoid production domain in local dev)
+        if (host == null || (isRequestLocalhost && !host.contains("localhost") && !host.contains("127.0.0.1"))) {
+            host = requestHost;
         }
 
-        // Determine the correct port for OAuth2 redirect URI
-        // Priority: Origin/Referer header > Detect reverse proxy > Use standard ports > Handle local dev ports
+        // Determine the backend port for the redirect URI
         int requestPort = exchange.getRequest().getURI().getPort();
         String forwardedPort = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Port");
         String forwardedHost = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
@@ -150,76 +110,61 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
         // Check if we're in local development (localhost or 127.0.0.1)
         boolean isLocalhost = "localhost".equals(host) || "127.0.0.1".equals(host) || "0.0.0.0".equals(host);
 
-        // If redirectPort not set from Origin/Referer, determine it
-        if (redirectPort == -1) {
-            // Check if we're behind a reverse proxy
-            boolean isReverseProxy =
-                forwardedPort != null || (forwardedHost != null && !isLocalhost) || (forwardedProto != null && !isLocalhost);
+        // Determine backend port for redirect URI
+        int backendPort = -1;
 
-            if (isReverseProxy && !isLocalhost) {
-                // Behind reverse proxy in production: use forwarded port or standard port for scheme
-                // In production, we should never use port 9000/9060
-                if (forwardedPort != null) {
-                    try {
-                        int port = Integer.parseInt(forwardedPort);
-                        // Only append port if it's not a standard port
-                        // Always ignore port 9000/9060 in production (likely misconfigured proxy)
-                        if (port != 443 && port != 80 && port != 9000 && port != 9060) {
-                            redirectPort = port;
-                        } else {
-                            redirectPort = -1; // Use standard port
-                        }
-                    } catch (NumberFormatException e) {
-                        // Invalid port, use standard port for scheme
-                        redirectPort = -1;
+        // Check if we're behind a reverse proxy
+        boolean isReverseProxy =
+            forwardedPort != null || (forwardedHost != null && !isLocalhost) || (forwardedProto != null && !isLocalhost);
+
+        if (isReverseProxy && !isLocalhost) {
+            // Behind reverse proxy in production: use forwarded port or standard port for scheme
+            if (forwardedPort != null) {
+                try {
+                    int port = Integer.parseInt(forwardedPort);
+                    // Only append port if it's not a standard port
+                    if (port != 443 && port != 80) {
+                        backendPort = port;
                     }
-                } else {
-                    redirectPort = -1;
+                } catch (NumberFormatException e) {
+                    // Invalid port, use standard port for scheme
+                    backendPort = -1;
                 }
-                // Also check if request port is 9000/9060 (shouldn't happen in production, but handle it)
-                if (requestPort == 9000 || requestPort == 9060) {
-                    // Ignore dev ports in production - use standard port
-                    redirectPort = -1;
-                }
-            } else if (isLocalhost) {
-                // Local development: use the actual request port
-                if (requestPort == 9000 || requestPort == 9060) {
-                    // Request from webpack dev server: redirect back to the same port
-                    redirectPort = requestPort;
-                } else if (requestPort == 8080 || requestPort == 9293 || requestPort == -1) {
-                    // Gateway container port (8080) or host port (9293) or no port: use gateway port
-                    redirectPort = requestPort == -1 ? 9293 : requestPort;
-                } else {
-                    // Other port: use it
-                    redirectPort = requestPort;
-                }
+            }
+        } else if (isLocalhost) {
+            // Local development: use the actual backend request port
+            // Backend is typically on 8080 (container) or 9293 (host) or other port
+            if (requestPort == 8080 || requestPort == 9293 || requestPort == 8082 || requestPort > 0) {
+                backendPort = requestPort;
+            } else if (requestPort == -1) {
+                // No port in URI, default to common backend ports
+                backendPort = 8080; // Default Spring Boot port
+            }
+        } else {
+            // Production (not localhost): use request port or standard port
+            if (requestPort == -1) {
+                backendPort = -1;
+            } else if (requestPort != 443 && requestPort != 80) {
+                backendPort = requestPort;
             } else {
-                // Production (not localhost, not behind proxy): use request port or standard port
-                if (requestPort == 9000 || requestPort == 9060) {
-                    // Ignore dev ports in production
-                    redirectPort = -1;
-                } else if (requestPort == -1) {
-                    // No port specified: use standard port for scheme
-                    redirectPort = -1;
-                } else {
-                    // Use the request port
-                    redirectPort = requestPort;
-                }
+                backendPort = -1;
             }
         }
 
-        // Build base URL for redirect
+        // Build base URL for OAuth2 redirect URI (must point to BACKEND)
         String baseUrl = scheme + "://" + host;
         // Only append port if it's not a standard port (80 for HTTP, 443 for HTTPS)
-        if (redirectPort != -1 && redirectPort != 443 && redirectPort != 80) {
-            baseUrl += ":" + redirectPort;
+        if (backendPort != -1 && backendPort != 443 && backendPort != 80) {
+            baseUrl += ":" + backendPort;
         }
 
         // Generate state parameter (CSRF token)
         String state = generateState();
 
-        // Store the original origin in state attributes for redirect after authentication
-        // (origin and referer are already declared at the top of the method)
+        // Store the frontend origin (from Origin/Referer headers) for redirect after authentication
+        // This is separate from the backend redirect URI above
+        String origin = exchange.getRequest().getHeaders().getFirst("Origin");
+        String referer = exchange.getRequest().getHeaders().getFirst("Referer");
         String originalOriginValue = null;
 
         if (origin != null && (origin.contains("localhost:9000") || origin.contains("127.0.0.1:9000"))) {
