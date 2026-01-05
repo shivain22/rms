@@ -271,7 +271,7 @@ export const Home = () => {
         accessorKey: 'reviewer',
         header: 'Reviewer',
         cell({ row }) {
-          const reviewer = row.getValue('reviewer');
+          const reviewer = String(row.getValue('reviewer'));
           return reviewer === 'Assign reviewer' ? (
             <Button variant="outline" size="sm">
               Assign reviewer
