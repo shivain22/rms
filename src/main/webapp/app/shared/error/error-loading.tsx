@@ -1,10 +1,12 @@
 import React from 'react';
-import { Alert } from 'reactstrap';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const ErrorLoading = () => {
   return (
     <div>
-      <Alert color="danger">Error loading component</Alert>
+      <Alert variant="destructive">
+        <AlertDescription>Error loading component</AlertDescription>
+      </Alert>
     </div>
   );
 };

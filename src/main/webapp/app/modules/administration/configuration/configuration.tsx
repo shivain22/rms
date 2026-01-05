@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Badge, Col, Input, Row, Table } from 'reactstrap';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Translate } from 'react-jhipster';
 
 import { useAppDispatch, useAppSelector } from 'app/config/store';
@@ -45,67 +47,83 @@ export const ConfigurationPage = () => {
       <span>
         <Translate contentKey="configuration.filter">Filter</Translate>
       </span>{' '}
-      <Input type="search" value={filter} onChange={changeFilter} name="search" id="search" />
+      <Input
+        type="search"
+        value={filter}
+        onChange={changeFilter}
+        name="search"
+        id="search"
+        placeholder="Filter configuration..."
+        className="max-w-sm"
+      />
       <label>Spring configuration</label>
-      <Table className="table table-striped table-bordered table-responsive d-table">
-        <thead>
-          <tr>
-            <th onClick={changeReversePrefix}>
-              <Translate contentKey="configuration.table.prefix">Prefix</Translate>
-            </th>
-            <th onClick={changeReverseProperties}>
-              <Translate contentKey="configuration.table.properties">Properties</Translate>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {configProps.contexts
-            ? Object.values(getContextList(configProps.contexts))
-                .filter(propsFilterFn)
-                .map((property: any, propIndex) => (
-                  <tr key={propIndex}>
-                    <td>{property.prefix}</td>
-                    <td>
-                      {Object.keys(property.properties).map((propKey, index) => (
-                        <Row key={index}>
-                          <Col md="4">{propKey}</Col>
-                          <Col md="8">
-                            <Badge className="float-end bg-secondary break">{JSON.stringify(property.properties[propKey])}</Badge>
-                          </Col>
-                        </Row>
-                      ))}
-                    </td>
-                  </tr>
-                ))
-            : null}
-        </tbody>
-      </Table>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b">
+              <TableHead onClick={changeReversePrefix}>
+                <Translate contentKey="configuration.table.prefix">Prefix</Translate>
+              </TableHead>
+              <TableHead onClick={changeReverseProperties}>
+                <Translate contentKey="configuration.table.properties">Properties</Translate>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {configProps.contexts
+              ? Object.values(getContextList(configProps.contexts))
+                  .filter(propsFilterFn)
+                  .map((property: any, propIndex) => (
+                    <TableRow key={propIndex} className="border-b even:bg-muted/50">
+                      <TableCell>{property.prefix}</TableCell>
+                      <TableCell>
+                        {Object.keys(property.properties).map((propKey, index) => (
+                          <div key={index} className="grid grid-cols-12 gap-2 mb-2">
+                            <div className="col-span-12 md:col-span-4">{propKey}</div>
+                            <div className="col-span-12 md:col-span-8">
+                              <Badge variant="secondary" className="float-end break">
+                                {JSON.stringify(property.properties[propKey])}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </TableCell>
+                    </TableRow>
+                  ))
+              : null}
+          </TableBody>
+        </Table>
+      </div>
       {env.propertySources
         ? env.propertySources.map((envKey, envIndex) => (
             <div key={envIndex}>
               <h4>
                 <span>{envKey.name}</span>
               </h4>
-              <Table className="table table-sm table-striped table-bordered table-responsive d-table">
-                <thead>
-                  <tr key={envIndex}>
-                    <th className="w-40">Property</th>
-                    <th className="w-60">Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.keys(envKey.properties)
-                    .filter(envFilterFn)
-                    .map((propKey, propIndex) => (
-                      <tr key={propIndex}>
-                        <td className="break">{propKey}</td>
-                        <td className="break">
-                          <span className="float-end badge bg-secondary break">{envKey.properties[propKey].value}</span>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </Table>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow key={envIndex} className="border-b">
+                      <TableHead className="w-40">Property</TableHead>
+                      <TableHead className="w-60">Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.keys(envKey.properties)
+                      .filter(envFilterFn)
+                      .map((propKey, propIndex) => (
+                        <TableRow key={propIndex} className="border-b even:bg-muted/50">
+                          <TableCell className="break">{propKey}</TableCell>
+                          <TableCell className="break">
+                            <Badge variant="secondary" className="float-end break">
+                              {envKey.properties[propKey].value}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           ))
         : null}

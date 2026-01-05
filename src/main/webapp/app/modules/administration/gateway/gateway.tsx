@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { Translate } from 'react-jhipster';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Badge, Button, Table } from 'reactstrap';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import { useAppDispatch, useAppSelector } from 'app/config/store';
 import { getGatewayRoutes } from '../administration.reducer';
@@ -21,7 +23,7 @@ export const GatewayPage = () => {
       spans.push(
         <span key={`${key.toString()}value`}>
           <Badge key={`${key.toString()}-containerbadge`} className="fw-normal">
-            <Badge key={`${key.toString()}-badge`} color="info" className="fw-normal" pill>
+            <Badge key={`${key.toString()}-badge`} variant="outline" className="fw-normal">
               {key}
             </Badge>
             {instance[key]}
@@ -35,31 +37,33 @@ export const GatewayPage = () => {
   const badgeInfo = info => {
     if (info) {
       if (info.checks && info.checks.filter(check => check.status === 'PASSING').length === info.checks.length) {
-        return <Badge color="success">UP</Badge>;
+        return <Badge variant="default">UP</Badge>;
       }
-      return <Badge color="danger">DOWN</Badge>;
+      return <Badge variant="destructive">DOWN</Badge>;
     }
-    return <Badge color="warning">?</Badge>;
+    return <Badge variant="secondary">?</Badge>;
   };
 
   const instanceInfo = route => {
     if (route) {
       return (
-        <Table striped responsive>
-          <tbody>
-            {route.serviceInstances.map((instance, i) => (
-              <tr key={`${instance.instanceInfo}-info`}>
-                <td>
-                  <a href={instance.uri} target="_blank" rel="noopener noreferrer">
-                    {instance.uri}
-                  </a>
-                </td>
-                <td>{badgeInfo(instance.healthService)}</td>
-                <td>{metadata(instance.metadata)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableBody>
+              {route.serviceInstances.map((instance, i) => (
+                <TableRow key={`${instance.instanceInfo}-info`} className="border-b even:bg-muted/50">
+                  <TableCell>
+                    <a href={instance.uri} target="_blank" rel="noopener noreferrer">
+                      {instance.uri}
+                    </a>
+                  </TableCell>
+                  <TableCell>{badgeInfo(instance.healthService)}</TableCell>
+                  <TableCell>{metadata(instance.metadata)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       );
     }
   };
@@ -74,39 +78,40 @@ export const GatewayPage = () => {
     <div>
       <h2>Gateway</h2>
       <p>
-        <Button onClick={gatewayRoutes} color={isFetching ? 'danger' : 'primary'} disabled={isFetching}>
-          <FontAwesomeIcon icon="sync" />
-          &nbsp;
+        <Button onClick={gatewayRoutes} variant={isFetching ? 'destructive' : 'default'} disabled={isFetching}>
+          <FontAwesomeIcon icon="sync" className="mr-2" />
           <Translate component="span" contentKey="health.refresh.button">
             Refresh
           </Translate>
         </Button>
       </p>
 
-      <Table striped responsive>
-        <thead>
-          <tr key="header">
-            <th>
-              <Translate contentKey="gateway.routes.url">URL</Translate>
-            </th>
-            <th>
-              <Translate contentKey="gateway.routes.service">Service</Translate>
-            </th>
-            <th>
-              <Translate contentKey="gateway.routes.servers">Available servers</Translate>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {routes.map((route, i) => (
-            <tr key={`routes-${i}`}>
-              <td>{route.path}</td>
-              <td>{route.serviceId}</td>
-              <td>{instanceInfo(route)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow key="header" className="border-b">
+              <TableHead>
+                <Translate contentKey="gateway.routes.url">URL</Translate>
+              </TableHead>
+              <TableHead>
+                <Translate contentKey="gateway.routes.service">Service</Translate>
+              </TableHead>
+              <TableHead>
+                <Translate contentKey="gateway.routes.servers">Available servers</Translate>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {routes.map((route, i) => (
+              <TableRow key={`routes-${i}`} className="border-b even:bg-muted/50">
+                <TableCell>{route.path}</TableCell>
+                <TableCell>{route.serviceId}</TableCell>
+                <TableCell>{instanceInfo(route)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };

@@ -1,15 +1,67 @@
-// Override Bootstrap variables
-@import 'bootstrap-variables';
-@import 'bootswatch/dist/brite/variables';
-// Import Bootstrap source files from node_modules
-@import 'bootstrap/scss/bootstrap';
-@import 'bootswatch/dist/brite/bootswatch';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 45 92% 16%; /* #533f03 - custom primary color from original theme */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
+
 body {
   margin: 0;
 }
 
 a {
-  color: #533f03;
+  color: hsl(var(--primary));
   font-weight: bold;
 }
 
@@ -93,17 +145,10 @@ Generic styles
   display: inline;
 }
 
-/* other generic styles */
-
-.title {
-  font-size: 1.25em;
-  margin: 1px 10px 1px 10px;
-}
-
-.description {
-  font-size: 0.9em;
-  margin: 1px 10px 1px 10px;
-}
+/* Note: .title and .description classes removed - use Tailwind utilities instead:
+   .title -> text-xl mx-2.5 my-0.5
+   .description -> text-sm mx-2.5 my-0.5
+*/
 
 .shadow {
   box-shadow:
@@ -117,137 +162,17 @@ Generic styles
   background-color: red;
 }
 
-.break {
-  white-space: normal;
-  word-break: break-all;
-}
+/* Note: .break, .break-word, and .preserve-space are now Tailwind utilities
+   See tailwind.config.js for definitions - these are available as utility classes
+*/
 
-.break-word {
-  white-space: normal;
-  word-break: keep-all;
-}
-
-.preserve-space {
-  white-space: pre-wrap;
-}
-
-/* padding helpers */
-
-@mixin pad($size, $side) {
-  @if $size== '' {
-    @if $side== '' {
-      .pad {
-        padding: 10px !important;
-      }
-    } @else {
-      .pad {
-        padding-#{$side}: 10px !important;
-      }
-    }
-  } @else {
-    @if $side== '' {
-      .pad-#{$size} {
-        padding: #{$size}px !important;
-      }
-    } @else {
-      .pad-#{$side}-#{$size} {
-        padding-#{$side}: #{$size}px !important;
-      }
-    }
-  }
-}
-
-@include pad('', '');
-@include pad('2', '');
-@include pad('3', '');
-@include pad('5', '');
-@include pad('10', '');
-@include pad('20', '');
-@include pad('25', '');
-@include pad('30', '');
-@include pad('50', '');
-@include pad('75', '');
-@include pad('100', '');
-@include pad('4', 'top');
-@include pad('5', 'top');
-@include pad('10', 'top');
-@include pad('20', 'top');
-@include pad('25', 'top');
-@include pad('30', 'top');
-@include pad('50', 'top');
-@include pad('75', 'top');
-@include pad('100', 'top');
-@include pad('4', 'bottom');
-@include pad('5', 'bottom');
-@include pad('10', 'bottom');
-@include pad('20', 'bottom');
-@include pad('25', 'bottom');
-@include pad('30', 'bottom');
-@include pad('50', 'bottom');
-@include pad('75', 'bottom');
-@include pad('100', 'bottom');
-@include pad('5', 'right');
-@include pad('10', 'right');
-@include pad('20', 'right');
-@include pad('25', 'right');
-@include pad('30', 'right');
-@include pad('50', 'right');
-@include pad('75', 'right');
-@include pad('100', 'right');
-@include pad('5', 'left');
-@include pad('10', 'left');
-@include pad('20', 'left');
-@include pad('25', 'left');
-@include pad('30', 'left');
-@include pad('50', 'left');
-@include pad('75', 'left');
-@include pad('100', 'left');
-
-@mixin no-padding($side) {
-  @if $side== 'all' {
-    .no-padding {
-      padding: 0 !important;
-    }
-  } @else {
-    .no-padding-#{$side} {
-      padding-#{$side}: 0 !important;
-    }
-  }
-}
-
-@include no-padding('left');
-@include no-padding('right');
-@include no-padding('top');
-@include no-padding('bottom');
-@include no-padding('all');
-
-/* end of padding helpers */
-
-.no-margin {
-  margin: 0;
-}
-@mixin voffset($size) {
-  @if $size== '' {
-    .voffset {
-      margin-top: 2px !important;
-    }
-  } @else {
-    .voffset-#{$size} {
-      margin-top: #{$size}px !important;
-    }
-  }
-}
-
-@include voffset('');
-@include voffset('5');
-@include voffset('10');
-@include voffset('15');
-@include voffset('30');
-@include voffset('40');
-@include voffset('60');
-@include voffset('80');
-@include voffset('100');
-@include voffset('150');
+/* Note: Padding and margin helper classes removed
+   Use Tailwind utilities instead:
+   - .pad-* -> p-*, pt-*, pb-*, pl-*, pr-*
+   - .voffset-* -> mt-*
+   - .no-padding -> p-0
+   - .no-margin -> m-0
+*/
 
 .readonly {
   background-color: #eee;
@@ -306,11 +231,6 @@ Metrics and Health styles
   min-width: 400px;
 }
 
-/* bootstrap 3 input-group 100% width
-http://stackoverflow.com/questions/23436430/bootstrap-3-input-group-100-width */
-
-.width-min {
-  width: 1% !important;
-}
+/* Note: .width-min removed - use Tailwind w-0 or w-px instead */
 
 /* jhipster-needle-scss-add-main JHipster will add new css style */

@@ -3,7 +3,7 @@ import './app.scss';
 import 'app/config/dayjs';
 
 import React, { useEffect } from 'react';
-import { Card } from 'reactstrap';
+import { Card, CardContent } from '@/components/ui/card';
 import { BrowserRouter } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 
@@ -17,7 +17,8 @@ import ErrorBoundary from 'app/shared/error/error-boundary';
 import { AUTHORITIES } from 'app/config/constants';
 import AppRoutes from 'app/routes';
 
-const baseHref = document.querySelector('base').getAttribute('href').replace(/\/$/, '');
+const baseElement = document.querySelector('base');
+const baseHref = baseElement ? baseElement.getAttribute('href')?.replace(/\/$/, '') || '' : '';
 
 export const App = () => {
   const dispatch = useAppDispatch();
@@ -53,9 +54,11 @@ export const App = () => {
         </ErrorBoundary>
         <div className="container-fluid view-container" id="app-view-container">
           <Card className="jh-card">
-            <ErrorBoundary>
-              <AppRoutes />
-            </ErrorBoundary>
+            <CardContent>
+              <ErrorBoundary>
+                <AppRoutes />
+              </ErrorBoundary>
+            </CardContent>
           </Card>
           <Footer />
         </div>

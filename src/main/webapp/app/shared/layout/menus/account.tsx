@@ -1,6 +1,6 @@
 import React from 'react';
 import MenuItem from 'app/shared/layout/menus/menu-item';
-import { DropdownItem } from 'reactstrap';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Translate, translate } from 'react-jhipster';
 import { getLoginUrl } from 'app/shared/util/url-utils';
@@ -21,9 +21,8 @@ const accountMenuItems = () => {
 
   return (
     <>
-      <DropdownItem
+      <DropdownMenuItem
         id="login-item"
-        tag="a"
         data-cy="login"
         onClick={() =>
           navigate(getLoginUrl(), {
@@ -32,7 +31,7 @@ const accountMenuItems = () => {
         }
       >
         <FontAwesomeIcon icon="sign-in-alt" /> <Translate contentKey="global.menu.account.login">Sign in</Translate>
-      </DropdownItem>
+      </DropdownMenuItem>
     </>
   );
 };

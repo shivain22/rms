@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Button, Row, Col, Badge } from 'reactstrap';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Row, Col } from '@/app/shared/layout/layout-utils';
 import { Translate } from 'react-jhipster';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
@@ -60,28 +62,32 @@ export const TenantManagementDetail = () => {
             </dt>
             <dd>
               {tenant.active ? (
-                <Badge color="success">
+                <Badge variant="default">
                   <Translate contentKey="tenantManagement.active">Active</Translate>
                 </Badge>
               ) : (
-                <Badge color="danger">
+                <Badge variant="destructive">
                   <Translate contentKey="tenantManagement.inactive">Inactive</Translate>
                 </Badge>
               )}
             </dd>
           </dl>
-          <Button tag={Link} to="/admin/tenant-management" replace color="info">
-            <FontAwesomeIcon icon="arrow-left" />{' '}
-            <span className="d-none d-md-inline">
-              <Translate contentKey="entity.action.back">Back</Translate>
-            </span>
+          <Button asChild variant="outline">
+            <Link to="/admin/tenant-management" replace>
+              <FontAwesomeIcon icon="arrow-left" />{' '}
+              <span className="d-none d-md-inline">
+                <Translate contentKey="entity.action.back">Back</Translate>
+              </span>
+            </Link>
           </Button>
           &nbsp;
-          <Button tag={Link} to={`/admin/tenant-management/${tenant.id}/edit`} replace color="primary">
-            <FontAwesomeIcon icon="pencil-alt" />{' '}
-            <span className="d-none d-md-inline">
-              <Translate contentKey="entity.action.edit">Edit</Translate>
-            </span>
+          <Button asChild variant="default">
+            <Link to={`/admin/tenant-management/${tenant.id}/edit`} replace>
+              <FontAwesomeIcon icon="pencil-alt" />{' '}
+              <span className="d-none d-md-inline">
+                <Translate contentKey="entity.action.edit">Edit</Translate>
+              </span>
+            </Link>
           </Button>
         </Col>
       </Row>

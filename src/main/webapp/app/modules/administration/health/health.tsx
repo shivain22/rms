@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Translate } from 'react-jhipster';
-import { Badge, Button, Col, Row, Table } from 'reactstrap';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Row, Col } from '@/app/shared/layout/layout-utils';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 import { useAppDispatch, useAppSelector } from 'app/config/store';
@@ -30,7 +33,9 @@ export const HealthPage = () => {
     setHealthObject({ ...healthObj, name });
   };
 
-  const getBadgeType = (status: string) => (status !== 'UP' ? 'danger' : 'success');
+  const getBadgeType = (status: string): 'destructive' | 'default' => {
+    return status !== 'UP' ? 'destructive' : 'default';
+  };
 
   const handleClose = () => setShowModal(false);
 
@@ -44,7 +49,7 @@ export const HealthPage = () => {
         <Translate contentKey="health.title">Health Checks</Translate>
       </h2>
       <p>
-        <Button onClick={fetchSystemHealth} color={isFetching ? 'btn btn-danger' : 'btn btn-primary'} disabled={isFetching}>
+        <Button onClick={fetchSystemHealth} variant={isFetching ? 'destructive' : 'default'} disabled={isFetching}>
           <FontAwesomeIcon icon="sync" />
           &nbsp;
           <Translate component="span" contentKey="health.refresh.button">
@@ -54,39 +59,39 @@ export const HealthPage = () => {
       </p>
       <Row>
         <Col md="12">
-          <Table bordered aria-describedby="health-page-heading">
-            <thead>
-              <tr>
-                <th>
+          <Table aria-describedby="health-page-heading">
+            <TableHeader>
+              <TableRow>
+                <TableHead>
                   <Translate contentKey="health.table.service">Service Name</Translate>
-                </th>
-                <th>
+                </TableHead>
+                <TableHead>
                   <Translate contentKey="health.table.status">Status</Translate>
-                </th>
-                <th>
+                </TableHead>
+                <TableHead>
                   <Translate contentKey="health.details.details">Details</Translate>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {Object.keys(data).map((configPropKey, configPropIndex) =>
                 configPropKey !== 'status' ? (
-                  <tr key={configPropIndex}>
-                    <td>{configPropKey}</td>
-                    <td>
-                      <Badge color={getBadgeType(data[configPropKey].status)}>{data[configPropKey].status}</Badge>
-                    </td>
-                    <td>
+                  <TableRow key={configPropIndex} className="even:bg-muted/50">
+                    <TableCell>{configPropKey}</TableCell>
+                    <TableCell>
+                      <Badge variant={getBadgeType(data[configPropKey].status)}>{data[configPropKey].status}</Badge>
+                    </TableCell>
+                    <TableCell>
                       {data[configPropKey].details ? (
-                        <a onClick={getSystemHealthInfo(configPropKey, data[configPropKey])}>
+                        <a onClick={getSystemHealthInfo(configPropKey, data[configPropKey])} className="cursor-pointer">
                           <FontAwesomeIcon icon="eye" />
                         </a>
                       ) : null}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : null,
               )}
-            </tbody>
+            </TableBody>
           </Table>
         </Col>
       </Row>

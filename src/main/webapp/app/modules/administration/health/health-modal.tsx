@@ -1,5 +1,7 @@
 import React from 'react';
-import { Button, Modal, ModalBody, ModalFooter, ModalHeader, Table } from 'reactstrap';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Translate } from 'react-jhipster';
 
 const formatDiskSpaceOutput = rawValue => {
@@ -12,39 +14,47 @@ const formatDiskSpaceOutput = rawValue => {
   return `${(rawValue / 1048576).toFixed(2)} MB`;
 };
 
-const HealthModal = ({ handleClose, healthObject, showModal }) => {
+interface HealthModalProps {
+  handleClose: () => void;
+  healthObject: any;
+  showModal: boolean;
+}
+
+const HealthModal = ({ handleClose, healthObject, showModal }: HealthModalProps) => {
   const data = healthObject.details || {};
   return (
-    <Modal isOpen={showModal} modalTransition={{ timeout: 20 }} backdropTransition={{ timeout: 10 }} toggle={handleClose}>
-      <ModalHeader toggle={handleClose}>{healthObject.name}</ModalHeader>
-      <ModalBody>
-        <Table bordered>
-          <thead>
-            <tr>
-              <th>
-                <Translate contentKey="health.details.name">Name</Translate>
-              </th>
-              <th>
-                <Translate contentKey="health.details.value">Value</Translate>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.keys(data).map((key, index) => (
-              <tr key={index}>
-                <td>{key}</td>
-                <td>{healthObject.name === 'diskSpace' ? formatDiskSpaceOutput(data[key]) : JSON.stringify(data[key])}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </ModalBody>
-      <ModalFooter>
-        <Button color="primary" onClick={handleClose}>
-          Close
-        </Button>
-      </ModalFooter>
-    </Modal>
+    <Dialog open={showModal} onOpenChange={open => !open && handleClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{healthObject.name}</DialogTitle>
+        </DialogHeader>
+        <DialogDescription>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <Translate contentKey="health.details.name">Name</Translate>
+                </TableHead>
+                <TableHead>
+                  <Translate contentKey="health.details.value">Value</Translate>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.keys(data).map((key, index) => (
+                <TableRow key={index}>
+                  <TableCell>{key}</TableCell>
+                  <TableCell>{healthObject.name === 'diskSpace' ? formatDiskSpaceOutput(data[key]) : JSON.stringify(data[key])}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DialogDescription>
+        <DialogFooter>
+          <Button onClick={handleClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

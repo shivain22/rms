@@ -1,6 +1,6 @@
 import React from 'react';
-import { DropdownItem } from 'reactstrap';
-import { NavLink as Link } from 'react-router-dom';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { IconProp } from '@fortawesome/fontawesome-svg-core';
 
@@ -16,9 +16,12 @@ const MenuItem = (props: IMenuItem) => {
   const { to, icon, id, children } = props;
 
   return (
-    <DropdownItem tag={Link} to={to} id={id} data-cy={props['data-cy']}>
-      <FontAwesomeIcon icon={icon} fixedWidth /> {children}
-    </DropdownItem>
+    <DropdownMenuItem asChild>
+      <Link to={to} id={id} data-cy={props['data-cy']} className="flex items-center space-x-2">
+        <FontAwesomeIcon icon={icon} fixedWidth />
+        <span>{children}</span>
+      </Link>
+    </DropdownMenuItem>
   );
 };
 
