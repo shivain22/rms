@@ -152,11 +152,12 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
         }
 
         // Build base URL for OAuth2 redirect URI (must point to BACKEND)
-        String baseUrl = scheme + "://" + host;
+        String baseUrlValue = scheme + "://" + host;
         // Only append port if it's not a standard port (80 for HTTP, 443 for HTTPS)
         if (backendPort != -1 && backendPort != 443 && backendPort != 80) {
-            baseUrl += ":" + backendPort;
+            baseUrlValue += ":" + backendPort;
         }
+        final String baseUrl = baseUrlValue;
 
         // Generate state parameter (CSRF token)
         String state = generateState();
@@ -182,24 +183,36 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
             }
         }
 
-        // Make final for use in lambda
+        // Store the original frontend URL in the session for retrieval after authentication
+        // This is needed because the OAuth2 callback from Keycloak won't have Origin/Referer headers
         final String finalOriginalOrigin = originalOriginValue;
 
-        // Build the authorization request
-        OAuth2AuthorizationRequest.Builder builder = OAuth2AuthorizationRequest.authorizationCode()
-            .clientId(clientRegistration.getClientId())
-            .authorizationUri(clientRegistration.getProviderDetails().getAuthorizationUri())
-            .redirectUri(baseUrl + "/login/oauth2/code/" + clientRegistration.getRegistrationId())
-            .scopes(clientRegistration.getScopes())
-            .state(state)
-            .attributes(attributes -> {
-                attributes.put("registration_id", clientRegistration.getRegistrationId());
+        return exchange
+            .getSession()
+            .flatMap(session -> {
+                // Store original frontend URL in session
                 if (finalOriginalOrigin != null) {
-                    attributes.put("original_origin", finalOriginalOrigin);
+                    session.getAttributes().put("OAUTH2_ORIGINAL_FRONTEND_URL", finalOriginalOrigin);
                 }
-            });
+                // Also store if backend is on localhost (for fallback) - use the already declared isRequestLocalhost
+                session.getAttributes().put("OAUTH2_BACKEND_IS_LOCALHOST", isRequestLocalhost);
 
-        return Mono.just(builder.build());
+                // Build the authorization request
+                OAuth2AuthorizationRequest.Builder builder = OAuth2AuthorizationRequest.authorizationCode()
+                    .clientId(clientRegistration.getClientId())
+                    .authorizationUri(clientRegistration.getProviderDetails().getAuthorizationUri())
+                    .redirectUri(baseUrl + "/login/oauth2/code/" + clientRegistration.getRegistrationId())
+                    .scopes(clientRegistration.getScopes())
+                    .state(state)
+                    .attributes(attributes -> {
+                        attributes.put("registration_id", clientRegistration.getRegistrationId());
+                        if (finalOriginalOrigin != null) {
+                            attributes.put("original_origin", finalOriginalOrigin);
+                        }
+                    });
+
+                return Mono.just(builder.build());
+            });
     }
 
     private String generateState() {
