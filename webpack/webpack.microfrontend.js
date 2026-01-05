@@ -44,8 +44,12 @@ module.exports = () => {
               '@radix-ui/react-dialog',
               '@radix-ui/react-dropdown-menu',
               '@radix-ui/react-slot',
+              '@radix-ui/react-select',
+              '@radix-ui/react-tabs',
               // Exclude icon library
               'lucide-react',
+              // Exclude table library to avoid Module Federation version conflicts
+              '@tanstack/react-table',
             ],
           }),
           ...shareMappings(
