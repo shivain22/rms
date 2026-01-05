@@ -66,7 +66,7 @@ export const App = () => {
                 account={account}
               />
             </ErrorBoundary>
-            <main className="flex-1 overflow-y-auto p-6 bg-muted/40">
+            <main className="flex-1 overflow-y-auto p-6 bg-background">
               <ErrorBoundary>
                 <AppRoutes />
               </ErrorBoundary>

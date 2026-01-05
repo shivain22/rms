@@ -358,7 +358,7 @@ export const Home = () => {
 
   // Dashboard view for logged-in users
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-full">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -491,9 +491,9 @@ export const Home = () => {
                 <Table>
                   <TableHeader>
                     {table.getHeaderGroups().map(headerGroup => (
-                      <TableRow key={headerGroup.id}>
+                      <TableRow key={headerGroup.id} className="border-b">
                         {headerGroup.headers.map(header => (
-                          <TableHead key={header.id} className="h-12">
+                          <TableHead key={header.id}>
                             {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                           </TableHead>
                         ))}
@@ -503,11 +503,9 @@ export const Home = () => {
                   <TableBody>
                     {table.getRowModel().rows?.length ? (
                       table.getRowModel().rows.map(row => (
-                        <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'} className="hover:bg-muted/50">
+                        <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'} className="border-b hover:bg-muted/50">
                           {row.getVisibleCells().map(cell => (
-                            <TableCell key={cell.id} className="h-12">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
+                            <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                           ))}
                         </TableRow>
                       ))
