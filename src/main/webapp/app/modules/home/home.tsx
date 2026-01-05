@@ -37,6 +37,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Mock data types
 type MetricCard = {
@@ -210,25 +211,18 @@ export const Home = () => {
       {
         id: 'select',
         header: ({ table }) => (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <GripVertical className="h-4 w-4 text-muted-foreground" />
-            <input
-              type="checkbox"
-              checked={table.getIsAllPageRowsSelected()}
-              onChange={e => table.toggleAllPageRowsSelected(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300"
+            <Checkbox
+              checked={table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected() ? 'indeterminate' : false}
+              onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
             />
           </div>
         ),
         cell: ({ row }) => (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
-            <input
-              type="checkbox"
-              checked={row.getIsSelected()}
-              onChange={e => row.toggleSelected(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300"
-            />
+            <Checkbox checked={row.getIsSelected()} onCheckedChange={value => row.toggleSelected(!!value)} />
           </div>
         ),
         enableSorting: false,
@@ -237,12 +231,12 @@ export const Home = () => {
       {
         accessorKey: 'header',
         header: 'Header',
-        cell: ({ row }) => <div className="font-medium">{row.getValue('header')}</div>,
+        cell: ({ row }) => <div className="font-medium">{String(row.getValue('header'))}</div>,
       },
       {
         accessorKey: 'sectionType',
         header: 'Section Type',
-        cell: ({ row }) => <div className="text-muted-foreground">{row.getValue('sectionType')}</div>,
+        cell: ({ row }) => <div className="text-muted-foreground">{String(row.getValue('sectionType'))}</div>,
       },
       {
         accessorKey: 'status',
@@ -250,9 +244,15 @@ export const Home = () => {
         cell({ row }) {
           const status = row.getValue('status');
           return (
-            <div className="flex items-center space-x-2">
-              {status === 'done' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Circle className="h-4 w-4 text-gray-400" />}
-              <Badge variant={status === 'done' ? 'default' : 'outline'}>{status === 'done' ? 'Done' : 'In Process'}</Badge>
+            <div className="flex items-center gap-2">
+              {status === 'done' ? (
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              ) : (
+                <Circle className="h-4 w-4 text-muted-foreground fill-muted" />
+              )}
+              <Badge variant={status === 'done' ? 'default' : 'secondary'} className="font-normal">
+                {status === 'done' ? 'Done' : 'In Process'}
+              </Badge>
             </div>
           );
         },
@@ -260,12 +260,12 @@ export const Home = () => {
       {
         accessorKey: 'target',
         header: 'Target',
-        cell: ({ row }) => <div>{row.getValue('target')}</div>,
+        cell: ({ row }) => <div>{String(row.getValue('target'))}</div>,
       },
       {
         accessorKey: 'limit',
         header: 'Limit',
-        cell: ({ row }) => <div>{row.getValue('limit')}</div>,
+        cell: ({ row }) => <div>{String(row.getValue('limit'))}</div>,
       },
       {
         accessorKey: 'reviewer',
@@ -346,12 +346,12 @@ export const Home = () => {
 
   // Dashboard view for logged-in users
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Documents</h1>
-          <p className="text-muted-foreground">Manage your documents and sections</p>
+          <p className="text-muted-foreground mt-1">Manage your documents and sections</p>
         </div>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -364,20 +364,28 @@ export const Home = () => {
         {mockMetrics.map((metric, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
-              <div className="text-muted-foreground">{metric.icon}</div>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{metric.title}</CardTitle>
+              <div className="h-4 w-4 text-muted-foreground">{metric.icon}</div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{metric.value}</div>
-              <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1">
+              <div className="flex items-center gap-1.5 text-xs mt-1">
                 {metric.changeType === 'positive' ? (
-                  <ArrowUp className="h-3 w-3 text-green-500" />
+                  <ArrowUp className="h-3 w-3 text-green-600" />
                 ) : (
-                  <ArrowDown className="h-3 w-3 text-red-500" />
+                  <ArrowDown className="h-3 w-3 text-red-600" />
                 )}
-                <span className={metric.changeType === 'positive' ? 'text-green-500' : 'text-red-500'}>{metric.change}</span>
+                <span className={metric.changeType === 'positive' ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                  {metric.change}
+                </span>
                 <span className="text-muted-foreground">{metric.description}</span>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {index === 0 && 'Visitors for the last 6 months'}
+                {index === 1 && 'Acquisition needs attention'}
+                {index === 2 && 'Engagement exceed targets'}
+                {index === 3 && 'Meets growth projections'}
+              </p>
             </CardContent>
           </Card>
         ))}
@@ -386,27 +394,32 @@ export const Home = () => {
       {/* Chart Section Placeholder */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <div>
               <CardTitle>Total Visitors</CardTitle>
               <CardDescription>Total for the last 3 months</CardDescription>
             </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm">
+            <div className="flex items-center gap-2">
+              <Button variant="default" size="sm" className="h-8">
                 Last 3 months
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="h-8">
                 Last 30 days
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="h-8">
                 Last 7 days
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            Chart visualization placeholder - Integrate with your preferred charting library (e.g., Recharts, Chart.js)
+          <div className="h-[300px] flex items-center justify-center text-muted-foreground border border-dashed rounded-lg">
+            <div className="text-center">
+              <p className="text-sm font-medium">Chart visualization placeholder</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Integrate with your preferred charting library (e.g., Recharts, Chart.js)
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -414,48 +427,54 @@ export const Home = () => {
       {/* Documents Table Section */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <div>
               <CardTitle>Document Sections</CardTitle>
               <CardDescription>Manage document sections and their status</CardDescription>
             </div>
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm">
-                Customize Columns
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-8">
+                View
               </Button>
-              <Button size="sm">
+              <Button size="sm" className="h-8">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Section
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Tabs defaultValue="outline" className="w-full">
-            <TabsList>
-              <TabsTrigger value="outline">Outline</TabsTrigger>
-              <TabsTrigger value="past-performance">
-                Past Performance{' '}
-                <Badge variant="secondary" className="ml-2">
-                  3
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="key-personnel">
-                Key Personnel{' '}
-                <Badge variant="secondary" className="ml-2">
-                  2
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="focus-documents">Focus Documents</TabsTrigger>
-            </TabsList>
-            <TabsContent value="outline" className="space-y-4">
+            <div className="border-b px-6">
+              <TabsList className="bg-transparent">
+                <TabsTrigger value="outline" className="data-[state=active]:bg-transparent">
+                  Outline
+                </TabsTrigger>
+                <TabsTrigger value="past-performance" className="data-[state=active]:bg-transparent">
+                  Past Performance{' '}
+                  <Badge variant="secondary" className="ml-2 h-5">
+                    3
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="key-personnel" className="data-[state=active]:bg-transparent">
+                  Key Personnel{' '}
+                  <Badge variant="secondary" className="ml-2 h-5">
+                    2
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="focus-documents" className="data-[state=active]:bg-transparent">
+                  Focus Documents
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="outline" className="space-y-4 p-6">
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     {table.getHeaderGroups().map(headerGroup => (
                       <TableRow key={headerGroup.id}>
                         {headerGroup.headers.map(header => (
-                          <TableHead key={header.id}>
+                          <TableHead key={header.id} className="h-12">
                             {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                           </TableHead>
                         ))}
@@ -465,9 +484,11 @@ export const Home = () => {
                   <TableBody>
                     {table.getRowModel().rows?.length ? (
                       table.getRowModel().rows.map(row => (
-                        <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+                        <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'} className="hover:bg-muted/50">
                           {row.getVisibleCells().map(cell => (
-                            <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                            <TableCell key={cell.id} className="h-12">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
                           ))}
                         </TableRow>
                       ))
@@ -481,12 +502,12 @@ export const Home = () => {
                   </TableBody>
                 </Table>
               </div>
-              <div className="flex items-center justify-between px-2">
-                <div className="flex-1 text-sm text-muted-foreground">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-muted-foreground">
                   {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
                 </div>
-                <div className="flex items-center space-x-6 lg:space-x-8">
-                  <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">Rows per page</p>
                     <Select
                       value={`${table.getState().pagination.pageSize}`}
@@ -506,10 +527,10 @@ export const Home = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                  <div className="flex items-center gap-2 text-sm font-medium">
                     Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-1">
                     <Button
                       variant="outline"
                       className="hidden h-8 w-8 p-0 lg:flex"
