@@ -144,10 +144,11 @@ jhipster:
       ring-buffer-size: 512
   # CORS configuration for production
   # Configure via environment variables: CORS_ALLOWED_ORIGINS, CORS_ALLOWED_METHODS, etc.
-  # Example: CORS_ALLOWED_ORIGINS=https://rmsgateway.atparui.com
+  # Example: CORS_ALLOWED_ORIGINS=https://rmsgateway.atparui.com,http://localhost:9000
   # The WebConfigurer uses jHipsterProperties.getCors() and can be overridden by environment variables
+  # Note: localhost:9000 is included to allow local frontend development
   cors:
-    allowed-origins: "https://rmsgateway.atparui.com"
+    allowed-origins: "https://rmsgateway.atparui.com,http://localhost:9000,http://localhost:9060"
     allowed-methods: "*"
     allowed-headers: "*"
     exposed-headers: "Authorization,Link,X-Total-Count,X-${jhipster.clientApp.name}-alert,X-${jhipster.clientApp.name}-error,X-${jhipster.clientApp.name}-params"

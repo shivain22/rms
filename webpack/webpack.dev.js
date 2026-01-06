@@ -12,18 +12,31 @@ const ENV = 'development';
 
 // Handle unhandled promise rejections to prevent AggregateError from crashing the process
 process.on('unhandledRejection', (reason, promise) => {
-  if (reason && reason.name === 'AggregateError') {
-    console.warn('[Webpack] BrowserSync error caught (non-fatal):', reason.message);
+  if (reason && (reason.name === 'AggregateError' || reason.constructor.name === 'AggregateError')) {
+    console.warn('[Webpack] BrowserSync error caught (non-fatal):', reason.message || 'Unknown error');
     if (reason.errors && Array.isArray(reason.errors)) {
       reason.errors.forEach((err, index) => {
-        console.warn(`[Webpack] Error ${index + 1}:`, err.message);
+        console.warn(`[Webpack] Error ${index + 1}:`, err.message || err);
       });
     }
     console.warn('[Webpack] Continuing without BrowserSync. You can access the app at http://localhost:9060');
     // Don't exit - let webpack dev server continue
-  } else {
-    console.error('[Webpack] Unhandled rejection:', reason);
+    return; // Prevent default behavior
   }
+  // For other unhandled rejections, log but don't crash
+  console.error('[Webpack] Unhandled rejection (non-fatal):', reason);
+});
+
+// Also handle uncaught exceptions to prevent crashes
+process.on('uncaughtException', err => {
+  if (err.name === 'AggregateError' || err.constructor.name === 'AggregateError') {
+    console.warn('[Webpack] BrowserSync AggregateError caught (non-fatal):', err.message);
+    console.warn('[Webpack] Continuing without BrowserSync. You can access the app at http://localhost:9060');
+    // Don't exit - let webpack dev server continue
+    return;
+  }
+  // For other exceptions, log but don't crash in development
+  console.error('[Webpack] Uncaught exception (non-fatal in dev):', err);
 });
 
 module.exports = async options =>
@@ -150,8 +163,15 @@ module.exports = async options =>
             }
 
             // Set X-Forwarded headers for production backend
+            // X-Forwarded-Proto should be 'https' since backend expects HTTPS
             proxyReq.setHeader('X-Forwarded-Proto', 'https');
-            proxyReq.setHeader('X-Forwarded-Host', 'rmsgateway.atparui.com');
+            // X-Forwarded-Host should be the original client host (localhost:9000 or localhost:9060)
+            // This is critical for OAuth2 redirect URI generation
+            const forwardedHost = req.headers.host || 'localhost:9000';
+            proxyReq.setHeader('X-Forwarded-Host', forwardedHost);
+            // Also set X-Forwarded-For for proper proxy detection
+            const forwardedFor = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+            proxyReq.setHeader('X-Forwarded-For', forwardedFor);
 
             // Log cookies being sent (for debugging)
             if (req.headers.cookie) {
@@ -196,56 +216,70 @@ module.exports = async options =>
         : new SimpleProgressWebpackPlugin({
             format: options.stats === 'minimal' ? 'compact' : 'expanded',
           }),
-      new BrowserSyncPlugin(
-        {
-          https: options.tls,
-          host: 'localhost',
-          port: 9000,
-          proxy: {
-            target: `http${options.tls ? 's' : ''}://localhost:${options.watch ? '8082' : '9060'}`,
-            ws: true,
-            proxyOptions: {
-              changeOrigin: false, //pass the Host header to the backend unchanged https://github.com/Browsersync/browser-sync/issues/430
+      // Wrap BrowserSync in try-catch to handle initialization errors gracefully
+      (() => {
+        try {
+          return new BrowserSyncPlugin(
+            {
+              https: options.tls,
+              host: 'localhost',
+              port: 9000,
+              proxy: {
+                target: `http${options.tls ? 's' : ''}://localhost:${options.watch ? '8082' : '9060'}`,
+                ws: true,
+                proxyOptions: {
+                  changeOrigin: false, //pass the Host header to the backend unchanged https://github.com/Browsersync/browser-sync/issues/430
+                },
+              },
+              // Use middleware to ensure all requests are forwarded (including API calls)
+              middleware: [
+                (req, res, next) => {
+                  // Log API requests for debugging
+                  if (
+                    req.url.startsWith('/api') ||
+                    req.url.startsWith('/management') ||
+                    req.url.startsWith('/oauth2') ||
+                    req.url.startsWith('/login')
+                  ) {
+                    console.log('[BrowserSync] Forwarding API request to webpack dev server:', req.method, req.url);
+                  }
+                  // Continue to BrowserSync's proxy handler
+                  next();
+                },
+              ],
+              socket: {
+                clients: {
+                  heartbeatTimeout: 60000,
+                },
+              },
+              // Disable notifications and auto-open to prevent errors
+              notify: false,
+              open: false,
+              /*
+          ,ghostMode: { // uncomment this part to disable BrowserSync ghostMode; https://github.com/jhipster/generator-jhipster/issues/11116
+            clicks: false,
+            location: false,
+            forms: false,
+            scroll: false
+          } */
             },
-          },
-          // Use middleware to ensure all requests are forwarded (including API calls)
-          middleware: [
-            (req, res, next) => {
-              // Log API requests for debugging
-              if (
-                req.url.startsWith('/api') ||
-                req.url.startsWith('/management') ||
-                req.url.startsWith('/oauth2') ||
-                req.url.startsWith('/login')
-              ) {
-                console.log('[BrowserSync] Forwarding API request to webpack dev server:', req.method, req.url);
-              }
-              // Continue to BrowserSync's proxy handler
-              next();
+            {
+              reload: false,
+              // Add name to help with debugging
+              name: 'browser-sync',
             },
-          ],
-          socket: {
-            clients: {
-              heartbeatTimeout: 60000,
+          );
+        } catch (err) {
+          console.warn('[Webpack] BrowserSync initialization failed (non-fatal):', err.message);
+          console.warn('[Webpack] Continuing without BrowserSync. You can access the app at http://localhost:9060');
+          // Return a no-op plugin that does nothing
+          return {
+            apply: () => {
+              // No-op - BrowserSync failed but webpack dev server continues
             },
-          },
-          // Disable notifications and auto-open to prevent errors
-          notify: false,
-          open: false,
-          /*
-      ,ghostMode: { // uncomment this part to disable BrowserSync ghostMode; https://github.com/jhipster/generator-jhipster/issues/11116
-        clicks: false,
-        location: false,
-        forms: false,
-        scroll: false
-      } */
-        },
-        {
-          reload: false,
-          // Add name to help with debugging
-          name: 'browser-sync',
-        },
-      ),
+          };
+        }
+      })(),
       new WebpackNotifierPlugin({
         title: 'Rms',
         contentImage: path.join(__dirname, 'logo-jhipster.png'),
