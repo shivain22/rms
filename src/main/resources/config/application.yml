@@ -65,6 +65,8 @@ management:
           include: readinessState
     jhimetrics:
       enabled: true
+    threaddump:
+      enabled: true
   # prettier-ignore - management.health and management.endpoint.health are different keys in Spring Boot
   health:
     # R2DBC health check is disabled by default

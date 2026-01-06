@@ -150,55 +150,66 @@ public class MetricsResource {
     private Map<String, Object> getHttpServerRequestsMetrics() {
         Map<String, Object> httpMetrics = new HashMap<>();
 
-        // Get all HTTP server request meters
-        Collection<Meter> meters = meterRegistry.find("http.server.requests").meters();
+        try {
+            // Get all HTTP server request meters
+            Collection<Meter> meters = meterRegistry.find("http.server.requests").meters();
 
-        if (meters == null || meters.isEmpty()) {
-            return httpMetrics;
-        }
+            if (meters == null || meters.isEmpty()) {
+                // Return empty structure that won't cause frontend errors
+                return httpMetrics;
+            }
 
-        // Group by status code and aggregate values
-        Map<String, Map<String, Double>> statusMap = new HashMap<>();
+            // Group by status code and aggregate values
+            Map<String, Map<String, Double>> statusMap = new HashMap<>();
 
-        for (Meter meter : meters) {
-            String status = meter.getId().getTag("status");
-            if (status != null) {
-                Map<String, Double> statusMetrics = statusMap.computeIfAbsent(status, k -> new HashMap<>());
+            for (Meter meter : meters) {
+                String status = meter.getId().getTag("status");
+                if (status != null && !status.isEmpty()) {
+                    Map<String, Double> statusMetrics = statusMap.computeIfAbsent(status, k -> new HashMap<>());
 
-                // Get measurements for this meter and aggregate
-                Iterable<Measurement> measurements = meter.measure();
-                if (measurements != null) {
-                    for (Measurement measurement : measurements) {
-                        Statistic stat = measurement.getStatistic();
-                        Double value = measurement.getValue();
+                    // Get measurements for this meter and aggregate
+                    Iterable<Measurement> measurements = meter.measure();
+                    if (measurements != null) {
+                        for (Measurement measurement : measurements) {
+                            Statistic stat = measurement.getStatistic();
+                            Double value = measurement.getValue();
+                            if (value == null || Double.isNaN(value) || Double.isInfinite(value)) {
+                                continue;
+                            }
 
-                        if (stat == Statistic.COUNT) {
-                            statusMetrics.put("count", statusMetrics.getOrDefault("count", 0.0) + value);
-                        } else if (stat == Statistic.TOTAL_TIME) {
-                            statusMetrics.put("totalTime", statusMetrics.getOrDefault("totalTime", 0.0) + value);
-                        } else if (stat == Statistic.MAX) {
-                            // For MAX, we want the maximum value, not sum
-                            Double currentMax = statusMetrics.get("max");
-                            if (currentMax == null || value > currentMax) {
-                                statusMetrics.put("max", value);
+                            if (stat == Statistic.COUNT) {
+                                statusMetrics.put("count", statusMetrics.getOrDefault("count", 0.0) + value);
+                            } else if (stat == Statistic.TOTAL_TIME) {
+                                statusMetrics.put("totalTime", statusMetrics.getOrDefault("totalTime", 0.0) + value);
+                            } else if (stat == Statistic.MAX) {
+                                // For MAX, we want the maximum value, not sum
+                                Double currentMax = statusMetrics.get("max");
+                                if (currentMax == null || value > currentMax) {
+                                    statusMetrics.put("max", value);
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Convert to expected format - ensure all required properties exist
-        for (Map.Entry<String, Map<String, Double>> entry : statusMap.entrySet()) {
-            Map<String, Object> statusMetrics = new HashMap<>();
-            Map<String, Double> values = entry.getValue();
-            // Always include count and totalTime, defaulting to 0.0 if not present
-            statusMetrics.put("count", values.getOrDefault("count", 0.0));
-            statusMetrics.put("totalTime", values.getOrDefault("totalTime", 0.0));
-            if (values.containsKey("max")) {
-                statusMetrics.put("max", values.get("max"));
+            // Convert to expected format - ensure all required properties exist
+            for (Map.Entry<String, Map<String, Double>> entry : statusMap.entrySet()) {
+                Map<String, Object> statusMetrics = new HashMap<>();
+                Map<String, Double> values = entry.getValue();
+                // Always include count and totalTime, defaulting to 0.0 if not present
+                Double count = values.get("count");
+                Double totalTime = values.get("totalTime");
+                statusMetrics.put("count", count != null ? count : 0.0);
+                statusMetrics.put("totalTime", totalTime != null ? totalTime : 0.0);
+                if (values.containsKey("max")) {
+                    statusMetrics.put("max", values.get("max"));
+                }
+                httpMetrics.put(entry.getKey(), statusMetrics);
             }
-            httpMetrics.put(entry.getKey(), statusMetrics);
+        } catch (Exception e) {
+            LOG.error("Error getting HTTP server requests metrics", e);
+            // Return empty map to prevent frontend errors
         }
 
         return httpMetrics;

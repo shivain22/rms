@@ -33,8 +33,22 @@ public class ThreadDumpResource {
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<List<Map<String, Object>>> getThreadDump() {
         try {
+            LOG.info("ThreadDump endpoint called");
             ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+
+            // Check if thread contention monitoring is supported
+            boolean contentionSupported = threadBean.isThreadContentionMonitoringSupported();
+            if (!contentionSupported) {
+                LOG.warn("Thread contention monitoring not supported, using basic thread dump");
+            }
+
+            // Enable contention monitoring if supported
+            if (contentionSupported && !threadBean.isThreadContentionMonitoringEnabled()) {
+                threadBean.setThreadContentionMonitoringEnabled(true);
+            }
+
             ThreadInfo[] threadInfos = threadBean.dumpAllThreads(true, true);
+            LOG.info("Retrieved {} threads for thread dump", threadInfos.length);
 
             List<Map<String, Object>> threads = new ArrayList<>();
 
