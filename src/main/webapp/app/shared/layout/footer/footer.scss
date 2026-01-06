@@ -1,3 +1,4 @@
 .footer {
-  height: 50px;
+  /* Footer height is now auto, controlled by content */
+  /* flex-shrink-0 ensures it doesn't shrink in flex layout */
 }

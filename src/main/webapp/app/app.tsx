@@ -50,11 +50,11 @@ export const App = () => {
         </div>
       ) : isAuthenticated ? (
         // Dashboard layout when authenticated
-        <div className="flex h-screen bg-background">
+        <div className="flex h-screen bg-background overflow-hidden">
           <ErrorBoundary>
             <Sidebar isAuthenticated={isAuthenticated} isAdmin={isAdmin} isOpenAPIEnabled={isOpenAPIEnabled} />
           </ErrorBoundary>
-          <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
             <ErrorBoundary>
               <Header
                 isAuthenticated={isAuthenticated}
@@ -66,7 +66,7 @@ export const App = () => {
                 account={account}
               />
             </ErrorBoundary>
-            <main className="flex-1 overflow-y-auto p-6 bg-background">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 bg-background">
               <ErrorBoundary>
                 <AppRoutes />
               </ErrorBoundary>

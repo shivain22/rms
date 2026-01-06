@@ -358,7 +358,7 @@ export const Home = () => {
 
   // Dashboard view for logged-in users
   return (
-    <div className="space-y-8 max-w-full">
+    <div className="space-y-8 w-full">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>

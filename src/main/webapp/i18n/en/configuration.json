@@ -1,10 +1,21 @@
 {
   "configuration": {
     "title": "Configuration",
+    "subtitle": "View and manage application configuration properties",
     "filter": "Filter (by prefix)",
+    "spring": {
+      "title": "Spring Configuration",
+      "description": "Configuration properties organized by prefix"
+    },
+    "env": {
+      "description": "Environment-specific configuration properties"
+    },
     "table": {
       "prefix": "Prefix",
-      "properties": "Properties"
-    }
+      "properties": "Properties",
+      "property": "Property",
+      "value": "Value"
+    },
+    "empty": "No configuration data available"
   }
 }

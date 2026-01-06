@@ -1,6 +1,7 @@
 {
   "health": {
     "title": "Health Checks",
+    "subtitle": "Monitor system health and service status",
     "refresh.button": "Refresh",
     "stacktrace": "Stacktrace",
     "details": {
@@ -26,8 +27,11 @@
       "r2dbc": "Database"
     },
     "table": {
+      "title": "System Health Status",
+      "description": "Overview of all system components and their current status",
       "service": "Service name",
-      "status": "Status"
+      "status": "Status",
+      "empty": "No health data available"
     },
     "status": {
       "UNKNOWN": "UNKNOWN",

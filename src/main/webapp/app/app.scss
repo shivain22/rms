@@ -1,4 +1,6 @@
-@import 'tailwindcss';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
   :root {
@@ -48,14 +50,23 @@
 }
 
 @layer base {
-  body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+  html {
+    height: 100%;
+    overflow: hidden;
   }
-}
 
-body {
-  margin: 0;
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
 }
 
 a {
@@ -73,6 +84,7 @@ a {
   }
 }
 
+/* Legacy app-container styles - scoped to avoid conflicts with shadcn components */
 .app-container {
   box-sizing: border-box;
   .view-container {
@@ -81,7 +93,8 @@ a {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 1rem;
-    .card {
+    /* Scoped card class to avoid conflict with shadcn Card component */
+    .legacy-card {
       padding: 1rem;
     }
     .view-routes {
@@ -125,7 +138,8 @@ Browser Upgrade Prompt
 Custom button styles
 ========================================================================== */
 
-.icon-button > .btn {
+/* Scoped to avoid conflict with shadcn Button component */
+.icon-button > .legacy-btn {
   background-color: transparent;
   border-color: transparent;
   padding: 0.5rem;
@@ -246,5 +260,53 @@ Metrics and Health styles
 }
 
 /* Note: .width-min removed - use Tailwind w-0 or w-px instead */
+
+/* ==========================================================================
+Tailwind CSS Override Protection
+========================================================================== */
+
+/* Ensure Tailwind utilities take precedence over any legacy styles */
+@layer utilities {
+  /* Prevent legacy styles from overriding Tailwind components */
+  [class*='bg-'],
+  [class*='text-'],
+  [class*='border-'],
+  [class*='rounded-'],
+  [class*='p-'],
+  [class*='m-'],
+  [class*='flex'],
+  [class*='grid'] {
+    /* Tailwind utilities should take precedence */
+  }
+}
+
+/* Ensure shadcn components are not affected by legacy styles */
+@layer components {
+  /* Protect shadcn Card component from legacy .card styles */
+  [class*='card'][class*='rounded-lg'],
+  [class*='Card'] {
+    /* Reset any legacy card styles */
+    box-sizing: border-box;
+  }
+
+  /* Protect shadcn Button component from legacy .btn styles */
+  button[class*='Button'],
+  [role='button'][class*='Button'] {
+    /* Reset any legacy button styles */
+    box-sizing: border-box;
+  }
+}
+
+/* ==========================================================================
+Dashboard Layout Fixes
+========================================================================== */
+
+/* Ensure main content area has proper spacing and doesn't conflict */
+main {
+  /* Reset any legacy styles that might interfere */
+  box-sizing: border-box;
+}
+
+/* Font rendering is now handled in @layer base above */
 
 /* jhipster-needle-scss-add-main JHipster will add new css style */

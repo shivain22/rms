@@ -188,6 +188,11 @@ public class SecurityConfiguration {
                     .pathMatchers("/management/info").permitAll()
                     .pathMatchers("/management/prometheus").permitAll()
                     .pathMatchers("/management/jhiopenapigroups").permitAll()
+                    .pathMatchers("/management/jhimetrics").hasAuthority(AuthoritiesConstants.ADMIN)
+                    .pathMatchers("/management/threaddump").hasAuthority(AuthoritiesConstants.ADMIN)
+                    .pathMatchers("/management/loggers").hasAuthority(AuthoritiesConstants.ADMIN)
+                    .pathMatchers("/management/configprops").hasAuthority(AuthoritiesConstants.ADMIN)
+                    .pathMatchers("/management/env").hasAuthority(AuthoritiesConstants.ADMIN)
                     .pathMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
             )
             .oauth2Login(oauth2 ->

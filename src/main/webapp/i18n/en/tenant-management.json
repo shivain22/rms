@@ -2,9 +2,15 @@
   "tenantManagement": {
     "home": {
       "title": "Tenants",
+      "subtitle": "Manage and configure tenant settings",
       "refreshListLabel": "Refresh list",
       "createLabel": "Create a new Tenant",
       "createOrEditLabel": "Create or edit a Tenant"
+    },
+    "table": {
+      "title": "Tenant List",
+      "description": "View and manage all registered tenants",
+      "empty": "No tenants found"
     },
     "detail": {
       "title": "Tenant"

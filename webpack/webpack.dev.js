@@ -79,6 +79,12 @@ module.exports = async options =>
         directory: './target/classes/static/',
       },
       port: 9060,
+      client: {
+        overlay: {
+          errors: true,
+          warnings: false, // Disable warning overlay - only show errors
+        },
+      },
       proxy: [
         {
           // Match all paths that should be proxied to production backend

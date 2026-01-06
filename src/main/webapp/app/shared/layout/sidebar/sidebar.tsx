@@ -18,10 +18,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isAuthenticated, isAdmin, isOpenAPIEn
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   return (
-    <div className="hidden md:flex md:flex-shrink-0">
-      <div className="flex flex-col w-64 border-r bg-background">
+    <div className="hidden md:flex md:flex-shrink-0 md:h-screen">
+      <div className="flex flex-col w-64 h-full border-r border-border/20 bg-slate-50 dark:bg-slate-900/50 overflow-hidden">
         {/* Logo Section */}
-        <div className="flex items-center h-16 px-6 border-b">
+        <div className="flex items-center h-16 px-6 border-b border-border/20 flex-shrink-0">
           <Link to="/" className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-green-500 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-lg">a</span>
@@ -34,7 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isAuthenticated, isAdmin, isOpenAPIEn
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto overflow-x-hidden">
           {/* Home */}
           <Link
             to="/"

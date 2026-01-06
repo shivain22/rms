@@ -1,11 +1,14 @@
 {
   "gateway": {
     "title": "Gateway",
+    "subtitle": "View and manage gateway routes and services",
     "routes": {
-      "title": "Current routes",
+      "title": "Gateway Routes",
+      "description": "List of all registered routes and their service instances",
       "url": "URL",
       "service": "Service",
       "servers": "Available servers",
+      "empty": "No routes available",
       "error": "Warning: no server available!"
     },
     "refresh": {
