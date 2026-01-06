@@ -3,6 +3,8 @@ import axios, { type AxiosError } from 'axios';
 const TIMEOUT = 1 * 60 * 1000;
 axios.defaults.timeout = TIMEOUT;
 axios.defaults.baseURL = SERVER_API_URL;
+// CRITICAL: Send credentials (cookies) with all requests for session management
+axios.defaults.withCredentials = true;
 
 const setupAxiosInterceptors = onUnauthenticated => {
   const onRequestSuccess = config => {

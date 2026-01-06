@@ -90,12 +90,20 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
         // NOTE: Backend is always in production mode, but we need to detect if frontend
         // is running locally (npm start on localhost:9000) vs production (built and served)
 
-        // Check if request is coming from localhost:9000 (frontend dev server running via npm start)
+        // Check if request is coming from localhost:9000 or localhost:9060 (frontend dev server running via npm start)
         String originHeader = exchange.getRequest().getHeaders().getFirst("Origin");
         String refererHeader = exchange.getRequest().getHeaders().getFirst("Referer");
         boolean isFrontendLocal =
-            (originHeader != null && (originHeader.contains("localhost:9000") || originHeader.contains("127.0.0.1:9000"))) ||
-            (refererHeader != null && (refererHeader.contains("localhost:9000") || refererHeader.contains("127.0.0.1:9000")));
+            (originHeader != null &&
+                (originHeader.contains("localhost:9000") ||
+                    originHeader.contains("localhost:9060") ||
+                    originHeader.contains("127.0.0.1:9000") ||
+                    originHeader.contains("127.0.0.1:9060"))) ||
+            (refererHeader != null &&
+                (refererHeader.contains("localhost:9000") ||
+                    refererHeader.contains("localhost:9060") ||
+                    refererHeader.contains("127.0.0.1:9000") ||
+                    refererHeader.contains("127.0.0.1:9060")));
 
         // Get the backend server's address from the request
         String scheme = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
@@ -190,13 +198,25 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
         String referer = exchange.getRequest().getHeaders().getFirst("Referer");
         String originalOriginValue = null;
 
-        // Priority 1: Check Origin header for localhost:9000
-        if (origin != null && (origin.contains("localhost:9000") || origin.contains("127.0.0.1:9000"))) {
+        // Priority 1: Check Origin header for localhost:9000 or localhost:9060
+        if (
+            origin != null &&
+            (origin.contains("localhost:9000") ||
+                origin.contains("localhost:9060") ||
+                origin.contains("127.0.0.1:9000") ||
+                origin.contains("127.0.0.1:9060"))
+        ) {
             originalOriginValue = origin;
             LOG.info("Detected frontend URL from Origin header: {}", originalOriginValue);
         }
-        // Priority 2: Check Referer header for localhost:9000
-        else if (referer != null && (referer.contains("localhost:9000") || referer.contains("127.0.0.1:9000"))) {
+        // Priority 2: Check Referer header for localhost:9000 or localhost:9060
+        else if (
+            referer != null &&
+            (referer.contains("localhost:9000") ||
+                referer.contains("localhost:9060") ||
+                referer.contains("127.0.0.1:9000") ||
+                referer.contains("127.0.0.1:9060"))
+        ) {
             try {
                 java.net.URI refererUri = java.net.URI.create(referer);
                 String refererBase = refererUri.getScheme() + "://" + refererUri.getHost();
@@ -209,13 +229,24 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
                 LOG.warn("Failed to parse Referer header: {}", referer, e);
             }
         }
-        // Priority 3: If frontend is local (detected earlier) but no Origin/Referer detected, default to localhost:9000
+        // Priority 3: If frontend is local (detected earlier) but no Origin/Referer detected, try to determine port
         // This handles cases where the request doesn't have Origin/Referer headers (e.g., direct navigation)
         // Since backend is always in prod mode, we check if frontend is local based on isFrontendLocal flag
         else if (isFrontendLocal) {
             String frontendScheme = "http"; // Always use http for localhost frontend
-            originalOriginValue = frontendScheme + "://localhost:9000";
-            LOG.info("Frontend detected as local but no Origin/Referer headers - defaulting to localhost:9000: {}", originalOriginValue);
+            // Try to determine port from headers - default to 9000 if can't determine
+            String frontendPort = "9000";
+            if (origin != null && origin.contains(":9060")) {
+                frontendPort = "9060";
+            } else if (referer != null && referer.contains(":9060")) {
+                frontendPort = "9060";
+            }
+            originalOriginValue = frontendScheme + "://localhost:" + frontendPort;
+            LOG.info(
+                "Frontend detected as local but no Origin/Referer headers - defaulting to localhost:{}: {}",
+                frontendPort,
+                originalOriginValue
+            );
         }
 
         // Store the original frontend URL in the session for retrieval after authentication

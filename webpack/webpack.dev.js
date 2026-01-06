@@ -10,6 +10,22 @@ const commonConfig = require('./webpack.common.js');
 
 const ENV = 'development';
 
+// Handle unhandled promise rejections to prevent AggregateError from crashing the process
+process.on('unhandledRejection', (reason, promise) => {
+  if (reason && reason.name === 'AggregateError') {
+    console.warn('[Webpack] BrowserSync error caught (non-fatal):', reason.message);
+    if (reason.errors && Array.isArray(reason.errors)) {
+      reason.errors.forEach((err, index) => {
+        console.warn(`[Webpack] Error ${index + 1}:`, err.message);
+      });
+    }
+    console.warn('[Webpack] Continuing without BrowserSync. You can access the app at http://localhost:9060');
+    // Don't exit - let webpack dev server continue
+  } else {
+    console.error('[Webpack] Unhandled rejection:', reason);
+  }
+});
+
 module.exports = async options =>
   webpackMerge(await commonConfig({ env: ENV }), {
     devtool: 'cheap-module-source-map', // https://reactjs.org/docs/cross-origin-errors.html
@@ -73,6 +89,9 @@ module.exports = async options =>
           secure: false, // Set to false to bypass SSL certificate validation (for development only)
           changeOrigin: false, // Don't change origin - preserve original headers
           logLevel: 'debug',
+          // CRITICAL: Preserve cookies for session management
+          cookieDomainRewrite: '', // Keep original domain
+          cookiePathRewrite: '', // Keep original path
           // Ensure proxy handles all HTTP methods (GET, POST, etc.)
           ws: false, // WebSocket not needed for OAuth2
           // Preserve Origin and Referer headers so backend can detect local frontend
@@ -99,15 +118,19 @@ module.exports = async options =>
                 proxyReq.setHeader('Origin', 'http://localhost:9000');
               }
             }
-            // If no Referer, check if request is from localhost:9000 (webpack dev server)
-            else if (req.headers.host && req.headers.host.includes('localhost:9000')) {
-              proxyReq.setHeader('Origin', 'http://localhost:9000');
-              console.log('[Webpack Proxy] Set Origin to localhost:9000 based on Host header');
+            // If no Referer, check if request is from localhost:9000 or localhost:9060 (webpack dev server)
+            else if (req.headers.host && (req.headers.host.includes('localhost:9000') || req.headers.host.includes('localhost:9060'))) {
+              const origin = `http://${req.headers.host.split(':')[0]}:${req.headers.host.includes(':9060') ? '9060' : '9000'}`;
+              proxyReq.setHeader('Origin', origin);
+              console.log('[Webpack Proxy] Set Origin based on Host header:', origin);
             }
-            // Last resort: always set Origin to localhost:9000 for local dev
+            // Last resort: check if request came through BrowserSync (port 9000) or direct (port 9060)
             else {
-              proxyReq.setHeader('Origin', 'http://localhost:9000');
-              console.log('[Webpack Proxy] Set Origin to localhost:9000 (default for local dev)');
+              // Default to 9060 if we can't determine (webpack dev server direct access)
+              const defaultOrigin =
+                req.url.startsWith('/api') || req.url.startsWith('/management') ? 'http://localhost:9060' : 'http://localhost:9000';
+              proxyReq.setHeader('Origin', defaultOrigin);
+              console.log('[Webpack Proxy] Set Origin to default for local dev:', defaultOrigin);
             }
 
             // Always preserve Referer header if present
@@ -115,14 +138,43 @@ module.exports = async options =>
               proxyReq.setHeader('Referer', req.headers.referer);
               console.log('[Webpack Proxy] Preserving Referer header:', req.headers.referer);
             } else {
-              // Set Referer to localhost:9000 if not present (for navigation requests)
-              proxyReq.setHeader('Referer', 'http://localhost:9000/');
-              console.log('[Webpack Proxy] Set Referer to localhost:9000 (default for local dev)');
+              // Set Referer based on Host header or default to 9060 (webpack dev server direct access)
+              const refererPort =
+                req.headers.host && req.headers.host.includes(':9060')
+                  ? '9060'
+                  : req.headers.host && req.headers.host.includes(':9000')
+                    ? '9000'
+                    : '9060';
+              proxyReq.setHeader('Referer', `http://localhost:${refererPort}/`);
+              console.log('[Webpack Proxy] Set Referer to localhost:' + refererPort + ' (default for local dev)');
             }
 
             // Set X-Forwarded headers for production backend
             proxyReq.setHeader('X-Forwarded-Proto', 'https');
             proxyReq.setHeader('X-Forwarded-Host', 'rmsgateway.atparui.com');
+
+            // Log cookies being sent (for debugging)
+            if (req.headers.cookie) {
+              console.log('[Webpack Proxy] Forwarding cookies:', req.headers.cookie.substring(0, 100) + '...');
+            } else {
+              console.warn('[Webpack Proxy] No cookies in request - session may not be preserved');
+            }
+          },
+          onProxyRes: (proxyRes, req, res) => {
+            console.log('[Webpack Proxy] Response:', proxyRes.statusCode, 'for', req.url);
+
+            // Log Set-Cookie headers from backend (for debugging)
+            if (proxyRes.headers['set-cookie']) {
+              console.log('[Webpack Proxy] Backend set cookies:', proxyRes.headers['set-cookie']);
+              // Rewrite cookie domain from rmsgateway.atparui.com to localhost for local dev
+              if (Array.isArray(proxyRes.headers['set-cookie'])) {
+                proxyRes.headers['set-cookie'] = proxyRes.headers['set-cookie'].map(cookie => {
+                  // Remove domain restriction so cookie works on localhost
+                  return cookie.replace(/;\s*[Dd]omain=[^;]+/gi, '');
+                });
+                console.log('[Webpack Proxy] Rewritten cookies for localhost:', proxyRes.headers['set-cookie']);
+              }
+            }
           },
           onError: (err, req, res) => {
             console.error('[Webpack Proxy] Proxy error for', req.url, ':', err.message);
@@ -132,9 +184,6 @@ module.exports = async options =>
               });
               res.end('Proxy error: ' + err.message);
             }
-          },
-          onProxyRes: (proxyRes, req, res) => {
-            console.log('[Webpack Proxy] Response:', proxyRes.statusCode, 'for', req.url);
           },
         },
       ],
@@ -159,11 +208,30 @@ module.exports = async options =>
               changeOrigin: false, //pass the Host header to the backend unchanged https://github.com/Browsersync/browser-sync/issues/430
             },
           },
+          // Use middleware to ensure all requests are forwarded (including API calls)
+          middleware: [
+            (req, res, next) => {
+              // Log API requests for debugging
+              if (
+                req.url.startsWith('/api') ||
+                req.url.startsWith('/management') ||
+                req.url.startsWith('/oauth2') ||
+                req.url.startsWith('/login')
+              ) {
+                console.log('[BrowserSync] Forwarding API request to webpack dev server:', req.method, req.url);
+              }
+              // Continue to BrowserSync's proxy handler
+              next();
+            },
+          ],
           socket: {
             clients: {
               heartbeatTimeout: 60000,
             },
           },
+          // Disable notifications and auto-open to prevent errors
+          notify: false,
+          open: false,
           /*
       ,ghostMode: { // uncomment this part to disable BrowserSync ghostMode; https://github.com/jhipster/generator-jhipster/issues/11116
         clicks: false,
@@ -174,6 +242,8 @@ module.exports = async options =>
         },
         {
           reload: false,
+          // Add name to help with debugging
+          name: 'browser-sync',
         },
       ),
       new WebpackNotifierPlugin({

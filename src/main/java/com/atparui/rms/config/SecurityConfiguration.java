@@ -297,7 +297,13 @@ public class SecurityConfiguration {
                         // Priority 2: Check Origin header (for CORS requests from webpack dev server)
                         if (frontendUrl == null) {
                             String origin = exchange.getRequest().getHeaders().getFirst("Origin");
-                            if (origin != null && (origin.contains("localhost:9000") || origin.contains("127.0.0.1:9000"))) {
+                            if (
+                                origin != null &&
+                                (origin.contains("localhost:9000") ||
+                                    origin.contains("localhost:9060") ||
+                                    origin.contains("127.0.0.1:9000") ||
+                                    origin.contains("127.0.0.1:9060"))
+                            ) {
                                 try {
                                     java.net.URI originUri = java.net.URI.create(origin);
                                     frontendUrl = originUri.toString();
@@ -314,7 +320,13 @@ public class SecurityConfiguration {
                         // Priority 3: Check Referer header
                         if (frontendUrl == null) {
                             String referer = exchange.getRequest().getHeaders().getFirst("Referer");
-                            if (referer != null && (referer.contains("localhost:9000") || referer.contains("127.0.0.1:9000"))) {
+                            if (
+                                referer != null &&
+                                (referer.contains("localhost:9000") ||
+                                    referer.contains("localhost:9060") ||
+                                    referer.contains("127.0.0.1:9000") ||
+                                    referer.contains("127.0.0.1:9060"))
+                            ) {
                                 try {
                                     java.net.URI refererUri = java.net.URI.create(referer);
                                     String refererBase = refererUri.getScheme() + "://" + refererUri.getHost();
