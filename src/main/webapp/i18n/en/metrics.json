@@ -1,10 +1,13 @@
 {
   "metrics": {
     "title": "Application Metrics",
+    "subtitle": "Monitor application performance and system metrics",
     "refresh.button": "Refresh",
     "updating": "Updating...",
+    "empty": "No metrics data available",
     "jvm": {
       "title": "JVM Metrics",
+      "description": "Java Virtual Machine memory, threads, and system metrics",
       "memory": {
         "title": "Memory",
         "total": "Total Memory",
@@ -31,8 +34,12 @@
           "hide": "Hide Stacktrace"
         }
       },
+      "system": {
+        "title": "System"
+      },
       "gc": {
         "title": "Garbage collections",
+        "description": "Garbage collection statistics and performance metrics",
         "marksweepcount": "Mark Sweep count",
         "marksweeptime": "Mark Sweep time",
         "scavengecount": "Scavenge count",
@@ -40,6 +47,7 @@
       },
       "http": {
         "title": "HTTP requests (time in millisecond)",
+        "description": "HTTP server request statistics and response times",
         "active": "Active requests:",
         "total": "Total requests:",
         "table": {
@@ -56,6 +64,18 @@
         }
       }
     },
+    "gc": {
+      "title": "Garbage Collector",
+      "description": "Garbage collection statistics and performance metrics"
+    },
+    "http": {
+      "title": "HTTP Requests",
+      "description": "HTTP server request statistics and response times"
+    },
+    "endpoints": {
+      "title": "Service Endpoints",
+      "description": "Request statistics for individual service endpoints"
+    },
     "servicesstats": {
       "title": "Services statistics (time in millisecond)",
       "table": {
@@ -71,7 +91,9 @@
       }
     },
     "cache": {
-      "title": "Cache statistics",
+      "title": "Cache",
+      "description": "Cache statistics and hit/miss ratios",
+      "statistics": "Cache statistics",
       "cachename": "Cache name",
       "hits": "Cache Hits",
       "misses": "Cache Misses",
@@ -87,7 +109,9 @@
     },
     "datasource": {
       "usage": "Connection Pool Usage",
-      "title": "DataSource statistics (time in millisecond)",
+      "title": "Data Sources",
+      "description": "Database connection pool and datasource metrics",
+      "statistics": "DataSource statistics (time in millisecond)",
       "name": "Pool usage",
       "count": "Count",
       "mean": "Mean",
