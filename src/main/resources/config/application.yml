@@ -286,6 +286,7 @@ app:
       audience:
         - account
         - api://default
+        - gateway-web  # Client ID - ID tokens often use client ID as audience
 
 # Multi-tenancy Configuration
 multitenancy:

@@ -29,10 +29,34 @@ public class AudienceValidator implements OAuth2TokenValidator<Jwt> {
             LOG.debug("JWT token has no audience claim - allowing token (likely a service account token)");
             return OAuth2TokenValidatorResult.success();
         }
-        if (audience.stream().anyMatch(allowedAudience::contains)) {
+
+        // Check if any audience matches the allowed list
+        boolean matches = audience.stream().anyMatch(allowedAudience::contains);
+
+        // Also accept the client ID as audience (common in OIDC ID tokens)
+        // The client ID (gateway-web) is often used as the audience in ID tokens
+        if (!matches) {
+            // Get client ID from token claims (azp claim or client_id claim)
+            String clientId = jwt.getClaimAsString("azp"); // Authorized party
+            if (clientId == null) {
+                clientId = jwt.getClaimAsString("client_id");
+            }
+            // If the audience contains the client ID, and client ID is in allowed list, accept it
+            if (clientId != null && allowedAudience.contains(clientId)) {
+                LOG.debug("Token audience {} contains client ID {} which is in allowed list - accepting", audience, clientId);
+                matches = true;
+            }
+            // Also check if any audience value itself is in the allowed list (e.g., gateway-web)
+            if (!matches && audience.stream().anyMatch(aud -> allowedAudience.contains(aud))) {
+                matches = true;
+            }
+        }
+
+        if (matches) {
+            LOG.debug("JWT audience validation passed: {} matches allowed audiences: {}", audience, allowedAudience);
             return OAuth2TokenValidatorResult.success();
         } else {
-            LOG.warn("Invalid audience: {}", audience);
+            LOG.warn("Invalid audience: {} (expected one of: {})", audience, allowedAudience);
             return OAuth2TokenValidatorResult.failure(error);
         }
     }

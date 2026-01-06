@@ -159,6 +159,7 @@ jhipster:
       audience:
         - account
         - api://default
+        - gateway-web  # Client ID - ID tokens often use client ID as audience
 # ===================================================================
 # Application specific properties
 # Add your own application properties here, see the ApplicationProperties class
