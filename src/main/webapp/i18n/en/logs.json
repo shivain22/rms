@@ -1,11 +1,15 @@
 {
   "logs": {
     "title": "Logs",
+    "subtitle": "Manage logger levels and monitor application logging",
     "nbloggers": "There are {{ total }} loggers.",
     "filter": "Filter",
     "table": {
+      "title": "Logger Configuration",
+      "description": "Configure logging levels for each logger in the application",
       "name": "Name",
-      "level": "Level"
+      "level": "Level",
+      "empty": "No loggers found"
     }
   }
 }

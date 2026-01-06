@@ -1,6 +1,10 @@
 import React from 'react';
 
-const EntitiesMenu = () => {
+interface EntitiesMenuProps {
+  isCollapsed?: boolean;
+}
+
+const EntitiesMenu = ({ isCollapsed }: EntitiesMenuProps) => {
   return (
     <>
       {/* prettier-ignore */}

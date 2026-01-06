@@ -3,6 +3,8 @@ package com.atparui.rms.web.rest;
 import io.micrometer.core.instrument.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +17,8 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/management/jhimetrics")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
 public class MetricsResource {
+
+    private static final Logger LOG = LoggerFactory.getLogger(MetricsResource.class);
 
     private final MeterRegistry meterRegistry;
 
@@ -29,49 +33,81 @@ public class MetricsResource {
      */
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<Map<String, Object>> getMetrics() {
-        Map<String, Object> metrics = new HashMap<>();
+        try {
+            Map<String, Object> metrics = new HashMap<>();
 
-        // JVM Metrics
-        Map<String, Object> jvm = new HashMap<>();
-        jvm.put("memory", getJvmMemoryMetrics());
-        metrics.put("jvm", jvm);
+            // JVM Metrics
+            Map<String, Object> jvm = new HashMap<>();
+            jvm.put("memory", getJvmMemoryMetrics());
+            metrics.put("jvm", jvm);
 
-        // Process Metrics
-        metrics.put("processMetrics", getProcessMetrics());
+            // Process Metrics
+            metrics.put("processMetrics", getProcessMetrics());
 
-        // Garbage Collector Metrics
-        metrics.put("garbageCollector", getGarbageCollectorMetrics());
+            // Garbage Collector Metrics
+            metrics.put("garbageCollector", getGarbageCollectorMetrics());
 
-        // HTTP Server Requests
-        metrics.put("http.server.requests", getHttpServerRequestsMetrics());
+            // HTTP Server Requests
+            Map<String, Object> httpMetrics = getHttpServerRequestsMetrics();
+            metrics.put("http.server.requests", httpMetrics);
 
-        // Services/Endpoints Metrics
-        metrics.put("services", getServicesMetrics());
+            // Services/Endpoints Metrics
+            metrics.put("services", getServicesMetrics());
 
-        // Cache Metrics
-        metrics.put("cache", getCacheMetrics());
+            // Cache Metrics
+            metrics.put("cache", getCacheMetrics());
 
-        // Database Metrics
-        metrics.put("databases", getDatabaseMetrics());
+            // Database Metrics
+            metrics.put("databases", getDatabaseMetrics());
 
-        return Mono.just(metrics);
+            LOG.debug("Returning metrics: {}", metrics.keySet());
+            return Mono.just(metrics);
+        } catch (Exception e) {
+            LOG.error("Error getting metrics", e);
+            // Return empty metrics structure to prevent frontend errors
+            Map<String, Object> emptyMetrics = new HashMap<>();
+            emptyMetrics.put("jvm", new HashMap<>());
+            emptyMetrics.put("processMetrics", new HashMap<>());
+            emptyMetrics.put("garbageCollector", new HashMap<>());
+            emptyMetrics.put("http.server.requests", new HashMap<>());
+            emptyMetrics.put("services", new HashMap<>());
+            emptyMetrics.put("cache", new HashMap<>());
+            emptyMetrics.put("databases", new HashMap<>());
+            return Mono.just(emptyMetrics);
+        }
     }
 
     private Map<String, Object> getJvmMemoryMetrics() {
         Map<String, Object> memory = new HashMap<>();
 
-        // Heap memory
+        // Heap memory - get all heap meters
         Map<String, Object> heap = new HashMap<>();
-        heap.put("committed", getMetricValue("jvm.memory.used", "area", "heap"));
-        heap.put("init", getMetricValue("jvm.memory.committed", "area", "heap"));
+        Collection<Meter> heapMeters = meterRegistry.find("jvm.memory.used").tag("area", "heap").meters();
+        if (heapMeters != null && !heapMeters.isEmpty()) {
+            for (Meter meter : heapMeters) {
+                Iterable<Measurement> measurements = meter.measure();
+                if (measurements != null) {
+                    for (Measurement m : measurements) {
+                        if (m.getStatistic() == Statistic.VALUE) {
+                            heap.put("used", m.getValue());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        heap.put("committed", getMetricValue("jvm.memory.committed", "area", "heap"));
+        heap.put("init", getMetricValue("jvm.memory.init", "area", "heap"));
         heap.put("max", getMetricValue("jvm.memory.max", "area", "heap"));
-        heap.put("used", getMetricValue("jvm.memory.used", "area", "heap"));
+        if (!heap.containsKey("used")) {
+            heap.put("used", getMetricValue("jvm.memory.used", "area", "heap"));
+        }
         memory.put("heap", heap);
 
         // Non-heap memory
         Map<String, Object> nonheap = new HashMap<>();
         nonheap.put("committed", getMetricValue("jvm.memory.committed", "area", "nonheap"));
-        nonheap.put("init", getMetricValue("jvm.memory.committed", "area", "nonheap"));
+        nonheap.put("init", getMetricValue("jvm.memory.init", "area", "nonheap"));
         nonheap.put("max", getMetricValue("jvm.memory.max", "area", "nonheap"));
         nonheap.put("used", getMetricValue("jvm.memory.used", "area", "nonheap"));
         memory.put("nonheap", nonheap);
@@ -114,21 +150,55 @@ public class MetricsResource {
     private Map<String, Object> getHttpServerRequestsMetrics() {
         Map<String, Object> httpMetrics = new HashMap<>();
 
-        // Get HTTP request metrics by status
-        List<String> statuses = meterRegistry
-            .find("http.server.requests")
-            .meters()
-            .stream()
-            .map(m -> m.getId().getTag("status"))
-            .filter(Objects::nonNull)
-            .distinct()
-            .collect(Collectors.toList());
+        // Get all HTTP server request meters
+        Collection<Meter> meters = meterRegistry.find("http.server.requests").meters();
 
-        for (String status : statuses) {
+        if (meters == null || meters.isEmpty()) {
+            return httpMetrics;
+        }
+
+        // Group by status code and aggregate values
+        Map<String, Map<String, Double>> statusMap = new HashMap<>();
+
+        for (Meter meter : meters) {
+            String status = meter.getId().getTag("status");
+            if (status != null) {
+                Map<String, Double> statusMetrics = statusMap.computeIfAbsent(status, k -> new HashMap<>());
+
+                // Get measurements for this meter and aggregate
+                Iterable<Measurement> measurements = meter.measure();
+                if (measurements != null) {
+                    for (Measurement measurement : measurements) {
+                        Statistic stat = measurement.getStatistic();
+                        Double value = measurement.getValue();
+
+                        if (stat == Statistic.COUNT) {
+                            statusMetrics.put("count", statusMetrics.getOrDefault("count", 0.0) + value);
+                        } else if (stat == Statistic.TOTAL_TIME) {
+                            statusMetrics.put("totalTime", statusMetrics.getOrDefault("totalTime", 0.0) + value);
+                        } else if (stat == Statistic.MAX) {
+                            // For MAX, we want the maximum value, not sum
+                            Double currentMax = statusMetrics.get("max");
+                            if (currentMax == null || value > currentMax) {
+                                statusMetrics.put("max", value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Convert to expected format - ensure all required properties exist
+        for (Map.Entry<String, Map<String, Double>> entry : statusMap.entrySet()) {
             Map<String, Object> statusMetrics = new HashMap<>();
-            statusMetrics.put("count", getMetricValue("http.server.requests", "status", status, Statistic.COUNT));
-            statusMetrics.put("totalTime", getMetricValue("http.server.requests", "status", status, Statistic.TOTAL_TIME));
-            httpMetrics.put(status, statusMetrics);
+            Map<String, Double> values = entry.getValue();
+            // Always include count and totalTime, defaulting to 0.0 if not present
+            statusMetrics.put("count", values.getOrDefault("count", 0.0));
+            statusMetrics.put("totalTime", values.getOrDefault("totalTime", 0.0));
+            if (values.containsKey("max")) {
+                statusMetrics.put("max", values.get("max"));
+            }
+            httpMetrics.put(entry.getKey(), statusMetrics);
         }
 
         return httpMetrics;
@@ -195,9 +265,14 @@ public class MetricsResource {
 
     private Double getMetricValue(String metricName) {
         try {
-            Meter meter = meterRegistry.find(metricName).meter();
-            if (meter != null) {
-                return getMeterValue(meter);
+            Collection<Meter> meters = meterRegistry.find(metricName).meters();
+            if (meters != null && !meters.isEmpty()) {
+                for (Meter meter : meters) {
+                    Double value = getMeterValue(meter);
+                    if (value != null && value != 0.0) {
+                        return value;
+                    }
+                }
             }
         } catch (Exception e) {
             // Metric not found or not available
@@ -207,9 +282,14 @@ public class MetricsResource {
 
     private Double getMetricValue(String metricName, String tagKey, String tagValue) {
         try {
-            Meter meter = meterRegistry.find(metricName).tag(tagKey, tagValue).meter();
-            if (meter != null) {
-                return getMeterValue(meter);
+            Collection<Meter> meters = meterRegistry.find(metricName).tag(tagKey, tagValue).meters();
+            if (meters != null && !meters.isEmpty()) {
+                for (Meter meter : meters) {
+                    Double value = getMeterValue(meter);
+                    if (value != null && value != 0.0) {
+                        return value;
+                    }
+                }
             }
         } catch (Exception e) {
             // Metric not found or not available
@@ -219,9 +299,14 @@ public class MetricsResource {
 
     private Double getMetricValue(String metricName, String tagKey1, String tagValue1, String tagKey2, String tagValue2) {
         try {
-            Meter meter = meterRegistry.find(metricName).tag(tagKey1, tagValue1).tag(tagKey2, tagValue2).meter();
-            if (meter != null) {
-                return getMeterValue(meter);
+            Collection<Meter> meters = meterRegistry.find(metricName).tag(tagKey1, tagValue1).tag(tagKey2, tagValue2).meters();
+            if (meters != null && !meters.isEmpty()) {
+                for (Meter meter : meters) {
+                    Double value = getMeterValue(meter);
+                    if (value != null && value != 0.0) {
+                        return value;
+                    }
+                }
             }
         } catch (Exception e) {
             // Metric not found or not available
@@ -231,11 +316,16 @@ public class MetricsResource {
 
     private Double getMetricValue(String metricName, String tagKey, String tagValue, Statistic statistic) {
         try {
-            Iterable<Measurement> measurements = meterRegistry.find(metricName).tag(tagKey, tagValue).meter().measure();
-            if (measurements != null) {
-                for (Measurement m : measurements) {
-                    if (m.getStatistic() == statistic) {
-                        return m.getValue();
+            Collection<Meter> meters = meterRegistry.find(metricName).tag(tagKey, tagValue).meters();
+            if (meters != null && !meters.isEmpty()) {
+                for (Meter meter : meters) {
+                    Iterable<Measurement> measurements = meter.measure();
+                    if (measurements != null) {
+                        for (Measurement m : measurements) {
+                            if (m.getStatistic() == statistic) {
+                                return m.getValue();
+                            }
+                        }
                     }
                 }
             }
@@ -254,16 +344,16 @@ public class MetricsResource {
         Statistic statistic
     ) {
         try {
-            Iterable<Measurement> measurements = meterRegistry
-                .find(metricName)
-                .tag(tagKey1, tagValue1)
-                .tag(tagKey2, tagValue2)
-                .meter()
-                .measure();
-            if (measurements != null) {
-                for (Measurement m : measurements) {
-                    if (m.getStatistic() == statistic) {
-                        return m.getValue();
+            Collection<Meter> meters = meterRegistry.find(metricName).tag(tagKey1, tagValue1).tag(tagKey2, tagValue2).meters();
+            if (meters != null && !meters.isEmpty()) {
+                for (Meter meter : meters) {
+                    Iterable<Measurement> measurements = meter.measure();
+                    if (measurements != null) {
+                        for (Measurement m : measurements) {
+                            if (m.getStatistic() == statistic) {
+                                return m.getValue();
+                            }
+                        }
                     }
                 }
             }
