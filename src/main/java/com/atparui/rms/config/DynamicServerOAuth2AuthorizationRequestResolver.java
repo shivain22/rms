@@ -110,27 +110,27 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
         String requestHost = exchange.getRequest().getURI().getHost();
         String forwardedHost = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
 
-        // If frontend is running locally (localhost:9000), use localhost for backend redirect URI
-        // This allows local frontend development even when backend is in production mode
-        if (isFrontendLocal) {
-            // Frontend is on localhost:9000, so backend redirect URI should also be localhost
-            // Use the request host if it's localhost, otherwise default to localhost
-            if ("localhost".equals(requestHost) || "127.0.0.1".equals(requestHost)) {
-                host = requestHost;
-            } else {
-                host = "localhost";
-            }
-            scheme = "http"; // Use http for localhost
-            LOG.info("Frontend running locally (localhost:9000) detected - using localhost for backend redirect URI");
+        // IMPORTANT: The redirect URI to Keycloak must ALWAYS point to the production backend
+        // (rmsgateway.atparui.com), not localhost, because the backend is deployed in production.
+        // After authentication, the backend will redirect to the frontend (localhost:9000 if local).
+
+        // Always use production backend domain for redirect URI (backend is always in production)
+        // Prefer X-Forwarded-Host (set by reverse proxy) over request host
+        if (forwardedHost != null && !forwardedHost.contains("localhost") && !forwardedHost.contains("127.0.0.1")) {
+            host = forwardedHost;
         } else {
-            // Frontend is in production (built and served), use production domain
-            // Prefer X-Forwarded-Host (set by reverse proxy) over request host
-            if (forwardedHost != null && !forwardedHost.contains("localhost") && !forwardedHost.contains("127.0.0.1")) {
-                host = forwardedHost;
-            } else {
-                host = requestHost;
-            }
-            LOG.info("Frontend in production mode - using production domain for backend redirect URI: {}", host);
+            host = requestHost;
+        }
+
+        if (isFrontendLocal) {
+            LOG.info(
+                "Frontend running locally (localhost:9000) detected - redirect URI will point to production backend: {}://{}",
+                scheme,
+                host
+            );
+            LOG.info("After authentication, backend will redirect to localhost:9000");
+        } else {
+            LOG.info("Frontend in production mode - using production domain for backend redirect URI: {}://{}", scheme, host);
         }
 
         // Determine the backend port for the redirect URI
@@ -138,19 +138,17 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
         String forwardedPort = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Port");
         String forwardedProto = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Proto");
 
-        // Check if we're in local development (localhost or 127.0.0.1)
-        boolean isLocalhost = "localhost".equals(host) || "127.0.0.1".equals(host) || "0.0.0.0".equals(host);
+        // Backend is always in production, so determine port based on production setup
         boolean isRequestLocalhost = "localhost".equals(requestHost) || "127.0.0.1".equals(requestHost);
 
-        // Determine backend port for redirect URI
+        // Determine backend port for redirect URI (always production backend)
         int backendPort = -1;
 
-        // Check if we're behind a reverse proxy
+        // Check if we're behind a reverse proxy (always true in production)
         String forwardedHostCheck = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
-        boolean isReverseProxy =
-            forwardedPort != null || (forwardedHostCheck != null && !isLocalhost) || (forwardedProto != null && !isLocalhost);
+        boolean isReverseProxy = forwardedPort != null || (forwardedHostCheck != null) || (forwardedProto != null);
 
-        if (isReverseProxy && !isLocalhost) {
+        if (isReverseProxy) {
             // Behind reverse proxy in production: use forwarded port or standard port for scheme
             if (forwardedPort != null) {
                 try {
@@ -164,17 +162,8 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
                     backendPort = -1;
                 }
             }
-        } else if (isLocalhost) {
-            // Local development: use the actual backend request port
-            // Backend is typically on 8080 (container) or 9293 (host) or other port
-            if (requestPort == 8080 || requestPort == 9293 || requestPort == 8082 || requestPort > 0) {
-                backendPort = requestPort;
-            } else if (requestPort == -1) {
-                // No port in URI, default to common backend ports
-                backendPort = 8080; // Default Spring Boot port
-            }
         } else {
-            // Production (not localhost): use request port or standard port
+            // Not behind proxy: use request port or standard port
             if (requestPort == -1) {
                 backendPort = -1;
             } else if (requestPort != 443 && requestPort != 80) {
@@ -222,8 +211,8 @@ public class DynamicServerOAuth2AuthorizationRequestResolver implements ServerOA
         }
         // Priority 3: If frontend is local (detected earlier) but no Origin/Referer detected, default to localhost:9000
         // This handles cases where the request doesn't have Origin/Referer headers (e.g., direct navigation)
-        // Since backend is always in prod mode, we check if frontend is local based on the redirect URI host
-        else if (isFrontendLocal || isLocalhost) {
+        // Since backend is always in prod mode, we check if frontend is local based on isFrontendLocal flag
+        else if (isFrontendLocal) {
             String frontendScheme = "http"; // Always use http for localhost frontend
             originalOriginValue = frontendScheme + "://localhost:9000";
             LOG.info("Frontend detected as local but no Origin/Referer headers - defaulting to localhost:9000: {}", originalOriginValue);
