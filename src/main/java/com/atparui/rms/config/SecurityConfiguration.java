@@ -197,6 +197,9 @@ public class SecurityConfiguration {
             )
             .oauth2Client(withDefaults())
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
+            // Disable session creation - use stateless JWT authentication instead
+            // In WebFlux, we disable session management by not configuring it (sessions are opt-in)
+            // The OAuth2 login will still work, but we'll extract the token and send it to frontend
             .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(apiAuthenticationEntryPoint()));
         return http.build();
     }
@@ -241,9 +244,9 @@ public class SecurityConfiguration {
             ) {
                 ServerWebExchange exchange = webFilterExchange.getExchange();
 
-                // Log authentication success
+                // Extract ID token from authentication (must be final for use in lambda)
+                final String[] tokenValueHolder = new String[1];
                 String username = "unknown";
-                String tokenValue = null;
                 if (authentication != null) {
                     username = authentication.getName();
                     LOG.info("=== OAuth2 Authentication Success ===");
@@ -258,20 +261,24 @@ public class SecurityConfiguration {
                         LOG.info("OIDC User Email: {}", oidcUser.getEmail());
                         LOG.info("OIDC User Name: {}", oidcUser.getFullName());
                         if (oidcUser.getIdToken() != null) {
-                            tokenValue = oidcUser.getIdToken().getTokenValue();
+                            tokenValueHolder[0] = oidcUser.getIdToken().getTokenValue();
                             LOG.info(
                                 "ID Token (first 50 chars): {}...",
-                                tokenValue != null && tokenValue.length() > 50 ? tokenValue.substring(0, 50) : tokenValue
+                                tokenValueHolder[0] != null && tokenValueHolder[0].length() > 50
+                                    ? tokenValueHolder[0].substring(0, 50)
+                                    : tokenValueHolder[0]
                             );
                         }
                     } else if (authentication.getPrincipal() instanceof Jwt) {
                         Jwt jwt = (Jwt) authentication.getPrincipal();
-                        tokenValue = jwt.getTokenValue();
+                        tokenValueHolder[0] = jwt.getTokenValue();
                         LOG.info("JWT Subject: {}", jwt.getSubject());
                         LOG.info("JWT Claims: {}", jwt.getClaims());
                         LOG.info(
                             "JWT Token (first 50 chars): {}...",
-                            tokenValue != null && tokenValue.length() > 50 ? tokenValue.substring(0, 50) : tokenValue
+                            tokenValueHolder[0] != null && tokenValueHolder[0].length() > 50
+                                ? tokenValueHolder[0].substring(0, 50)
+                                : tokenValueHolder[0]
                         );
                     }
                     LOG.info("Redirecting to frontend after successful authentication");
@@ -458,13 +465,25 @@ public class SecurityConfiguration {
                             LOG.warn("Could not determine frontend URL, defaulting to localhost:9000");
                         }
 
-                        // Redirect to frontend
-                        // Note: Spring Security automatically saves the session when the response is committed
-                        LOG.info("Redirecting to frontend URL: {}", frontendUrl);
-                        LOG.info("Session will be saved automatically by Spring Security");
-                        LOG.info("Frontend should call /api/account after redirect to get user information");
+                        // Extract ID token from authentication and include it in redirect URL
+                        // Use hash fragment (#) instead of query parameter for security (not sent to server)
+                        final String finalFrontendUrl = frontendUrl;
+                        String redirectUrl = finalFrontendUrl;
+                        if (tokenValueHolder[0] != null) {
+                            // Append token as hash fragment - frontend will extract it
+                            redirectUrl =
+                                finalFrontendUrl + (finalFrontendUrl.endsWith("/") ? "" : "/") + "#access_token=" + tokenValueHolder[0];
+                            LOG.info("Including ID token in redirect URL (as hash fragment for security)");
+                        } else {
+                            LOG.warn("No ID token found in authentication - frontend will need to authenticate via Bearer token");
+                        }
+
+                        // Redirect to frontend with token
+                        LOG.info("Redirecting to frontend URL: {}", finalFrontendUrl);
+                        LOG.info("ID token included in redirect (frontend should extract and store it)");
+                        LOG.info("Frontend should send token as Bearer token in Authorization header for subsequent requests");
                         exchange.getResponse().setStatusCode(HttpStatus.FOUND);
-                        exchange.getResponse().getHeaders().setLocation(URI.create(frontendUrl));
+                        exchange.getResponse().getHeaders().setLocation(URI.create(redirectUrl));
                         return exchange.getResponse().setComplete();
                     });
             }

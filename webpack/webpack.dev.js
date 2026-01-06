@@ -100,7 +100,7 @@ module.exports = async options =>
           },
           target: 'https://rmsgateway.atparui.com',
           secure: false, // Set to false to bypass SSL certificate validation (for development only)
-          changeOrigin: false, // Don't change origin - preserve original headers
+          changeOrigin: true, // CRITICAL: Change Host header to match target, otherwise backend returns 404
           logLevel: 'debug',
           // CRITICAL: Preserve cookies for session management
           cookieDomainRewrite: '', // Keep original domain
@@ -109,31 +109,38 @@ module.exports = async options =>
           ws: false, // WebSocket not needed for OAuth2
           // Preserve Origin and Referer headers so backend can detect local frontend
           onProxyReq: (proxyReq, req, res) => {
+            // CRITICAL: Capture original host BEFORE webpack changes it (changeOrigin: true will change Host header)
+            const originalHost = req.headers.host || 'localhost:9000';
+            const originalOrigin = req.headers.origin;
+            const originalReferer = req.headers.referer;
+
             console.log('[Webpack Proxy] Proxying request:', req.method, req.url, 'to', 'https://rmsgateway.atparui.com');
+            console.log('[Webpack Proxy] Original Host:', originalHost, '| Origin:', originalOrigin, '| Referer:', originalReferer);
+
             // CRITICAL: For navigation requests (like /oauth2/authorization/oidc),
             // Origin header is not sent by browser. We need to derive it from Referer or set it explicitly.
 
             // First, try to preserve existing Origin header
-            if (req.headers.origin) {
-              proxyReq.setHeader('Origin', req.headers.origin);
-              console.log('[Webpack Proxy] Preserving Origin header:', req.headers.origin);
+            if (originalOrigin) {
+              proxyReq.setHeader('Origin', originalOrigin);
+              console.log('[Webpack Proxy] Preserving Origin header:', originalOrigin);
             }
             // If no Origin, derive from Referer header
-            else if (req.headers.referer) {
+            else if (originalReferer) {
               try {
-                const url = new URL(req.headers.referer);
+                const url = new URL(originalReferer);
                 const origin = `${url.protocol}//${url.host}`;
                 proxyReq.setHeader('Origin', origin);
                 console.log('[Webpack Proxy] Derived Origin from Referer:', origin);
               } catch (e) {
-                console.log('[Webpack Proxy] Failed to parse Referer:', req.headers.referer);
+                console.log('[Webpack Proxy] Failed to parse Referer:', originalReferer);
                 // Fallback: set to localhost:9000
                 proxyReq.setHeader('Origin', 'http://localhost:9000');
               }
             }
             // If no Referer, check if request is from localhost:9000 or localhost:9060 (webpack dev server)
-            else if (req.headers.host && (req.headers.host.includes('localhost:9000') || req.headers.host.includes('localhost:9060'))) {
-              const origin = `http://${req.headers.host.split(':')[0]}:${req.headers.host.includes(':9060') ? '9060' : '9000'}`;
+            else if (originalHost && (originalHost.includes('localhost:9000') || originalHost.includes('localhost:9060'))) {
+              const origin = `http://${originalHost.split(':')[0]}:${originalHost.includes(':9060') ? '9060' : '9000'}`;
               proxyReq.setHeader('Origin', origin);
               console.log('[Webpack Proxy] Set Origin based on Host header:', origin);
             }
@@ -147,17 +154,13 @@ module.exports = async options =>
             }
 
             // Always preserve Referer header if present
-            if (req.headers.referer) {
-              proxyReq.setHeader('Referer', req.headers.referer);
-              console.log('[Webpack Proxy] Preserving Referer header:', req.headers.referer);
+            if (originalReferer) {
+              proxyReq.setHeader('Referer', originalReferer);
+              console.log('[Webpack Proxy] Preserving Referer header:', originalReferer);
             } else {
               // Set Referer based on Host header or default to 9060 (webpack dev server direct access)
               const refererPort =
-                req.headers.host && req.headers.host.includes(':9060')
-                  ? '9060'
-                  : req.headers.host && req.headers.host.includes(':9000')
-                    ? '9000'
-                    : '9060';
+                originalHost && originalHost.includes(':9060') ? '9060' : originalHost && originalHost.includes(':9000') ? '9000' : '9060';
               proxyReq.setHeader('Referer', `http://localhost:${refererPort}/`);
               console.log('[Webpack Proxy] Set Referer to localhost:' + refererPort + ' (default for local dev)');
             }
@@ -166,18 +169,35 @@ module.exports = async options =>
             // X-Forwarded-Proto should be 'https' since backend expects HTTPS
             proxyReq.setHeader('X-Forwarded-Proto', 'https');
             // X-Forwarded-Host should be the original client host (localhost:9000 or localhost:9060)
-            // This is critical for OAuth2 redirect URI generation
-            const forwardedHost = req.headers.host || 'localhost:9000';
-            proxyReq.setHeader('X-Forwarded-Host', forwardedHost);
+            // This is critical for OAuth2 redirect URI generation - backend uses this to determine redirect URI
+            proxyReq.setHeader('X-Forwarded-Host', originalHost);
+            console.log('[Webpack Proxy] Set X-Forwarded-Host to original client host:', originalHost);
             // Also set X-Forwarded-For for proper proxy detection
             const forwardedFor = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
             proxyReq.setHeader('X-Forwarded-For', forwardedFor);
 
+            // NOTE: With changeOrigin: true, webpack will automatically change the Host header to 'rmsgateway.atparui.com'
+            // This is required for the backend to accept the request (otherwise it returns 404)
+            // But X-Forwarded-Host preserves the original client host for OAuth2 redirect URI generation
+
             // Log cookies being sent (for debugging)
             if (req.headers.cookie) {
-              console.log('[Webpack Proxy] Forwarding cookies:', req.headers.cookie.substring(0, 100) + '...');
+              const cookies = req.headers.cookie;
+              console.log('[Webpack Proxy] Forwarding cookies:', cookies);
+              // Check for session cookie specifically
+              if (cookies.includes('JSESSIONID') || cookies.includes('SESSION')) {
+                console.log('[Webpack Proxy] ✓ Session cookie found in request');
+              } else {
+                console.warn(
+                  '[Webpack Proxy] ⚠ No session cookie (JSESSIONID/SESSION) found - only:',
+                  cookies
+                    .split(';')
+                    .map(c => c.trim().split('=')[0])
+                    .join(', '),
+                );
+              }
             } else {
-              console.warn('[Webpack Proxy] No cookies in request - session may not be preserved');
+              console.warn('[Webpack Proxy] ⚠ No cookies in request - session may not be preserved');
             }
           },
           onProxyRes: (proxyRes, req, res) => {
@@ -185,14 +205,63 @@ module.exports = async options =>
 
             // Log Set-Cookie headers from backend (for debugging)
             if (proxyRes.headers['set-cookie']) {
-              console.log('[Webpack Proxy] Backend set cookies:', proxyRes.headers['set-cookie']);
-              // Rewrite cookie domain from rmsgateway.atparui.com to localhost for local dev
+              console.log('[Webpack Proxy] Backend set cookies (raw):', proxyRes.headers['set-cookie']);
+              // Check for session cookie
+              const setCookies = Array.isArray(proxyRes.headers['set-cookie'])
+                ? proxyRes.headers['set-cookie']
+                : [proxyRes.headers['set-cookie']];
+              const hasSessionCookie = setCookies.some(
+                cookie => cookie.includes('JSESSIONID') || cookie.includes('SESSION') || cookie.toLowerCase().includes('session'),
+              );
+              if (hasSessionCookie) {
+                console.log('[Webpack Proxy] ✓ Session cookie detected in Set-Cookie headers');
+              } else {
+                console.warn(
+                  '[Webpack Proxy] ⚠ No session cookie detected - only:',
+                  setCookies.map(c => c.split(';')[0].split('=')[0]).join(', '),
+                );
+              }
+
+              // Rewrite cookies for localhost development
               if (Array.isArray(proxyRes.headers['set-cookie'])) {
                 proxyRes.headers['set-cookie'] = proxyRes.headers['set-cookie'].map(cookie => {
+                  const original = cookie;
+                  let rewritten = cookie;
                   // Remove domain restriction so cookie works on localhost
-                  return cookie.replace(/;\s*[Dd]omain=[^;]+/gi, '');
+                  rewritten = rewritten.replace(/;\s*[Dd]omain=[^;]+/gi, '');
+                  // Remove Secure flag (HTTPS only) so cookie works on HTTP localhost
+                  rewritten = rewritten.replace(/;\s*[Ss]ecure/gi, '');
+                  // Remove SameSite=None (requires Secure) - replace with SameSite=Lax for localhost
+                  if (rewritten.includes('SameSite=None')) {
+                    rewritten = rewritten.replace(/;\s*[Ss]ame[Ss]ite=None/gi, '; SameSite=Lax');
+                  }
+                  if (original !== rewritten) {
+                    console.log('[Webpack Proxy] Cookie rewritten:', original.split(';')[0], '->', rewritten.split(';')[0]);
+                  }
+                  return rewritten;
                 });
-                console.log('[Webpack Proxy] Rewritten cookies for localhost:', proxyRes.headers['set-cookie']);
+                console.log(
+                  '[Webpack Proxy] All cookies rewritten for localhost:',
+                  proxyRes.headers['set-cookie'].map(c => c.split(';')[0]).join(', '),
+                );
+              } else {
+                // Handle single cookie string (shouldn't happen but just in case)
+                let rewritten = proxyRes.headers['set-cookie'];
+                const original = rewritten;
+                rewritten = rewritten.replace(/;\s*[Dd]omain=[^;]+/gi, '');
+                rewritten = rewritten.replace(/;\s*[Ss]ecure/gi, '');
+                if (rewritten.includes('SameSite=None')) {
+                  rewritten = rewritten.replace(/;\s*[Ss]ame[Ss]ite=None/gi, '; SameSite=Lax');
+                }
+                proxyRes.headers['set-cookie'] = rewritten;
+                if (original !== rewritten) {
+                  console.log('[Webpack Proxy] Cookie rewritten:', original.split(';')[0], '->', rewritten.split(';')[0]);
+                }
+              }
+            } else {
+              // Check if this is an OAuth2 callback that should set a session cookie
+              if (req.url.includes('/login/oauth2/code/') || req.url.includes('/oauth2/authorization/')) {
+                console.warn('[Webpack Proxy] ⚠ OAuth2 endpoint but no Set-Cookie header - session cookie may not be set');
               }
             }
           },
