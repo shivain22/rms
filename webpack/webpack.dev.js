@@ -13,13 +13,24 @@ const ENV = 'development';
 // Handle unhandled promise rejections to prevent AggregateError from crashing the process
 process.on('unhandledRejection', (reason, promise) => {
   if (reason && (reason.name === 'AggregateError' || reason.constructor.name === 'AggregateError')) {
-    console.warn('[Webpack] BrowserSync error caught (non-fatal):', reason.message || 'Unknown error');
-    if (reason.errors && Array.isArray(reason.errors)) {
-      reason.errors.forEach((err, index) => {
-        console.warn(`[Webpack] Error ${index + 1}:`, err.message || err);
-      });
+    // Suppress BrowserSync AggregateError - it's expected when backend isn't on localhost:8082
+    // The app works fine without BrowserSync, accessing directly at http://localhost:9060
+    // Only log if it's not a known BrowserSync connection issue
+    const isBrowserSyncError =
+      reason.message &&
+      (reason.message.includes('ECONNREFUSED') ||
+        reason.message.includes('browser-sync') ||
+        reason.message.includes('socket') ||
+        reason.message.includes('port'));
+
+    if (!isBrowserSyncError) {
+      console.warn('[Webpack] BrowserSync error caught (non-fatal):', reason.message || 'Unknown error');
+      if (reason.errors && Array.isArray(reason.errors)) {
+        reason.errors.forEach((err, index) => {
+          console.warn(`[Webpack] Error ${index + 1}:`, err.message || err);
+        });
+      }
     }
-    console.warn('[Webpack] Continuing without BrowserSync. You can access the app at http://localhost:9060');
     // Don't exit - let webpack dev server continue
     return; // Prevent default behavior
   }
@@ -30,8 +41,17 @@ process.on('unhandledRejection', (reason, promise) => {
 // Also handle uncaught exceptions to prevent crashes
 process.on('uncaughtException', err => {
   if (err.name === 'AggregateError' || err.constructor.name === 'AggregateError') {
-    console.warn('[Webpack] BrowserSync AggregateError caught (non-fatal):', err.message);
-    console.warn('[Webpack] Continuing without BrowserSync. You can access the app at http://localhost:9060');
+    // Suppress BrowserSync AggregateError - it's expected when backend isn't on localhost:8082
+    const isBrowserSyncError =
+      err.message &&
+      (err.message.includes('ECONNREFUSED') ||
+        err.message.includes('browser-sync') ||
+        err.message.includes('socket') ||
+        err.message.includes('port'));
+
+    if (!isBrowserSyncError) {
+      console.warn('[Webpack] BrowserSync AggregateError caught (non-fatal):', err.message);
+    }
     // Don't exit - let webpack dev server continue
     return;
   }
@@ -345,8 +365,14 @@ module.exports = async options =>
             },
           );
         } catch (err) {
-          console.warn('[Webpack] BrowserSync initialization failed (non-fatal):', err.message);
-          console.warn('[Webpack] Continuing without BrowserSync. You can access the app at http://localhost:9060');
+          // Suppress BrowserSync initialization errors - they're expected when backend isn't on localhost:8082
+          // The app works fine without BrowserSync, accessing directly at http://localhost:9060
+          const isConnectionError =
+            err.message && (err.message.includes('ECONNREFUSED') || err.message.includes('port') || err.message.includes('EADDRINUSE'));
+
+          if (!isConnectionError) {
+            console.warn('[Webpack] BrowserSync initialization failed (non-fatal):', err.message);
+          }
           // Return a no-op plugin that does nothing
           return {
             apply: () => {
