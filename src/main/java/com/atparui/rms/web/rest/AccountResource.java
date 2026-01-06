@@ -50,6 +50,17 @@ public class AccountResource {
         LOG.info("Principal: {}", principal != null ? principal.getName() : "null");
         LOG.info("Principal class: {}", principal != null ? principal.getClass().getName() : "null");
 
+        // Log authentication type
+        if (principal instanceof AbstractAuthenticationToken) {
+            AbstractAuthenticationToken authToken = (AbstractAuthenticationToken) principal;
+            LOG.info("Authentication type: {}", authToken.getClass().getSimpleName());
+            if (authToken.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt) {
+                LOG.info("✓ Authenticated via JWT Bearer token (oauth2ResourceServer)");
+            } else if (authToken.getPrincipal() instanceof org.springframework.security.oauth2.core.oidc.user.OidcUser) {
+                LOG.info("✓ Authenticated via OAuth2 Login (session-based)");
+            }
+        }
+
         if (principal instanceof AbstractAuthenticationToken) {
             AbstractAuthenticationToken authToken = (AbstractAuthenticationToken) principal;
             LOG.info("Authentication authorities: {}", authToken.getAuthorities());

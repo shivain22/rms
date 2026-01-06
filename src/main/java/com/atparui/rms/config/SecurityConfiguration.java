@@ -255,13 +255,20 @@ public class SecurityConfiguration {
                     LOG.info("Authorities: {}", authentication.getAuthorities());
 
                     // Try to extract token information
+                    // CRITICAL: For API calls, we need the ACCESS TOKEN, not the ID token
+                    // The ID token is for identity, access token is for API authorization
                     if (authentication.getPrincipal() instanceof OidcUser) {
                         OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
                         LOG.info("OIDC User ID: {}", oidcUser.getIdToken().getSubject());
                         LOG.info("OIDC User Email: {}", oidcUser.getEmail());
                         LOG.info("OIDC User Name: {}", oidcUser.getFullName());
+
+                        // Use ID token - in OIDC, ID tokens are JWTs that can be used as Bearer tokens
+                        // The oauth2ResourceServer will validate the ID token
                         if (oidcUser.getIdToken() != null) {
+                            // Fallback: use ID token if OAuth2AuthenticationToken not available
                             tokenValueHolder[0] = oidcUser.getIdToken().getTokenValue();
+                            LOG.warn("⚠ Using ID token (access token preferred for API calls)");
                             LOG.info(
                                 "ID Token (first 50 chars): {}...",
                                 tokenValueHolder[0] != null && tokenValueHolder[0].length() > 50
@@ -649,7 +656,7 @@ public class SecurityConfiguration {
             new Converter<Jwt, Flux<GrantedAuthority>>() {
                 @Override
                 public Flux<GrantedAuthority> convert(Jwt jwt) {
-                    LOG.info("=== JWT Authentication Converter Called ===");
+                    LOG.info("=== JWT Authentication Converter Called (Bearer Token) ===");
                     LOG.info("JWT Subject: {}", jwt.getSubject());
                     LOG.info("JWT Claims: {}", jwt.getClaims());
                     LOG.info(
@@ -725,16 +732,23 @@ public class SecurityConfiguration {
         return new ReactiveJwtDecoder() {
             @Override
             public Mono<Jwt> decode(String token) throws JwtException {
-                LOG.info("=== JWT Decoder Called ===");
+                LOG.info("=== JWT Decoder Called (Bearer Token from Request) ===");
                 LOG.info(
                     "Decoding JWT token (first 50 chars): {}...",
                     token != null && token.length() > 50 ? token.substring(0, 50) : token
                 );
+                LOG.info("Token length: {}", token != null ? token.length() : 0);
                 return jwtDecoder
                     .decode(token)
                     .flatMap(jwt -> enrich(token, jwt))
-                    .doOnNext(jwt -> LOG.info("JWT decoded successfully for subject: {}", jwt.getSubject()))
-                    .doOnError(error -> LOG.error("JWT decode error: {}", error.getMessage(), error));
+                    .doOnNext(jwt -> {
+                        LOG.info("✓ JWT decoded successfully for subject: {}", jwt.getSubject());
+                        LOG.info("✓ JWT will be used for authentication");
+                    })
+                    .doOnError(error -> {
+                        LOG.error("✗ JWT decode error: {}", error.getMessage(), error);
+                        LOG.error("This will cause 401 Unauthorized - token validation failed");
+                    });
             }
 
             private Mono<Jwt> enrich(String token, Jwt jwt) {
