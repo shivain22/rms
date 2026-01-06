@@ -57,6 +57,20 @@ module.exports = async options =>
           secure: true,
           changeOrigin: true,
           logLevel: 'debug',
+          // Preserve Origin and Referer headers so backend can detect local frontend
+          onProxyReq: (proxyReq, req, res) => {
+            // Preserve Origin header (critical for CORS and frontend detection)
+            if (req.headers.origin) {
+              proxyReq.setHeader('Origin', req.headers.origin);
+            }
+            // Preserve Referer header (fallback for frontend detection)
+            if (req.headers.referer) {
+              proxyReq.setHeader('Referer', req.headers.referer);
+            }
+            // Set X-Forwarded headers for production backend
+            proxyReq.setHeader('X-Forwarded-Proto', 'https');
+            proxyReq.setHeader('X-Forwarded-Host', 'rmsgateway.atparui.com');
+          },
         },
       ],
       historyApiFallback: true,
