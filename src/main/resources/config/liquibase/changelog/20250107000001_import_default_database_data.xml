@@ -4,8 +4,21 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
+    <!-- 
+        This changelog imports default database vendor data.
+        Prerequisites:
+        - database_vendors table must exist (created in 20241203000002)
+        - databases table must exist (created in 20241203000008)
+        - database_versions table must exist (created in 20241203000008)
+        - driver_jars table must exist (created in 20241203000008)
+    -->
+
     <!-- Import databases data -->
     <changeSet id="20250107000001-1" author="system">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="databases"/>
+            <tableExists tableName="database_vendors"/>
+        </preConditions>
         <loadUpdateData
             file="config/liquibase/data/databases.csv"
             tableName="databases"
@@ -27,6 +40,10 @@
 
     <!-- Import database versions data -->
     <changeSet id="20250107000001-2" author="system">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="database_versions"/>
+            <tableExists tableName="databases"/>
+        </preConditions>
         <loadUpdateData
             file="config/liquibase/data/database_versions.csv"
             tableName="database_versions"
@@ -46,6 +63,10 @@
 
     <!-- Import driver JARs data -->
     <changeSet id="20250107000001-3" author="system">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="driver_jars"/>
+            <tableExists tableName="database_versions"/>
+        </preConditions>
         <loadUpdateData
             file="config/liquibase/data/driver_jars.csv"
             tableName="driver_jars"

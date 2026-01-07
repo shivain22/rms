@@ -35,34 +35,6 @@ services:
     networks:
       - rms-network
 
-  rms-app:
-    build: .
-    container_name: rms-gateway
-    environment:
-      - DB_HOST=postgresql
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME:-rms}
-      - DB_USERNAME=${DB_USERNAME:-rms}
-      - DB_PASSWORD=${DB_PASSWORD:-}
-      - KEYCLOAK_HOST=${KEYCLOAK_HOST:-rmsauth.atparui.com}
-      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-gateway}
-      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-gateway-web}
-      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h}
-      - CONSUL_HOST=consul
-      - ELASTICSEARCH_HOST=elasticsearch
-      - SPRING_PROFILES_ACTIVE=prod
-      - DATABASE_DRIVER_STORAGE_PATH=/shared-drivers
-    ports:
-      - '${APP_PORT:-8080}:8080'
-    volumes:
-      - shared-drivers:/shared-drivers
-    depends_on:
-      - postgresql
-      - consul
-      - elasticsearch
-    networks:
-      - rms-network
-
   consul:
     image: consul:1.15
     container_name: rms-consul
@@ -82,6 +54,77 @@ services:
     networks:
       - rms-network
 
+  rms-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rms-gateway
+    environment:
+      - DB_HOST=postgresql
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-rms}
+      - DB_USERNAME=${DB_USERNAME:-rms}
+      - DB_PASSWORD=${DB_PASSWORD:-}
+      - KEYCLOAK_HOST=${KEYCLOAK_HOST:-rmsauth.atparui.com}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-gateway}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-gateway-web}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h}
+      - CONSUL_HOST=consul
+      - ELASTICSEARCH_HOST=elasticsearch
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_DRIVER_STORAGE_PATH=/shared-drivers
+      - SPRING_LIQUIBASE_ENABLED=true
+      - SPRING_LIQUIBASE_CHANGE_LOG=classpath:config/liquibase/master.xml
+    ports:
+      - '${APP_PORT:-8080}:8080'
+    volumes:
+      - shared-drivers:/shared-drivers
+    depends_on:
+      - postgresql
+      - consul
+      - elasticsearch
+    networks:
+      - rms-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/management/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  rms-service:
+    build:
+      context: ../rms-service
+      dockerfile: Dockerfile
+    container_name: rms-service
+    environment:
+      - DB_HOST=postgresql
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-rms}
+      - DB_USERNAME=${DB_USERNAME:-rms}
+      - DB_PASSWORD=${DB_PASSWORD:-}
+      - CONSUL_HOST=consul
+      - ELASTICSEARCH_HOST=elasticsearch
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_DRIVER_STORAGE_PATH=/shared-drivers
+    ports:
+      - '${SERVICE_PORT:-8081}:8080'
+    volumes:
+      - shared-drivers:/shared-drivers
+    depends_on:
+      - postgresql
+      - consul
+      - elasticsearch
+      - rms-gateway
+    networks:
+      - rms-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/management/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
 volumes:
   postgres_data:
   shared-drivers:
@@ -89,9 +132,7 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      # For Windows, use forward slashes or escaped backslashes
-      # For Linux/Mac, use absolute path like /path/to/shared-drivers
-      device: ${SHARED_DRIVERS_PATH:-C:/Users/shiva/eclipse-workspace/shared-drivers}
+      device: ${SHARED_DRIVERS_PATH:-C:\Users\shiva\eclipse-workspace\shared-drivers}
 
 networks:
   rms-network:

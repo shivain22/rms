@@ -119,6 +119,14 @@ public class TenantDatabaseConfigDTO implements Serializable {
         this.validationQuery = validationQuery;
     }
 
+    public String getDriverType() {
+        return driverType;
+    }
+
+    public void setDriverType(String driverType) {
+        this.driverType = driverType;
+    }
+
     public java.util.List<TenantClientDTO> getClients() {
         return clients;
     }

@@ -4,6 +4,7 @@ import com.atparui.rms.domain.DatabaseVendor;
 import com.atparui.rms.domain.Tenant;
 import com.atparui.rms.repository.DatabaseVendorRepository;
 import com.atparui.rms.repository.TenantRepository;
+import com.atparui.rms.service.DatabaseDriverService;
 import com.atparui.rms.service.dto.TenantCreationContext;
 import com.atparui.rms.service.dto.TenantDatabaseConfigDTO;
 import io.r2dbc.postgresql.PostgresqlConnectionConfiguration;
@@ -28,6 +29,7 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final com.atparui.rms.repository.TenantClientRepository tenantClientRepository;
     private final DatabaseVendorRepository databaseVendorRepository;
+    private final DatabaseDriverService databaseDriverService;
     private final KeycloakRealmService keycloakRealmService;
     private final DatabaseProvisioningService databaseProvisioningService;
     private final TenantLiquibaseService tenantLiquibaseService;
@@ -41,6 +43,7 @@ public class TenantService {
         TenantRepository tenantRepository,
         com.atparui.rms.repository.TenantClientRepository tenantClientRepository,
         DatabaseVendorRepository databaseVendorRepository,
+        DatabaseDriverService databaseDriverService,
         KeycloakRealmService keycloakRealmService,
         DatabaseProvisioningService databaseProvisioningService,
         TenantLiquibaseService tenantLiquibaseService,
@@ -49,6 +52,7 @@ public class TenantService {
         this.tenantRepository = tenantRepository;
         this.tenantClientRepository = tenantClientRepository;
         this.databaseVendorRepository = databaseVendorRepository;
+        this.databaseDriverService = databaseDriverService;
         this.keycloakRealmService = keycloakRealmService;
         this.databaseProvisioningService = databaseProvisioningService;
         this.tenantLiquibaseService = tenantLiquibaseService;
@@ -129,10 +133,68 @@ public class TenantService {
             tenant.setDatabaseProvisioningMode("AUTO_CREATE");
         }
 
+        // Set default driver type if not provided
+        if (tenant.getDriverType() == null || tenant.getDriverType().isEmpty()) {
+            tenant.setDriverType("JDBC"); // Default to JDBC
+        } else {
+            // Validate driver type
+            String driverType = tenant.getDriverType().toUpperCase();
+            if (!"JDBC".equals(driverType) && !"R2DBC".equals(driverType)) {
+                return Mono.error(new RuntimeException("Invalid driver type: " + tenant.getDriverType() + ". Must be JDBC or R2DBC"));
+            }
+            tenant.setDriverType(driverType);
+        }
+
         // Validate database vendor exists and is active
         return databaseVendorRepository
             .findByVendorCodeAndActiveTrue(tenant.getDatabaseVendorCode())
             .switchIfEmpty(Mono.error(new RuntimeException("Invalid or inactive database vendor code: " + tenant.getDatabaseVendorCode())))
+            .flatMap(vendor -> {
+                // Auto-select default driver JAR if version is specified but driver JAR is not
+                if (tenant.getDatabaseVersionId() != null && tenant.getDriverJarId() == null) {
+                    return databaseDriverService
+                        .findDefaultDriver(tenant.getDatabaseVersionId(), tenant.getDriverType())
+                        .doOnNext(driver -> {
+                            tenant.setDriverJarId(driver.getId());
+                            log.debug(
+                                "Auto-selected default driver JAR: {} for version: {} and driver type: {}",
+                                driver.getId(),
+                                tenant.getDatabaseVersionId(),
+                                tenant.getDriverType()
+                            );
+                        })
+                        .onErrorResume(error -> {
+                            log.warn(
+                                "Could not find default driver for version: {} and driver type: {}. Tenant will be created without driver JAR.",
+                                tenant.getDatabaseVersionId(),
+                                tenant.getDriverType()
+                            );
+                            return Mono.empty(); // Continue without driver JAR
+                        })
+                        .then(Mono.just(vendor));
+                } else if (tenant.getDriverJarId() != null) {
+                    // Validate that the selected driver JAR matches the driver type
+                    return databaseDriverService
+                        .findById(tenant.getDriverJarId())
+                        .flatMap(driver -> {
+                            String driverType = tenant.getDriverType() != null ? tenant.getDriverType().toUpperCase() : "JDBC";
+                            if (!driverType.equals(driver.getDriverType())) {
+                                return Mono.error(
+                                    new RuntimeException(
+                                        "Driver JAR type mismatch: Selected driver is " +
+                                        driver.getDriverType() +
+                                        " but tenant requires " +
+                                        driverType
+                                    )
+                                );
+                            }
+                            return Mono.just(vendor);
+                        })
+                        .switchIfEmpty(Mono.error(new RuntimeException("Driver JAR not found with ID: " + tenant.getDriverJarId())));
+                } else {
+                    return Mono.just(vendor);
+                }
+            })
             .flatMap(vendor -> {
                 // Generate database URL if not provided and we have host/port/database
                 if (tenant.getDatabaseUrl() == null || tenant.getDatabaseUrl().isEmpty()) {
@@ -202,7 +264,22 @@ public class TenantService {
             .flatMap(savedTenant -> {
                 if ("AUTO_CREATE".equals(savedTenant.getDatabaseProvisioningMode())) {
                     // Set auto-generated database details
-                    savedTenant.setDatabaseUrl(databaseProvisioningService.getTenantDatabaseUrl(savedTenant.getTenantKey()));
+                    // Build URL based on driver type preference
+                    String driverType = savedTenant.getDriverType() != null ? savedTenant.getDriverType().toUpperCase() : "JDBC";
+                    String baseUrl = databaseProvisioningService.getTenantDatabaseUrl(savedTenant.getTenantKey());
+
+                    // Convert URL format based on driver type
+                    if ("R2DBC".equals(driverType) && baseUrl.startsWith("r2dbc:")) {
+                        savedTenant.setDatabaseUrl(baseUrl);
+                    } else if ("R2DBC".equals(driverType) && baseUrl.startsWith("jdbc:")) {
+                        savedTenant.setDatabaseUrl(baseUrl.replace("jdbc:", "r2dbc:"));
+                    } else if ("JDBC".equals(driverType) && baseUrl.startsWith("r2dbc:")) {
+                        savedTenant.setDatabaseUrl(baseUrl.replace("r2dbc:", "jdbc:"));
+                    } else {
+                        // Build URL from vendor template and driver type
+                        savedTenant.setDatabaseUrl(buildDatabaseUrl(vendor, savedTenant));
+                    }
+
                     savedTenant.setDatabaseUsername(databaseProvisioningService.getTenantDatabaseUsername(savedTenant.getTenantKey()));
                     savedTenant.setDatabasePassword(databaseProvisioningService.getTenantDatabasePassword(savedTenant.getTenantKey()));
                     // Set host/port/database name for auto-created databases
@@ -214,6 +291,22 @@ public class TenantService {
                     }
                     if (savedTenant.getDatabaseName() == null) {
                         savedTenant.setDatabaseName("rms_" + savedTenant.getTenantKey());
+                    }
+                } else {
+                    // For USE_EXISTING, ensure URL matches driver type preference
+                    if (savedTenant.getDatabaseUrl() != null && !savedTenant.getDatabaseUrl().isEmpty()) {
+                        String driverType = savedTenant.getDriverType() != null ? savedTenant.getDriverType().toUpperCase() : "JDBC";
+                        String url = savedTenant.getDatabaseUrl();
+
+                        // Ensure URL format matches driver type
+                        if ("R2DBC".equals(driverType) && url.startsWith("jdbc:")) {
+                            savedTenant.setDatabaseUrl(url.replace("jdbc:", "r2dbc:"));
+                        } else if ("JDBC".equals(driverType) && url.startsWith("r2dbc:")) {
+                            savedTenant.setDatabaseUrl(url.replace("r2dbc:", "jdbc:"));
+                        }
+                    } else {
+                        // Build URL from vendor template if not provided
+                        savedTenant.setDatabaseUrl(buildDatabaseUrl(vendor, savedTenant));
                     }
                 }
                 // For USE_EXISTING, details are already set from form
@@ -441,16 +534,29 @@ public class TenantService {
 
     /**
      * Build database URL from vendor template and tenant connection details.
+     * Uses JDBC or R2DBC template based on tenant's driver type preference.
      *
      * @param vendor the database vendor
      * @param tenant the tenant with connection details
-     * @return JDBC URL string
+     * @return Database URL string (JDBC or R2DBC format)
      */
     private String buildDatabaseUrl(DatabaseVendor vendor, Tenant tenant) {
-        String template = vendor.getJdbcUrlTemplate();
-        if (template == null || template.isEmpty()) {
-            // Fallback to default format
-            template = "jdbc:" + vendor.getDriverKey() + "://{host}:{port}/{database}";
+        String driverType = tenant.getDriverType() != null ? tenant.getDriverType().toUpperCase() : "JDBC";
+        String template;
+
+        if ("R2DBC".equals(driverType)) {
+            template = vendor.getR2dbcUrlTemplate();
+            if (template == null || template.isEmpty()) {
+                // Fallback to default R2DBC format
+                template = "r2dbc:" + vendor.getDriverKey() + "://{host}:{port}/{database}";
+            }
+        } else {
+            // Default to JDBC
+            template = vendor.getJdbcUrlTemplate();
+            if (template == null || template.isEmpty()) {
+                // Fallback to default JDBC format
+                template = "jdbc:" + vendor.getDriverKey() + "://{host}:{port}/{database}";
+            }
         }
 
         String host = tenant.getDatabaseHost() != null ? tenant.getDatabaseHost() : "localhost";
@@ -547,12 +653,28 @@ public class TenantService {
     }
 
     private ConnectionFactory createConnectionFactory(Tenant tenant) {
-        String[] urlParts = tenant.getDatabaseUrl().replace("jdbc:postgresql://", "").split("/");
+        String driverType = tenant.getDriverType() != null ? tenant.getDriverType().toUpperCase() : "JDBC";
+        String databaseUrl = tenant.getDatabaseUrl();
+
+        // Ensure URL is in R2DBC format for ConnectionFactory (R2DBC is used for reactive connections)
+        if (databaseUrl != null && databaseUrl.startsWith("jdbc:")) {
+            databaseUrl = databaseUrl.replace("jdbc:", "r2dbc:");
+        } else if (databaseUrl != null && !databaseUrl.startsWith("r2dbc:")) {
+            // If no protocol, assume R2DBC PostgreSQL
+            databaseUrl = "r2dbc:postgresql://" + databaseUrl;
+        }
+
+        // Parse URL to extract connection details
+        // Remove r2dbc:postgresql:// prefix
+        String urlWithoutPrefix = databaseUrl.replace("r2dbc:postgresql://", "").replace("jdbc:postgresql://", "");
+        String[] urlParts = urlWithoutPrefix.split("/");
         String[] hostPort = urlParts[0].split(":");
         String host = hostPort[0];
         int port = hostPort.length > 1 ? Integer.parseInt(hostPort[1]) : 5432;
-        String database = urlParts[1];
+        String database = urlParts.length > 1 ? urlParts[1].split("\\?")[0] : "rms"; // Remove query parameters
 
+        // Note: Currently only PostgreSQL R2DBC is supported
+        // For other databases or JDBC, this would need to be enhanced
         return new PostgresqlConnectionFactory(
             PostgresqlConnectionConfiguration.builder()
                 .host(host)
@@ -589,6 +711,7 @@ public class TenantService {
 
     /**
      * Apply Liquibase changes to a tenant database.
+     * Note: Liquibase requires JDBC URLs, so we convert R2DBC URLs to JDBC format if needed.
      *
      * @param tenantId the tenant ID
      * @return Mono that completes when Liquibase changes are applied
@@ -597,13 +720,24 @@ public class TenantService {
         return findTenant(tenantId)
             .flatMap(tenant -> {
                 try {
+                    // Liquibase requires JDBC URLs, so convert if needed
+                    String databaseUrl = tenant.getDatabaseUrl();
+                    if (databaseUrl != null && databaseUrl.startsWith("r2dbc:")) {
+                        databaseUrl = databaseUrl.replace("r2dbc:", "jdbc:");
+                        log.debug("Converted R2DBC URL to JDBC format for Liquibase: {}", databaseUrl);
+                    }
+
                     tenantLiquibaseService.applyLiquibaseChanges(
                         tenant.getTenantId(),
-                        tenant.getDatabaseUrl(),
+                        databaseUrl,
                         tenant.getDatabaseUsername(),
                         tenant.getDatabasePassword()
                     );
-                    log.info("Successfully applied Liquibase changes for tenant: {}", tenantId);
+                    log.info(
+                        "Successfully applied Liquibase changes for tenant: {} using driver type: {}",
+                        tenantId,
+                        tenant.getDriverType()
+                    );
                     return Mono.empty();
                 } catch (Exception e) {
                     log.error("Failed to apply Liquibase changes for tenant: {}", tenantId, e);
@@ -615,7 +749,7 @@ public class TenantService {
 
     /**
      * Convert Tenant entity to TenantDatabaseConfigDTO.
-     * Converts JDBC URL format to R2DBC URL format if needed and includes all clients.
+     * Converts URL format based on tenant's driver type preference (JDBC or R2DBC).
      *
      * @param tenant the tenant entity
      * @param clients the list of tenant clients
@@ -623,17 +757,54 @@ public class TenantService {
      */
     private TenantDatabaseConfigDTO convertToDatabaseConfigDTO(Tenant tenant, java.util.List<com.atparui.rms.domain.TenantClient> clients) {
         String databaseUrl = tenant.getDatabaseUrl();
+        String driverType = tenant.getDriverType() != null ? tenant.getDriverType().toUpperCase() : "JDBC";
 
-        // Convert JDBC URL to R2DBC URL format if needed
-        if (databaseUrl != null && databaseUrl.startsWith("jdbc:postgresql://")) {
-            databaseUrl = databaseUrl.replace("jdbc:postgresql://", "r2dbc:postgresql://");
-        } else if (databaseUrl != null && !databaseUrl.startsWith("r2dbc:")) {
-            // If it's not in R2DBC format, assume it needs conversion
-            // This handles cases where URL might be stored without prefix
-            if (!databaseUrl.contains("://")) {
-                databaseUrl = "r2dbc:postgresql://" + databaseUrl;
-            } else {
-                databaseUrl = "r2dbc:" + databaseUrl.substring(databaseUrl.indexOf("://"));
+        // Convert URL format based on driver type preference
+        if ("R2DBC".equals(driverType)) {
+            // Ensure URL is in R2DBC format
+            if (databaseUrl != null && databaseUrl.startsWith("jdbc:")) {
+                // Convert JDBC to R2DBC
+                databaseUrl = databaseUrl.replace("jdbc:", "r2dbc:");
+            } else if (databaseUrl != null && !databaseUrl.startsWith("r2dbc:")) {
+                // If it's not in R2DBC format, try to convert
+                if (!databaseUrl.contains("://")) {
+                    // No protocol, assume PostgreSQL and add R2DBC prefix
+                    databaseUrl = "r2dbc:postgresql://" + databaseUrl;
+                } else {
+                    // Has protocol but not R2DBC, replace with R2DBC
+                    int protocolIndex = databaseUrl.indexOf("://");
+                    if (protocolIndex > 0) {
+                        String protocol = databaseUrl.substring(0, protocolIndex);
+                        if (protocol.startsWith("jdbc:")) {
+                            databaseUrl = "r2dbc:" + databaseUrl.substring(protocolIndex + 1);
+                        } else {
+                            databaseUrl = "r2dbc:" + databaseUrl.substring(protocolIndex + 1);
+                        }
+                    }
+                }
+            }
+        } else {
+            // Ensure URL is in JDBC format (default)
+            if (databaseUrl != null && databaseUrl.startsWith("r2dbc:")) {
+                // Convert R2DBC to JDBC
+                databaseUrl = databaseUrl.replace("r2dbc:", "jdbc:");
+            } else if (databaseUrl != null && !databaseUrl.startsWith("jdbc:")) {
+                // If it's not in JDBC format, try to convert
+                if (!databaseUrl.contains("://")) {
+                    // No protocol, assume PostgreSQL and add JDBC prefix
+                    databaseUrl = "jdbc:postgresql://" + databaseUrl;
+                } else {
+                    // Has protocol but not JDBC, replace with JDBC
+                    int protocolIndex = databaseUrl.indexOf("://");
+                    if (protocolIndex > 0) {
+                        String protocol = databaseUrl.substring(0, protocolIndex);
+                        if (protocol.startsWith("r2dbc:")) {
+                            databaseUrl = "jdbc:" + databaseUrl.substring(protocolIndex + 1);
+                        } else {
+                            databaseUrl = "jdbc:" + databaseUrl.substring(protocolIndex + 1);
+                        }
+                    }
+                }
             }
         }
 
@@ -646,6 +817,9 @@ public class TenantService {
             30000, // default connectionTimeout
             "SELECT 1" // default validationQuery
         );
+
+        // Set driver type
+        dto.setDriverType(driverType);
 
         // Set Keycloak configuration
         dto.setKeycloakBaseUrl(keycloakBaseUrl);

@@ -85,6 +85,7 @@ public class DatabaseProvisioningService {
                 try {
                     if (applyLiquibaseImmediately) {
                         // Apply Liquibase changes from rms-service repository
+                        // Liquibase requires JDBC URLs, so convert R2DBC to JDBC
                         String tenantJdbcUrl = convertR2dbcToJdbc(masterDbUrl).replace("/rms", "/" + dbName);
                         try {
                             tenantLiquibaseService.applyLiquibaseChanges(tenantId, tenantJdbcUrl, dbUser, tenantPassword);

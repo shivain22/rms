@@ -11,6 +11,15 @@
     <property name="datetimeType" value="datetime" dbms="postgresql"/>
     <property name="timeType" value="time(6)" dbms="postgresql"/>
 
+    <!--
+        Liquibase changelog execution order:
+        1. Initial schema creation
+        2. Tenant management tables
+        3. Database vendor tables (creates database_vendors and inserts default vendors)
+        4. Database hierarchy refactoring (creates databases, database_versions, driver_jars tables)
+        5. Default data import (imports databases, versions, and driver metadata from CSV files)
+    -->
+
     <include file="config/liquibase/changelog/00000000000000_initial_schema.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20241201000001_tenant_table.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20241202000001_add_rms_service_client_columns.xml" relativeToChangelogFile="false"/>
@@ -24,4 +33,5 @@
     <include file="config/liquibase/changelog/20241203000007_add_platform_id_to_tenants.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20241203000008_refactor_database_hierarchy.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20250107000001_import_default_database_data.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20250107000002_add_driver_type_to_tenants.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

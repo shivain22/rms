@@ -373,4 +373,11 @@ tenant:
       branch: master
       local-path: ${java.io.tmpdir}/rms-service-repo
     changelog-path: src/main/resources/config/liquibase/master.xml
+
+# Database Driver Storage Configuration
+# Shared directory accessible by both rms and rms-service
+database:
+  driver:
+    storage:
+      path: ${DATABASE_DRIVER_STORAGE_PATH:C:\Users\shiva\eclipse-workspace\shared-drivers}
 # application:

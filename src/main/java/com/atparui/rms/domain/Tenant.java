@@ -39,6 +39,9 @@ public class Tenant {
     @Column("driver_jar_id")
     private Long driverJarId;
 
+    @Column("driver_type")
+    private String driverType; // JDBC or R2DBC
+
     @Column("database_provisioning_mode")
     private String databaseProvisioningMode; // AUTO_CREATE or USE_EXISTING
 
@@ -193,6 +196,14 @@ public class Tenant {
 
     public void setDriverJarId(Long driverJarId) {
         this.driverJarId = driverJarId;
+    }
+
+    public String getDriverType() {
+        return driverType;
+    }
+
+    public void setDriverType(String driverType) {
+        this.driverType = driverType;
     }
 
     public String getDatabaseProvisioningMode() {
