@@ -1,6 +1,6 @@
 package com.atparui.rms.web.rest;
 
-import com.atparui.rms.domain.DatabaseVendorVersion;
+import com.atparui.rms.domain.DatabaseVersion;
 import com.atparui.rms.service.DatabaseVendorVersionService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -29,8 +29,7 @@ public class DatabaseVendorVersionResource {
 
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public Mono<ResponseEntity<DatabaseVendorVersion>> createVersion(@Valid @RequestBody DatabaseVendorVersion version)
-        throws URISyntaxException {
+    public Mono<ResponseEntity<DatabaseVersion>> createVersion(@Valid @RequestBody DatabaseVersion version) throws URISyntaxException {
         if (version.getId() != null) {
             return Mono.just(
                 ResponseEntity.badRequest()
@@ -70,10 +69,7 @@ public class DatabaseVendorVersionResource {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public Mono<ResponseEntity<DatabaseVendorVersion>> updateVersion(
-        @PathVariable Long id,
-        @Valid @RequestBody DatabaseVendorVersion version
-    ) {
+    public Mono<ResponseEntity<DatabaseVersion>> updateVersion(@PathVariable Long id, @Valid @RequestBody DatabaseVersion version) {
         if (version.getId() == null || !version.getId().equals(id)) {
             return Mono.just(
                 ResponseEntity.badRequest()
@@ -92,20 +88,20 @@ public class DatabaseVendorVersionResource {
     }
 
     @GetMapping
-    public Flux<DatabaseVendorVersion> getAllVersions(@RequestParam(required = false) Long vendorId) {
-        if (vendorId != null) {
-            return versionService.findByVendorId(vendorId);
+    public Flux<DatabaseVersion> getAllVersions(@RequestParam(required = false) Long databaseId) {
+        if (databaseId != null) {
+            return versionService.findByDatabaseId(databaseId);
         }
         return versionService.findAll();
     }
 
     @GetMapping("/recent")
-    public Flux<DatabaseVendorVersion> getRecentVersions(@RequestParam Long vendorId, @RequestParam(defaultValue = "3") int years) {
-        return versionService.findRecentVersions(vendorId, years);
+    public Flux<DatabaseVersion> getRecentVersions(@RequestParam Long databaseId, @RequestParam(defaultValue = "3") int years) {
+        return versionService.findRecentVersions(databaseId, years);
     }
 
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<DatabaseVendorVersion>> getVersion(@PathVariable Long id) {
+    public Mono<ResponseEntity<DatabaseVersion>> getVersion(@PathVariable Long id) {
         return ResponseUtil.wrapOrNotFound(versionService.findById(id));
     }
 

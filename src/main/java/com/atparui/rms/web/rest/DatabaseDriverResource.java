@@ -1,6 +1,6 @@
 package com.atparui.rms.web.rest;
 
-import com.atparui.rms.domain.DatabaseDriver;
+import com.atparui.rms.domain.DriverJar;
 import com.atparui.rms.service.DatabaseDriverService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -30,27 +30,20 @@ public class DatabaseDriverResource {
 
     @PostMapping("/upload")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public Mono<ResponseEntity<DatabaseDriver>> uploadDriver(
-        @RequestParam("vendorId") Long vendorId,
+    public Mono<ResponseEntity<DriverJar>> uploadDriver(
         @RequestParam("versionId") Long versionId,
         @RequestParam("driverType") String driverType,
         @RequestParam("driverClassName") String driverClassName,
         @RequestParam("file") MultipartFile file,
         @RequestParam(value = "description", required = false) String description
     ) throws URISyntaxException {
-        log.debug(
-            "REST request to upload driver: vendorId={}, versionId={}, type={}, file={}",
-            vendorId,
-            versionId,
-            driverType,
-            file.getOriginalFilename()
-        );
+        log.debug("REST request to upload driver: versionId={}, type={}, file={}", versionId, driverType, file.getOriginalFilename());
 
         // Get current user (you may need to inject SecurityContext or similar)
         String uploadedBy = "admin"; // TODO: Get from security context
 
         return driverService
-            .uploadDriver(vendorId, versionId, driverType, driverClassName, file, uploadedBy)
+            .uploadDriver(versionId, driverType, driverClassName, file, uploadedBy)
             .map(result -> {
                 try {
                     return ResponseEntity.created(new URI("/api/database-drivers/" + result.getId()))
@@ -71,38 +64,31 @@ public class DatabaseDriverResource {
     }
 
     @GetMapping
-    public Flux<DatabaseDriver> getAllDrivers(
-        @RequestParam(required = false) Long vendorId,
+    public Flux<DriverJar> getAllDrivers(
         @RequestParam(required = false) Long versionId,
         @RequestParam(required = false) String driverType
     ) {
-        if (vendorId != null && versionId != null && driverType != null) {
-            return driverService.findByVendorIdAndVersionIdAndDriverType(vendorId, versionId, driverType);
-        } else if (vendorId != null && versionId != null) {
-            return driverService.findByVendorIdAndVersionId(vendorId, versionId);
-        } else if (vendorId != null) {
-            return driverService.findByVendorId(vendorId);
+        if (versionId != null && driverType != null) {
+            return driverService.findByVersionIdAndDriverType(versionId, driverType);
+        } else if (versionId != null) {
+            return driverService.findByVersionId(versionId);
         }
         return driverService.findAll();
     }
 
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<DatabaseDriver>> getDriver(@PathVariable Long id) {
+    public Mono<ResponseEntity<DriverJar>> getDriver(@PathVariable Long id) {
         return ResponseUtil.wrapOrNotFound(driverService.findById(id));
     }
 
     @GetMapping("/default")
-    public Mono<ResponseEntity<DatabaseDriver>> getDefaultDriver(
-        @RequestParam Long vendorId,
-        @RequestParam Long versionId,
-        @RequestParam String driverType
-    ) {
-        return ResponseUtil.wrapOrNotFound(driverService.findDefaultDriver(vendorId, versionId, driverType));
+    public Mono<ResponseEntity<DriverJar>> getDefaultDriver(@RequestParam Long versionId, @RequestParam String driverType) {
+        return ResponseUtil.wrapOrNotFound(driverService.findDefaultDriver(versionId, driverType));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public Mono<ResponseEntity<DatabaseDriver>> updateDriver(@PathVariable Long id, @Valid @RequestBody DatabaseDriver driver) {
+    public Mono<ResponseEntity<DriverJar>> updateDriver(@PathVariable Long id, @Valid @RequestBody DriverJar driver) {
         if (driver.getId() == null || !driver.getId().equals(id)) {
             return Mono.just(
                 ResponseEntity.badRequest()

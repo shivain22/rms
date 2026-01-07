@@ -1,8 +1,7 @@
 package com.atparui.rms.service;
 
-import com.atparui.rms.domain.DatabaseDriver;
+import com.atparui.rms.domain.DriverJar;
 import com.atparui.rms.repository.DatabaseDriverRepository;
-import com.atparui.rms.repository.DatabaseVendorRepository;
 import com.atparui.rms.repository.DatabaseVendorVersionRepository;
 import java.io.IOException;
 import org.slf4j.Logger;
@@ -19,78 +18,66 @@ public class DatabaseDriverService {
 
     private final DatabaseDriverRepository driverRepository;
     private final DriverStorageService driverStorageService;
-    private final DatabaseVendorRepository databaseVendorRepository;
     private final DatabaseVendorVersionRepository versionRepository;
 
     public DatabaseDriverService(
         DatabaseDriverRepository driverRepository,
         DriverStorageService driverStorageService,
-        DatabaseVendorRepository databaseVendorRepository,
         DatabaseVendorVersionRepository versionRepository
     ) {
         this.driverRepository = driverRepository;
         this.driverStorageService = driverStorageService;
-        this.databaseVendorRepository = databaseVendorRepository;
         this.versionRepository = versionRepository;
     }
 
-    public Flux<DatabaseDriver> findAll() {
+    public Flux<DriverJar> findAll() {
         return driverRepository.findAll();
     }
 
-    public Mono<DatabaseDriver> findById(Long id) {
+    public Mono<DriverJar> findById(Long id) {
         return driverRepository.findById(id);
     }
 
-    public Flux<DatabaseDriver> findByVersionId(Long versionId) {
+    public Flux<DriverJar> findByVersionId(Long versionId) {
         return driverRepository.findByVersionId(versionId);
     }
 
-    public Flux<DatabaseDriver> findByVersionIdAndDriverType(Long versionId, String driverType) {
+    public Flux<DriverJar> findByVersionIdAndDriverType(Long versionId, String driverType) {
         return driverRepository.findByVersionIdAndDriverType(versionId, driverType);
     }
 
-    public Mono<DatabaseDriver> findDefaultDriver(Long versionId, String driverType) {
+    public Mono<DriverJar> findDefaultDriver(Long versionId, String driverType) {
         return driverRepository.findDefaultDriver(versionId, driverType);
     }
 
     /**
      * Upload and store a driver JAR file.
      *
-     * @param vendorId the vendor ID
      * @param versionId the version ID
      * @param driverType the driver type (JDBC or R2DBC)
      * @param driverClassName the driver class name
      * @param file the JAR file
      * @param uploadedBy the user who uploaded
-     * @return Mono containing saved DatabaseDriver
+     * @return Mono containing saved DriverJar
      */
-    public Mono<DatabaseDriver> uploadDriver(
-        Long vendorId,
-        Long versionId,
-        String driverType,
-        String driverClassName,
-        MultipartFile file,
-        String uploadedBy
-    ) {
-        return Mono.zip(databaseVendorRepository.findById(vendorId), versionRepository.findById(versionId))
-            .switchIfEmpty(Mono.error(new RuntimeException("Vendor or version not found")))
-            .flatMap(tuple -> {
-                com.atparui.rms.domain.DatabaseVendor vendor = tuple.getT1();
-                com.atparui.rms.domain.DatabaseVendorVersion version = tuple.getT2();
-
+    public Mono<DriverJar> uploadDriver(Long versionId, String driverType, String driverClassName, MultipartFile file, String uploadedBy) {
+        return versionRepository
+            .findById(versionId)
+            .switchIfEmpty(Mono.error(new RuntimeException("Database version not found")))
+            .flatMap(version -> {
                 try {
                     // Calculate MD5 hash
                     String md5Hash = driverStorageService.calculateMd5Hash(file);
 
-                    // Store file
-                    String filePath = driverStorageService.storeDriver(vendor.getVendorCode(), version.getVersion(), driverType, file);
+                    // Store file - we need to get database info to build path
+                    // For now, use version ID in path
+                    String filePath = driverStorageService.storeDriver("version_" + versionId, version.getVersion(), driverType, file);
 
                     // Get file size
                     long fileSize = driverStorageService.getFileSize(filePath);
 
                     // Create driver entity
-                    DatabaseDriver driver = new DatabaseDriver();
+                    DriverJar driver = new DriverJar();
                     driver.setVersionId(versionId);
                     driver.setDriverType(driverType.toUpperCase());
                     driver.setFilePath(filePath);
@@ -107,7 +94,7 @@ public class DatabaseDriverService {
                         .hasElements()
                         .flatMap(hasDrivers -> {
                             if (!hasDrivers) {
-                                // First driver for this vendor/version/type, make it default
+                                // First driver for this version/type, make it default
                                 driver.setIsDefault(true);
                             }
                             return driverRepository.save(driver);
@@ -119,7 +106,7 @@ public class DatabaseDriverService {
             });
     }
 
-    public Mono<DatabaseDriver> save(DatabaseDriver driver) {
+    public Mono<DriverJar> save(DriverJar driver) {
         return driverRepository.save(driver);
     }
 

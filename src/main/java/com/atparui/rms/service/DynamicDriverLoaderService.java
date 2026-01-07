@@ -1,6 +1,6 @@
 package com.atparui.rms.service;
 
-import com.atparui.rms.domain.DatabaseDriver;
+import com.atparui.rms.domain.DriverJar;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -31,7 +31,7 @@ public class DynamicDriverLoaderService {
      * @param driver the database driver entity
      * @return the driver class
      */
-    public Class<?> loadDriverClass(DatabaseDriver driver) throws ClassNotFoundException, IOException {
+    public Class<?> loadDriverClass(DriverJar driver) throws ClassNotFoundException, IOException {
         String cacheKey = driver.getId() + "_" + driver.getDriverClassName();
 
         // Check cache
@@ -76,7 +76,7 @@ public class DynamicDriverLoaderService {
      * @param driver the database driver entity
      * @return the loaded driver instance
      */
-    public java.sql.Driver loadJdbcDriver(DatabaseDriver driver) throws Exception {
+    public java.sql.Driver loadJdbcDriver(DriverJar driver) throws Exception {
         Class<?> driverClass = loadDriverClass(driver);
 
         // Verify it's a JDBC Driver

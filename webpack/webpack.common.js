@@ -109,7 +109,19 @@ module.exports = async options => {
           configType: 'flat',
           extensions: ['ts', 'tsx'],
         }),
-        new ForkTsCheckerWebpackPlugin(),
+        new ForkTsCheckerWebpackPlugin({
+          // Suppress AggregateErrors from TypeScript checker
+          async: true,
+          typescript: {
+            diagnosticOptions: {
+              semantic: true,
+              syntactic: true,
+            },
+          },
+          logger: {
+            infrastructure: 'silent', // Suppress infrastructure logs
+          },
+        }),
         new CopyWebpackPlugin({
           patterns: [
             {

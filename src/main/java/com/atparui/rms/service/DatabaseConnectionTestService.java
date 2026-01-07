@@ -1,7 +1,7 @@
 package com.atparui.rms.service;
 
-import com.atparui.rms.domain.DatabaseDriver;
 import com.atparui.rms.domain.DatabaseVendor;
+import com.atparui.rms.domain.DriverJar;
 import com.atparui.rms.repository.DatabaseDriverRepository;
 import com.atparui.rms.repository.DatabaseVendorRepository;
 import com.atparui.rms.service.dto.DatabaseConnectionTestDTO;
@@ -89,7 +89,7 @@ public class DatabaseConnectionTestService {
     private DatabaseConnectionTestResult testJdbcConnectionWithDriver(
         DatabaseVendor vendor,
         DatabaseConnectionTestDTO testDTO,
-        DatabaseDriver driver
+        DriverJar driver
     ) throws Exception {
         long startTime = System.currentTimeMillis();
         java.sql.Connection connection = null;

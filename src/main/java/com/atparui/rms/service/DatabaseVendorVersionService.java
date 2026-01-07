@@ -1,6 +1,6 @@
 package com.atparui.rms.service;
 
-import com.atparui.rms.domain.DatabaseVendorVersion;
+import com.atparui.rms.domain.DatabaseVersion;
 import com.atparui.rms.repository.DatabaseVendorVersionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,11 +19,11 @@ public class DatabaseVendorVersionService {
         this.versionRepository = versionRepository;
     }
 
-    public Mono<DatabaseVendorVersion> findById(Long id) {
+    public Mono<DatabaseVersion> findById(Long id) {
         return versionRepository.findById(id);
     }
 
-    public Flux<DatabaseVendorVersion> findByDatabaseId(Long databaseId) {
+    public Flux<DatabaseVersion> findByDatabaseId(Long databaseId) {
         return versionRepository.findByDatabaseIdAndActiveTrue(databaseId);
     }
 
@@ -34,15 +34,15 @@ public class DatabaseVendorVersionService {
      * @param years number of years (default 3)
      * @return Flux of versions
      */
-    public Flux<DatabaseVendorVersion> findRecentVersions(Long databaseId, int years) {
+    public Flux<DatabaseVersion> findRecentVersions(Long databaseId, int years) {
         return versionRepository.findRecentVersions(databaseId, years);
     }
 
-    public Flux<DatabaseVendorVersion> findAll() {
+    public Flux<DatabaseVersion> findAll() {
         return versionRepository.findAll();
     }
 
-    public Mono<DatabaseVendorVersion> save(DatabaseVendorVersion version) {
+    public Mono<DatabaseVersion> save(DatabaseVersion version) {
         if (version.getId() == null) {
             // Check if version already exists for this database
             return versionRepository

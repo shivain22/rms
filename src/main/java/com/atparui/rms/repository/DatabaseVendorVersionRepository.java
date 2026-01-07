@@ -1,6 +1,6 @@
 package com.atparui.rms.repository;
 
-import com.atparui.rms.domain.DatabaseVendorVersion;
+import com.atparui.rms.domain.DatabaseVersion;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.data.relational.core.query.Criteria;
@@ -18,26 +18,26 @@ public class DatabaseVendorVersionRepository {
         this.masterTemplate = masterTemplate;
     }
 
-    public Flux<DatabaseVendorVersion> findAll() {
-        return masterTemplate.select(DatabaseVendorVersion.class).all();
+    public Flux<DatabaseVersion> findAll() {
+        return masterTemplate.select(DatabaseVersion.class).all();
     }
 
-    public Flux<DatabaseVendorVersion> findByDatabaseId(Long databaseId) {
-        return masterTemplate.select(DatabaseVendorVersion.class).matching(Query.query(Criteria.where("database_id").is(databaseId))).all();
+    public Flux<DatabaseVersion> findByDatabaseId(Long databaseId) {
+        return masterTemplate.select(DatabaseVersion.class).matching(Query.query(Criteria.where("database_id").is(databaseId))).all();
     }
 
-    public Flux<DatabaseVendorVersion> findByDatabaseIdAndActiveTrue(Long databaseId) {
+    public Flux<DatabaseVersion> findByDatabaseIdAndActiveTrue(Long databaseId) {
         return masterTemplate
-            .select(DatabaseVendorVersion.class)
+            .select(DatabaseVersion.class)
             .matching(Query.query(Criteria.where("database_id").is(databaseId).and("active").is(true)))
             .all();
     }
 
-    public Flux<DatabaseVendorVersion> findRecentVersions(Long databaseId, int years) {
+    public Flux<DatabaseVersion> findRecentVersions(Long databaseId, int years) {
         // Get versions from last N years
         java.time.LocalDate cutoffDate = java.time.LocalDate.now().minusYears(years);
         return masterTemplate
-            .select(DatabaseVendorVersion.class)
+            .select(DatabaseVersion.class)
             .matching(
                 Query.query(
                     Criteria.where("database_id").is(databaseId).and("active").is(true).and("release_date").greaterThanOrEquals(cutoffDate)
@@ -46,18 +46,18 @@ public class DatabaseVendorVersionRepository {
             .all();
     }
 
-    public Mono<DatabaseVendorVersion> findById(Long id) {
-        return masterTemplate.selectOne(Query.query(Criteria.where("id").is(id)), DatabaseVendorVersion.class);
+    public Mono<DatabaseVersion> findById(Long id) {
+        return masterTemplate.selectOne(Query.query(Criteria.where("id").is(id)), DatabaseVersion.class);
     }
 
-    public Mono<DatabaseVendorVersion> findByDatabaseIdAndVersion(Long databaseId, String version) {
+    public Mono<DatabaseVersion> findByDatabaseIdAndVersion(Long databaseId, String version) {
         return masterTemplate
-            .select(DatabaseVendorVersion.class)
+            .select(DatabaseVersion.class)
             .matching(Query.query(Criteria.where("database_id").is(databaseId).and("version").is(version)))
             .one();
     }
 
-    public Mono<DatabaseVendorVersion> save(DatabaseVendorVersion version) {
+    public Mono<DatabaseVersion> save(DatabaseVersion version) {
         if (version.getId() == null) {
             return masterTemplate.insert(version);
         } else {
@@ -66,13 +66,13 @@ public class DatabaseVendorVersionRepository {
     }
 
     public Mono<Void> deleteById(Long id) {
-        return masterTemplate.delete(DatabaseVendorVersion.class).matching(Query.query(Criteria.where("id").is(id))).all().then();
+        return masterTemplate.delete(DatabaseVersion.class).matching(Query.query(Criteria.where("id").is(id))).all().then();
     }
 
     public Mono<Boolean> existsByDatabaseIdAndVersion(Long databaseId, String version) {
         return masterTemplate.exists(
             Query.query(Criteria.where("database_id").is(databaseId).and("version").is(version)),
-            DatabaseVendorVersion.class
+            DatabaseVersion.class
         );
     }
 }

@@ -1,6 +1,6 @@
 package com.atparui.rms.repository;
 
-import com.atparui.rms.domain.DatabaseDriver;
+import com.atparui.rms.domain.DriverJar;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.data.relational.core.query.Criteria;
@@ -18,28 +18,28 @@ public class DatabaseDriverRepository {
         this.masterTemplate = masterTemplate;
     }
 
-    public Flux<DatabaseDriver> findAll() {
-        return masterTemplate.select(DatabaseDriver.class).all();
+    public Flux<DriverJar> findAll() {
+        return masterTemplate.select(DriverJar.class).all();
     }
 
-    public Flux<DatabaseDriver> findByVersionId(Long versionId) {
-        return masterTemplate.select(DatabaseDriver.class).matching(Query.query(Criteria.where("version_id").is(versionId))).all();
+    public Flux<DriverJar> findByVersionId(Long versionId) {
+        return masterTemplate.select(DriverJar.class).matching(Query.query(Criteria.where("version_id").is(versionId))).all();
     }
 
-    public Flux<DatabaseDriver> findByVersionIdAndDriverType(Long versionId, String driverType) {
+    public Flux<DriverJar> findByVersionIdAndDriverType(Long versionId, String driverType) {
         return masterTemplate
-            .select(DatabaseDriver.class)
+            .select(DriverJar.class)
             .matching(Query.query(Criteria.where("version_id").is(versionId).and("driver_type").is(driverType).and("active").is(true)))
             .all();
     }
 
-    public Mono<DatabaseDriver> findById(Long id) {
-        return masterTemplate.selectOne(Query.query(Criteria.where("id").is(id)), DatabaseDriver.class);
+    public Mono<DriverJar> findById(Long id) {
+        return masterTemplate.selectOne(Query.query(Criteria.where("id").is(id)), DriverJar.class);
     }
 
-    public Mono<DatabaseDriver> findDefaultDriver(Long versionId, String driverType) {
+    public Mono<DriverJar> findDefaultDriver(Long versionId, String driverType) {
         return masterTemplate
-            .select(DatabaseDriver.class)
+            .select(DriverJar.class)
             .matching(
                 Query.query(
                     Criteria.where("version_id")
@@ -55,7 +55,7 @@ public class DatabaseDriverRepository {
             .one();
     }
 
-    public Mono<DatabaseDriver> save(DatabaseDriver driver) {
+    public Mono<DriverJar> save(DriverJar driver) {
         if (driver.getId() == null) {
             return masterTemplate.insert(driver);
         } else {
@@ -64,6 +64,6 @@ public class DatabaseDriverRepository {
     }
 
     public Mono<Void> deleteById(Long id) {
-        return masterTemplate.delete(DatabaseDriver.class).matching(Query.query(Criteria.where("id").is(id))).all().then();
+        return masterTemplate.delete(DriverJar.class).matching(Query.query(Criteria.where("id").is(id))).all().then();
     }
 }
