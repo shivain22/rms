@@ -10,7 +10,7 @@ import { Menu } from 'lucide-react';
 import { useAppDispatch } from 'app/config/store';
 import { setLocale } from 'app/shared/reducers/locale';
 import { AccountMenu, AdminMenu, EntitiesMenu, LocaleMenu } from '../menus';
-import { Brand, Home } from './header-components';
+import { Home } from './header-components';
 
 export interface IHeaderProps {
   isAuthenticated: boolean;

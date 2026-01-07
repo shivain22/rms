@@ -3,20 +3,13 @@ import { Translate } from 'react-jhipster';
 
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { cn } from '@/lib/utils';
-
-export const BrandIcon = props => (
-  <div {...props} className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-orange-500 to-green-500 rounded-lg">
-    <span className="text-white font-bold text-lg">a</span>
-  </div>
-);
 
 export const Brand = () => (
-  <Link to="/" className="flex items-center space-x-2 brand-logo">
-    <BrandIcon />
+  <Link to="/" className="flex items-center space-x-3 brand-logo">
+    <img src="content/images/atpar_logo.jpg" alt="At PAR UI Technologies Logo" className="h-8 w-auto object-contain" />
     <div className="flex flex-col">
-      <span className="text-lg font-bold text-foreground">PAR</span>
-      <span className="text-xs text-muted-foreground">intelligence</span>
+      <span className="text-sm font-semibold text-foreground leading-tight">At PAR UI Technologies</span>
+      <span className="text-xs text-muted-foreground leading-tight">Intention and Intelligence</span>
     </div>
   </Link>
 );

@@ -1,14 +1,21 @@
 import React from 'react';
 import MenuItem from 'app/shared/layout/menus/menu-item';
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Translate, translate } from 'react-jhipster';
 import { getLoginUrl } from 'app/shared/util/url-utils';
 import { useLocation, useNavigate } from 'react-router';
 import { NavDropdown } from './menu-components';
 
-const accountMenuItemsAuthenticated = () => (
+const accountMenuItemsAuthenticated = (account: any) => (
   <>
+    <DropdownMenuLabel className="font-normal">
+      <div className="flex flex-col space-y-1">
+        <p className="text-sm font-medium leading-none">{account?.login || translate('global.menu.account.main')}</p>
+        {account?.email && <p className="text-xs leading-none text-muted-foreground">{account.email}</p>}
+      </div>
+    </DropdownMenuLabel>
+    <DropdownMenuSeparator />
     <MenuItem icon="sign-out-alt" to="/logout" data-cy="logout">
       <Translate contentKey="global.menu.account.logout">Sign out</Translate>
     </MenuItem>
@@ -43,7 +50,7 @@ export const AccountMenu = ({ isAuthenticated = false, account = null }) => (
     id="account-menu"
     data-cy="accountMenu"
   >
-    {isAuthenticated && accountMenuItemsAuthenticated()}
+    {isAuthenticated && accountMenuItemsAuthenticated(account)}
     {!isAuthenticated && accountMenuItems()}
   </NavDropdown>
 );

@@ -57,19 +57,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isAuthenticated, isAdmin, isOpenAPIEn
       >
         {/* Logo Section */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-border/20 flex-shrink-0">
-          <Link to="/" className="flex items-center space-x-2 min-w-0">
-            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-lg">a</span>
-            </div>
-            <div className={cn('flex-col', logoTextHidden)}>
-              <span className="text-lg font-bold text-foreground">PAR</span>
-              <span className="text-xs text-muted-foreground">intelligence</span>
+          <Link to="/" className="flex items-center space-x-3 min-w-0 flex-1">
+            <img
+              src="content/images/atpar_logo.jpg"
+              alt="At PAR UI Technologies Logo"
+              className="h-8 w-auto object-contain flex-shrink-0"
+            />
+            <div className={cn('flex flex-col min-w-0', logoTextHidden)}>
+              <span className="text-sm font-semibold text-foreground leading-tight truncate">At PAR UI Technologies</span>
+              <span className="text-xs text-muted-foreground leading-tight truncate">Intention and Intelligence</span>
             </div>
           </Link>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 flex-shrink-0"
+            className="h-8 w-8 flex-shrink-0 ml-2"
             onClick={toggleSidebar}
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
