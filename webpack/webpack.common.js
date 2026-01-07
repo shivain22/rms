@@ -118,9 +118,8 @@ module.exports = async options => {
               syntactic: true,
             },
           },
-          logger: {
-            infrastructure: 'silent', // Suppress infrastructure logs
-          },
+          // Logger config removed - using default webpack logger to prevent TypeError
+          // The plugin will automatically use webpack's infrastructure logger
         }),
         new CopyWebpackPlugin({
           patterns: [
