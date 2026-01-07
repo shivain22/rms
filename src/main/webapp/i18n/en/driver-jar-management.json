@@ -1,0 +1,43 @@
+{
+  "driverJarManagement": {
+    "home": {
+      "title": "Driver Jars",
+      "subtitle": "Manage JDBC/R2DBC driver JAR files",
+      "uploadLabel": "Upload Driver JAR",
+      "editLabel": "Edit Driver JAR",
+      "refreshListLabel": "Refresh List"
+    },
+    "form": {
+      "title": "Driver JAR Information",
+      "description": "Upload and configure JDBC or R2DBC driver JAR files for database versions"
+    },
+    "table": {
+      "title": "Driver JAR List",
+      "description": "View and manage all uploaded driver JAR files",
+      "empty": "No driver JARs found"
+    },
+    "detail": {
+      "title": "Driver JAR",
+      "information": "Driver JAR Information",
+      "description": "View driver JAR details",
+      "notFound": "Driver JAR not found"
+    },
+    "version": "Database Version",
+    "driverType": "Driver Type",
+    "file": "JAR File",
+    "fileName": "File Name",
+    "fileSize": "File Size",
+    "filePath": "File Path",
+    "driverClassName": "Driver Class Name",
+    "driverClass": "Driver Class",
+    "description": "Description",
+    "isDefault": "Set as Default",
+    "default": "Default",
+    "active": "Active",
+    "status": "Status",
+    "md5Hash": "MD5 Hash",
+    "uploadedBy": "Uploaded By",
+    "upload": "Upload",
+    "uploading": "Uploading..."
+  }
+}

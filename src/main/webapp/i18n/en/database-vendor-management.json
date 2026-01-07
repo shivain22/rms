@@ -1,0 +1,36 @@
+{
+  "databaseVendorManagement": {
+    "home": {
+      "title": "Database Vendors",
+      "subtitle": "Manage database vendors and providers",
+      "createLabel": "Create Database Vendor",
+      "editLabel": "Edit Database Vendor",
+      "refreshListLabel": "Refresh List"
+    },
+    "form": {
+      "title": "Database Vendor Information",
+      "description": "Enter database vendor details"
+    },
+    "table": {
+      "title": "Database Vendor List",
+      "description": "View and manage all database vendors",
+      "empty": "No database vendors found"
+    },
+    "detail": {
+      "title": "Database Vendor",
+      "information": "Vendor Information",
+      "description": "View database vendor details",
+      "notFound": "Database vendor not found"
+    },
+    "vendorCode": "Vendor Code",
+    "displayName": "Display Name",
+    "defaultPort": "Default Port",
+    "driverKey": "Driver Key",
+    "description": "Description",
+    "jdbcUrlTemplate": "JDBC URL Template",
+    "r2dbcUrlTemplate": "R2DBC URL Template",
+    "driverClassName": "Driver Class Name",
+    "active": "Active",
+    "status": "Status"
+  }
+}

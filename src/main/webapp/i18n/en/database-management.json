@@ -1,0 +1,36 @@
+{
+  "databaseManagement": {
+    "home": {
+      "title": "Databases",
+      "subtitle": "Manage database products from vendors",
+      "createLabel": "Create Database",
+      "editLabel": "Edit Database",
+      "refreshListLabel": "Refresh List"
+    },
+    "form": {
+      "title": "Database Information",
+      "description": "Enter database details"
+    },
+    "table": {
+      "title": "Database List",
+      "description": "View and manage all databases",
+      "empty": "No databases found"
+    },
+    "detail": {
+      "title": "Database",
+      "information": "Database Information",
+      "description": "View database details",
+      "notFound": "Database not found"
+    },
+    "vendor": "Vendor",
+    "databaseCode": "Database Code",
+    "displayName": "Display Name",
+    "defaultPort": "Default Port",
+    "defaultDriverClassName": "Driver Class Name",
+    "description": "Description",
+    "jdbcUrlTemplate": "JDBC URL Template",
+    "r2dbcUrlTemplate": "R2DBC URL Template",
+    "active": "Active",
+    "status": "Status"
+  }
+}

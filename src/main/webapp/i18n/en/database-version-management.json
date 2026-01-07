@@ -1,0 +1,36 @@
+{
+  "databaseVersionManagement": {
+    "home": {
+      "title": "Database Versions",
+      "subtitle": "Manage database versions",
+      "createLabel": "Create Database Version",
+      "editLabel": "Edit Database Version",
+      "refreshListLabel": "Refresh List"
+    },
+    "form": {
+      "title": "Database Version Information",
+      "description": "Enter database version details"
+    },
+    "table": {
+      "title": "Database Version List",
+      "description": "View and manage all database versions",
+      "empty": "No database versions found"
+    },
+    "detail": {
+      "title": "Database Version",
+      "information": "Version Information",
+      "description": "View database version details",
+      "notFound": "Database version not found"
+    },
+    "database": "Database",
+    "version": "Version",
+    "displayName": "Display Name",
+    "releaseDate": "Release Date",
+    "endOfLifeDate": "End of Life Date",
+    "releaseNotes": "Release Notes",
+    "isSupported": "Supported",
+    "isRecommended": "Recommended",
+    "active": "Active",
+    "status": "Status"
+  }
+}
