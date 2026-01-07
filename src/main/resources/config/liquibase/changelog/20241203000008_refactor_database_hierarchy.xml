@@ -37,6 +37,15 @@
         
         <addUniqueConstraint tableName="databases" columnNames="vendor_id,database_code" constraintName="uk_vendor_database_code"/>
         
+        <addForeignKeyConstraint
+            baseTableName="databases"
+            baseColumnNames="vendor_id"
+            constraintName="fk_database_vendor"
+            referencedTableName="database_vendors"
+            referencedColumnNames="id"
+            onDelete="RESTRICT"
+            onUpdate="CASCADE"/>
+        
         <comment>Create databases table to represent specific database products from vendors</comment>
     </changeSet>
 
@@ -107,6 +116,15 @@
         
         <addUniqueConstraint tableName="database_vendor_versions" columnNames="database_id,version" constraintName="uk_database_version"/>
         
+        <addForeignKeyConstraint
+            baseTableName="database_vendor_versions"
+            baseColumnNames="database_id"
+            constraintName="fk_version_database"
+            referencedTableName="databases"
+            referencedColumnNames="id"
+            onDelete="RESTRICT"
+            onUpdate="CASCADE"/>
+        
         <comment>Remove vendor_id and make database_id the foreign key</comment>
     </changeSet>
 
@@ -140,6 +158,20 @@
         <comment>Rename database_drivers table to driver_jars</comment>
     </changeSet>
 
+    <!-- Step 8b: Add foreign key constraint after table rename -->
+    <changeSet id="20241203000008-8b" author="system">
+        <addForeignKeyConstraint
+            baseTableName="driver_jars"
+            baseColumnNames="version_id"
+            constraintName="fk_driver_jar_version"
+            referencedTableName="database_versions"
+            referencedColumnNames="id"
+            onDelete="RESTRICT"
+            onUpdate="CASCADE"/>
+        
+        <comment>Add foreign key from driver_jars to database_versions</comment>
+    </changeSet>
+
     <!-- Step 9: Update tenants table - rename columns -->
     <changeSet id="20241203000008-9" author="system">
         <renameColumn tableName="tenants" oldColumnName="database_vendor_version_id" newColumnName="database_version_id" columnDataType="bigint"/>
@@ -147,6 +179,29 @@
         <renameColumn tableName="tenants" oldColumnName="database_driver_id" newColumnName="driver_jar_id" columnDataType="bigint"/>
         
         <comment>Rename tenant columns to match new entity names</comment>
+    </changeSet>
+
+    <!-- Step 10: Add foreign key constraints to tenants table -->
+    <changeSet id="20241203000008-10" author="system">
+        <addForeignKeyConstraint
+            baseTableName="tenants"
+            baseColumnNames="database_version_id"
+            constraintName="fk_tenant_database_version"
+            referencedTableName="database_versions"
+            referencedColumnNames="id"
+            onDelete="SET NULL"
+            onUpdate="CASCADE"/>
+        
+        <addForeignKeyConstraint
+            baseTableName="tenants"
+            baseColumnNames="driver_jar_id"
+            constraintName="fk_tenant_driver_jar"
+            referencedTableName="driver_jars"
+            referencedColumnNames="id"
+            onDelete="SET NULL"
+            onUpdate="CASCADE"/>
+        
+        <comment>Add foreign key constraints from tenants to database_versions and driver_jars</comment>
     </changeSet>
 
 </databaseChangeLog>
