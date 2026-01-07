@@ -38,6 +38,18 @@ public class DatabaseVendorVersionService {
         return versionRepository.findRecentVersions(databaseId, years);
     }
 
+    /**
+     * Get versions from last N years for all databases of a vendor (default 3).
+     * This is for backward compatibility with the old API that used vendorId.
+     *
+     * @param vendorId the vendor ID
+     * @param years number of years (default 3)
+     * @return Flux of versions
+     */
+    public Flux<DatabaseVersion> findRecentVersionsByVendorId(Long vendorId, int years) {
+        return versionRepository.findRecentVersionsByVendorId(vendorId, years);
+    }
+
     public Flux<DatabaseVersion> findAll() {
         return versionRepository.findAll();
     }

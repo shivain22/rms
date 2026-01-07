@@ -1,5 +1,6 @@
 package com.atparui.rms.repository;
 
+import com.atparui.rms.domain.Database;
 import com.atparui.rms.domain.DatabaseVersion;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
@@ -44,6 +45,36 @@ public class DatabaseVendorVersionRepository {
                 )
             )
             .all();
+    }
+
+    public Flux<DatabaseVersion> findRecentVersionsByVendorId(Long vendorId, int years) {
+        // Get versions from last N years for all databases of a vendor
+        java.time.LocalDate cutoffDate = java.time.LocalDate.now().minusYears(years);
+        // First get all database IDs for this vendor, then get versions
+        return masterTemplate
+            .select(Database.class)
+            .matching(Query.query(Criteria.where("vendor_id").is(vendorId).and("active").is(true)))
+            .all()
+            .map(Database::getId)
+            .collectList()
+            .flatMapMany(databaseIds -> {
+                if (databaseIds.isEmpty()) {
+                    return Flux.empty();
+                }
+                return masterTemplate
+                    .select(DatabaseVersion.class)
+                    .matching(
+                        Query.query(
+                            Criteria.where("database_id")
+                                .in(databaseIds)
+                                .and("active")
+                                .is(true)
+                                .and("release_date")
+                                .greaterThanOrEquals(cutoffDate)
+                        )
+                    )
+                    .all();
+            });
     }
 
     public Mono<DatabaseVersion> findById(Long id) {

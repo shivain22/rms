@@ -13,6 +13,10 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
+  Database,
+  HardDrive,
+  Tag,
+  Upload,
 } from 'lucide-react';
 import { Translate } from 'react-jhipster';
 import { Button } from '@/components/ui/button';
@@ -162,6 +166,82 @@ const Sidebar: React.FC<SidebarProps> = ({ isAuthenticated, isAdmin, isOpenAPIEn
                 {!isCollapsed && (
                   <span>
                     <Translate contentKey="global.menu.admin.platformManagement">Platform Management</Translate>
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                to="/admin/database-vendor-management"
+                className={cn(
+                  'flex items-center rounded-md text-sm font-medium transition-colors',
+                  isCollapsed ? 'justify-center px-2 py-2' : 'space-x-3 px-3 py-2',
+                  isActive('/admin/database-vendor-management')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                )}
+                title={isCollapsed ? 'Database Vendors' : undefined}
+              >
+                <Database className="h-4 w-4 flex-shrink-0" />
+                {!isCollapsed && (
+                  <span>
+                    <Translate contentKey="global.menu.admin.databaseVendorManagement">Database Vendors</Translate>
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                to="/admin/database-management"
+                className={cn(
+                  'flex items-center rounded-md text-sm font-medium transition-colors',
+                  isCollapsed ? 'justify-center px-2 py-2' : 'space-x-3 px-3 py-2',
+                  isActive('/admin/database-management')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                )}
+                title={isCollapsed ? 'Databases' : undefined}
+              >
+                <HardDrive className="h-4 w-4 flex-shrink-0" />
+                {!isCollapsed && (
+                  <span>
+                    <Translate contentKey="global.menu.admin.databaseManagement">Databases</Translate>
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                to="/admin/database-version-management"
+                className={cn(
+                  'flex items-center rounded-md text-sm font-medium transition-colors',
+                  isCollapsed ? 'justify-center px-2 py-2' : 'space-x-3 px-3 py-2',
+                  isActive('/admin/database-version-management')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                )}
+                title={isCollapsed ? 'Database Versions' : undefined}
+              >
+                <Tag className="h-4 w-4 flex-shrink-0" />
+                {!isCollapsed && (
+                  <span>
+                    <Translate contentKey="global.menu.admin.databaseVersionManagement">Database Versions</Translate>
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                to="/admin/driver-jar-management"
+                className={cn(
+                  'flex items-center rounded-md text-sm font-medium transition-colors',
+                  isCollapsed ? 'justify-center px-2 py-2' : 'space-x-3 px-3 py-2',
+                  isActive('/admin/driver-jar-management')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                )}
+                title={isCollapsed ? 'Driver JARs' : undefined}
+              >
+                <Upload className="h-4 w-4 flex-shrink-0" />
+                {!isCollapsed && (
+                  <span>
+                    <Translate contentKey="global.menu.admin.driverJarManagement">Driver JARs</Translate>
                   </span>
                 )}
               </Link>

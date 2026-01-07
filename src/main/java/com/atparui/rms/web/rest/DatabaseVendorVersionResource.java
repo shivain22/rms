@@ -96,8 +96,19 @@ public class DatabaseVendorVersionResource {
     }
 
     @GetMapping("/recent")
-    public Flux<DatabaseVersion> getRecentVersions(@RequestParam Long databaseId, @RequestParam(defaultValue = "3") int years) {
-        return versionService.findRecentVersions(databaseId, years);
+    public Flux<DatabaseVersion> getRecentVersions(
+        @RequestParam(required = false) Long databaseId,
+        @RequestParam(required = false) Long vendorId,
+        @RequestParam(defaultValue = "3") int years
+    ) {
+        // Support both databaseId (new) and vendorId (backward compatibility)
+        if (databaseId != null) {
+            return versionService.findRecentVersions(databaseId, years);
+        } else if (vendorId != null) {
+            return versionService.findRecentVersionsByVendorId(vendorId, years);
+        } else {
+            return Flux.error(new IllegalArgumentException("Either databaseId or vendorId must be provided"));
+        }
     }
 
     @GetMapping("/{id}")
