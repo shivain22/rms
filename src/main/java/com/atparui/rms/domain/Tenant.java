@@ -85,6 +85,9 @@ public class Tenant {
     @Column("default_roles")
     private String defaultRoles;
 
+    @Column("platform_id")
+    private Long platformId;
+
     private Boolean active = true;
 
     @CreatedDate
@@ -302,6 +305,14 @@ public class Tenant {
 
     public void setDefaultRoles(String defaultRoles) {
         this.defaultRoles = defaultRoles;
+    }
+
+    public Long getPlatformId() {
+        return platformId;
+    }
+
+    public void setPlatformId(Long platformId) {
+        this.platformId = platformId;
     }
 
     public Boolean getActive() {

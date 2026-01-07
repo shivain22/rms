@@ -19,6 +19,7 @@ export interface ITenant {
   clientId?: string;
   clientSecret?: string;
   defaultRoles?: string;
+  platformId?: number;
   active?: boolean;
 }
 

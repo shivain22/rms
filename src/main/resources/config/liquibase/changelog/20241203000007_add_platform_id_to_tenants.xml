@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20241203000007-1" author="system">
+        <comment>Add platform_id column to tenants table for one-to-many relationship</comment>
+        
+        <addColumn tableName="tenants">
+            <column name="platform_id" type="bigint">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <addForeignKeyConstraint
+            baseTableName="tenants"
+            baseColumnNames="platform_id"
+            constraintName="fk_tenants_platform"
+            referencedTableName="platforms"
+            referencedColumnNames="id"
+            onDelete="SET NULL"/>
+        
+        <createIndex indexName="idx_tenants_platform_id" tableName="tenants">
+            <column name="platform_id"/>
+        </createIndex>
+        
+        <rollback>
+            <dropForeignKeyConstraint baseTableName="tenants" constraintName="fk_tenants_platform"/>
+            <dropIndex indexName="idx_tenants_platform_id" tableName="tenants"/>
+            <dropColumn tableName="tenants" columnName="platform_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
+

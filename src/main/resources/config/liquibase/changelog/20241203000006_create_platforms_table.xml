@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20241203000006-1" author="system">
+        <comment>Create platforms table for platform type management</comment>
+        
+        <createTable tableName="platforms">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="varchar(500)"/>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+        </createTable>
+        
+        <createIndex indexName="idx_platforms_name" tableName="platforms">
+            <column name="name"/>
+        </createIndex>
+        
+        <createIndex indexName="idx_platforms_active" tableName="platforms">
+            <column name="active"/>
+        </createIndex>
+        
+        <rollback>
+            <dropTable tableName="platforms"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="20241203000006-2" author="system">
+        <comment>Seed initial platform types</comment>
+        
+        <insert tableName="platforms">
+            <column name="name" value="Restaurant Management System"/>
+            <column name="description" value="Platform for managing restaurant operations including orders, inventory, staff, and customer management"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="platforms">
+            <column name="name" value="Ecommerce"/>
+            <column name="description" value="Platform for e-commerce operations including product catalog, shopping cart, orders, and payments"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="platforms">
+            <column name="name" value="Neo Banking"/>
+            <column name="description" value="Platform for digital banking operations including accounts, transactions, payments, and financial services"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="platforms">
+            <column name="name" value="AWD Farming (Alternative Wet and Dry Farming)"/>
+            <column name="description" value="Platform for managing alternative wet and dry farming operations including crop management, irrigation, and field monitoring"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="platforms">
+            <column name="name" value="Visitor Pass Management System"/>
+            <column name="description" value="Platform for managing visitor passes, check-ins, security, and access control"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="platforms">
+            <column name="name" value="Hospital Management System"/>
+            <column name="description" value="Platform for managing hospital operations including patient records, appointments, billing, and staff management"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="platforms">
+            <column name="name" value="Event Management System"/>
+            <column name="description" value="Platform for managing events including registration, ticketing, scheduling, and attendee management"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <insert tableName="platforms">
+            <column name="name" value="Dairy Management System"/>
+            <column name="description" value="Platform for managing dairy operations including cattle management, milk production, inventory, and sales"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <rollback>
+            <delete tableName="platforms"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
+
