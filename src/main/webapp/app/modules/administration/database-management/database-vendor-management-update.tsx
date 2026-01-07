@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Translate, translate, ValidatedForm, ValidatedField } from 'react-jhipster';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 
 import { useAppDispatch, useAppSelector } from 'app/config/store';
 import { getDatabaseVendor, updateDatabaseVendor, createDatabaseVendor } from './database-vendor.reducer';
@@ -209,7 +209,11 @@ const DatabaseVendorManagementUpdate = () => {
               />
 
               <div className="flex items-center space-x-2">
-                <Switch id="active" checked={formData.active} onCheckedChange={checked => setFormData({ ...formData, active: checked })} />
+                <Checkbox
+                  id="active"
+                  checked={formData.active}
+                  onCheckedChange={checked => setFormData({ ...formData, active: !!checked })}
+                />
                 <Label htmlFor="active" className="cursor-pointer">
                   <Translate contentKey="databaseVendorManagement.active">Active</Translate>
                 </Label>
