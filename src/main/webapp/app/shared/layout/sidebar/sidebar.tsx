@@ -1,7 +1,19 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Building2, Activity, Heart, Settings, FileText, BookOpen, Home, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Building2,
+  Server,
+  Activity,
+  Heart,
+  Settings,
+  FileText,
+  BookOpen,
+  Home,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { Translate } from 'react-jhipster';
 import { Button } from '@/components/ui/button';
 
@@ -129,6 +141,25 @@ const Sidebar: React.FC<SidebarProps> = ({ isAuthenticated, isAdmin, isOpenAPIEn
                 {!isCollapsed && (
                   <span>
                     <Translate contentKey="global.menu.admin.tenantManagement">Tenant Management</Translate>
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                to="/admin/platform-management"
+                className={cn(
+                  'flex items-center rounded-md text-sm font-medium transition-colors',
+                  isCollapsed ? 'justify-center px-2 py-2' : 'space-x-3 px-3 py-2',
+                  isActive('/admin/platform-management')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                )}
+                title={isCollapsed ? 'Platform Management' : undefined}
+              >
+                <Server className="h-4 w-4 flex-shrink-0" />
+                {!isCollapsed && (
+                  <span>
+                    <Translate contentKey="global.menu.admin.platformManagement">Platform Management</Translate>
                   </span>
                 )}
               </Link>

@@ -1,0 +1,35 @@
+{
+  "platformManagement": {
+    "home": {
+      "title": "Platforms",
+      "subtitle": "Manage platform types",
+      "createLabel": "Create a new Platform",
+      "createOrEditLabel": "Create or edit a Platform",
+      "refreshListLabel": "Refresh List"
+    },
+    "table": {
+      "title": "Platform List",
+      "description": "View and manage all platform types",
+      "empty": "No platforms found"
+    },
+    "name": "Name",
+    "description": "Description",
+    "active": "Active",
+    "inactive": "Inactive",
+    "basicInfo": "Basic Information",
+    "help": {
+      "name": "Enter the platform name",
+      "description": "Enter a description for the platform",
+      "platform": "Select the platform type for this tenant"
+    },
+    "delete": {
+      "question": "Are you sure you want to delete Platform \"{name}\"? This action cannot be undone."
+    },
+    "detail": {
+      "title": "Platform Details",
+      "subtitle": "View platform information",
+      "description": "Platform details and configuration",
+      "notFound": "Platform not found"
+    }
+  }
+}

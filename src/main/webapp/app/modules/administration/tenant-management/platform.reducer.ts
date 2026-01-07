@@ -8,6 +8,8 @@ const initialState = {
   errorMessage: null,
   platforms: [] as ReadonlyArray<IPlatform>,
   activePlatforms: [] as ReadonlyArray<IPlatform>,
+  updating: false,
+  updateSuccess: false,
 };
 
 export type PlatformState = Readonly<typeof initialState>;
@@ -106,16 +108,32 @@ export const PlatformSlice = createSlice({
           }
         }
       })
+      .addCase(createPlatform.pending, state => {
+        state.updating = true;
+        state.updateSuccess = false;
+      })
       .addCase(createPlatform.fulfilled, (state, action) => {
         state.loading = false;
+        state.updating = false;
+        state.updateSuccess = true;
         const platform = action.payload.data;
         state.platforms = [...state.platforms, platform];
         if (platform.active !== false) {
           state.activePlatforms = [...state.activePlatforms, platform];
         }
       })
+      .addCase(createPlatform.rejected, state => {
+        state.updating = false;
+        state.updateSuccess = false;
+      })
+      .addCase(updatePlatform.pending, state => {
+        state.updating = true;
+        state.updateSuccess = false;
+      })
       .addCase(updatePlatform.fulfilled, (state, action) => {
         state.loading = false;
+        state.updating = false;
+        state.updateSuccess = true;
         const platform = action.payload.data;
         const index = state.platforms.findIndex(p => p.id === platform.id);
         if (index >= 0) {
@@ -131,6 +149,10 @@ export const PlatformSlice = createSlice({
         } else {
           state.activePlatforms = state.activePlatforms.filter(p => p.id !== platform.id);
         }
+      })
+      .addCase(updatePlatform.rejected, state => {
+        state.updating = false;
+        state.updateSuccess = false;
       })
       .addCase(deletePlatform.fulfilled, (state, action) => {
         state.loading = false;

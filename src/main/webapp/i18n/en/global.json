@@ -22,6 +22,7 @@
         "main": "Administration",
         "gateway": "Gateway",
         "tenantManagement": "Tenant Management",
+        "platformManagement": "Platform Management",
         "userManagement": "User management",
         "tracker": "User tracker",
         "metrics": "Metrics",

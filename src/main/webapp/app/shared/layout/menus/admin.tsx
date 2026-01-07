@@ -12,6 +12,9 @@ const adminMenuItems = () => (
     <MenuItem icon="building" to="/admin/tenant-management">
       <Translate contentKey="global.menu.admin.tenantManagement">Tenant Management</Translate>
     </MenuItem>
+    <MenuItem icon="server" to="/admin/platform-management">
+      <Translate contentKey="global.menu.admin.platformManagement">Platform Management</Translate>
+    </MenuItem>
     <MenuItem icon="tachometer-alt" to="/admin/metrics">
       <Translate contentKey="global.menu.admin.metrics">Metrics</Translate>
     </MenuItem>

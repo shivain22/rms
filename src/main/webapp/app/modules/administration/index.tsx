@@ -9,6 +9,7 @@ import Configuration from './configuration/configuration';
 import Docs from './docs/docs';
 import Gateway from './gateway/gateway';
 import TenantManagementRoutes from './tenant-management';
+import PlatformManagementRoutes from './tenant-management/platform-management-routes';
 
 const AdministrationRoutes = () => (
   <div>
@@ -20,6 +21,7 @@ const AdministrationRoutes = () => (
       <Route path="logs" element={<Logs />} />
       <Route path="docs" element={<Docs />} />
       <Route path="tenant-management/*" element={<TenantManagementRoutes />} />
+      <Route path="platform-management/*" element={<PlatformManagementRoutes />} />
     </ErrorBoundaryRoutes>
   </div>
 );
