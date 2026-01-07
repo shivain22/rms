@@ -103,7 +103,7 @@ const DatabaseManagementUpdate = () => {
                 </Label>
                 <Select
                   value={formData.vendorId?.toString() || ''}
-                  onValueChange={value => setFormData({ ...formData, vendorId: parseInt(value) })}
+                  onValueChange={value => setFormData({ ...formData, vendorId: parseInt(value, 10) })}
                 >
                   <SelectTrigger id="vendorId">
                     <SelectValue placeholder="Select a vendor" />

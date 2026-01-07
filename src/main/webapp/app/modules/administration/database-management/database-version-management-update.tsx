@@ -103,7 +103,7 @@ const DatabaseVersionManagementUpdate = () => {
                 </Label>
                 <Select
                   value={formData.databaseId?.toString() || ''}
-                  onValueChange={value => setFormData({ ...formData, databaseId: parseInt(value) })}
+                  onValueChange={value => setFormData({ ...formData, databaseId: parseInt(value, 10) })}
                 >
                   <SelectTrigger id="databaseId">
                     <SelectValue placeholder="Select a database" />

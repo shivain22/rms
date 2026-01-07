@@ -137,7 +137,7 @@ const DriverJarManagementUpdate = () => {
                 </Label>
                 <Select
                   value={formData.versionId?.toString() || ''}
-                  onValueChange={value => setFormData({ ...formData, versionId: parseInt(value) })}
+                  onValueChange={value => setFormData({ ...formData, versionId: parseInt(value, 10) })}
                   disabled={!isNew}
                 >
                   <SelectTrigger id="versionId">
