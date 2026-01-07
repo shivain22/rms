@@ -23,19 +23,19 @@ public class DatabaseVendorVersionService {
         return versionRepository.findById(id);
     }
 
-    public Flux<DatabaseVendorVersion> findByVendorId(Long vendorId) {
-        return versionRepository.findByVendorIdAndActiveTrue(vendorId);
+    public Flux<DatabaseVendorVersion> findByDatabaseId(Long databaseId) {
+        return versionRepository.findByDatabaseIdAndActiveTrue(databaseId);
     }
 
     /**
      * Get versions from last N years (default 3).
      *
-     * @param vendorId the vendor ID
+     * @param databaseId the database ID
      * @param years number of years (default 3)
      * @return Flux of versions
      */
-    public Flux<DatabaseVendorVersion> findRecentVersions(Long vendorId, int years) {
-        return versionRepository.findRecentVersions(vendorId, years);
+    public Flux<DatabaseVendorVersion> findRecentVersions(Long databaseId, int years) {
+        return versionRepository.findRecentVersions(databaseId, years);
     }
 
     public Flux<DatabaseVendorVersion> findAll() {
@@ -44,9 +44,9 @@ public class DatabaseVendorVersionService {
 
     public Mono<DatabaseVendorVersion> save(DatabaseVendorVersion version) {
         if (version.getId() == null) {
-            // Check if version already exists for this vendor
+            // Check if version already exists for this database
             return versionRepository
-                .existsByVendorIdAndVersion(version.getVendorId(), version.getVersion())
+                .existsByDatabaseIdAndVersion(version.getDatabaseId(), version.getVersion())
                 .flatMap(exists -> {
                     if (exists) {
                         return Mono.error(new RuntimeException("Version " + version.getVersion() + " already exists for this vendor"));

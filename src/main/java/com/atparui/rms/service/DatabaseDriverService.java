@@ -42,20 +42,16 @@ public class DatabaseDriverService {
         return driverRepository.findById(id);
     }
 
-    public Flux<DatabaseDriver> findByVendorId(Long vendorId) {
-        return driverRepository.findByVendorId(vendorId);
+    public Flux<DatabaseDriver> findByVersionId(Long versionId) {
+        return driverRepository.findByVersionId(versionId);
     }
 
-    public Flux<DatabaseDriver> findByVendorIdAndVersionId(Long vendorId, Long versionId) {
-        return driverRepository.findByVendorIdAndVersionId(vendorId, versionId);
+    public Flux<DatabaseDriver> findByVersionIdAndDriverType(Long versionId, String driverType) {
+        return driverRepository.findByVersionIdAndDriverType(versionId, driverType);
     }
 
-    public Flux<DatabaseDriver> findByVendorIdAndVersionIdAndDriverType(Long vendorId, Long versionId, String driverType) {
-        return driverRepository.findByVendorIdAndVersionIdAndDriverType(vendorId, versionId, driverType);
-    }
-
-    public Mono<DatabaseDriver> findDefaultDriver(Long vendorId, Long versionId, String driverType) {
-        return driverRepository.findDefaultDriver(vendorId, versionId, driverType);
+    public Mono<DatabaseDriver> findDefaultDriver(Long versionId, String driverType) {
+        return driverRepository.findDefaultDriver(versionId, driverType);
     }
 
     /**
@@ -95,7 +91,6 @@ public class DatabaseDriverService {
 
                     // Create driver entity
                     DatabaseDriver driver = new DatabaseDriver();
-                    driver.setVendorId(vendorId);
                     driver.setVersionId(versionId);
                     driver.setDriverType(driverType.toUpperCase());
                     driver.setFilePath(filePath);
@@ -108,7 +103,7 @@ public class DatabaseDriverService {
 
                     // Check if this should be default driver
                     return driverRepository
-                        .findByVendorIdAndVersionIdAndDriverType(vendorId, versionId, driverType)
+                        .findByVersionIdAndDriverType(versionId, driverType)
                         .hasElements()
                         .flatMap(hasDrivers -> {
                             if (!hasDrivers) {
