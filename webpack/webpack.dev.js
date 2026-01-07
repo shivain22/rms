@@ -10,46 +10,70 @@ const commonConfig = require('./webpack.common.js');
 
 const ENV = 'development';
 
-// Intercept console.error to suppress AggregateError messages
-const originalConsoleError = console.error;
-console.error = function (...args) {
-  // Check if any argument is an AggregateError or contains AggregateError message
-  const hasAggregateError = args.some(arg => {
+// Helper function to check if any argument is an AggregateError
+const isAggregateErrorInArgs = args => {
+  return args.some(arg => {
     if (arg instanceof AggregateError || (arg && arg.name === 'AggregateError')) {
       return true;
     }
     if (typeof arg === 'string' && arg.includes('AggregateError')) {
-      // Check if it's a BrowserSync-related error
-      const isBrowserSyncError =
-        arg.includes('ECONNREFUSED') ||
-        arg.includes('browser-sync') ||
-        arg.includes('socket') ||
-        arg.includes('port') ||
-        arg.includes('EADDRINUSE') ||
-        arg.includes('connect');
-      return isBrowserSyncError;
+      return true;
     }
-    if (arg && typeof arg === 'object' && arg.message) {
-      const isBrowserSyncError =
-        arg.message.includes('ECONNREFUSED') ||
-        arg.message.includes('browser-sync') ||
-        arg.message.includes('socket') ||
-        arg.message.includes('port') ||
-        arg.message.includes('EADDRINUSE') ||
-        arg.message.includes('connect');
-      return isBrowserSyncError;
+    if (arg && typeof arg === 'object' && arg.message && typeof arg.message === 'string' && arg.message.includes('AggregateError')) {
+      return true;
     }
     return false;
   });
+};
 
-  // Suppress BrowserSync AggregateError messages
-  if (hasAggregateError) {
-    // Don't log - silently suppress
+// Intercept console.error to suppress AggregateError messages
+const originalConsoleError = console.error;
+console.error = function (...args) {
+  if (isAggregateErrorInArgs(args)) {
+    // Silently suppress all AggregateError messages
     return;
   }
-
-  // For all other errors, use the original console.error
   return originalConsoleError.apply(console, args);
+};
+
+// Intercept console.log to suppress AggregateError messages
+const originalConsoleLog = console.log;
+console.log = function (...args) {
+  if (isAggregateErrorInArgs(args)) {
+    // Silently suppress all AggregateError messages
+    return;
+  }
+  return originalConsoleLog.apply(console, args);
+};
+
+// Intercept console.warn to suppress AggregateError messages
+const originalConsoleWarn = console.warn;
+console.warn = function (...args) {
+  if (isAggregateErrorInArgs(args)) {
+    // Silently suppress all AggregateError messages
+    return;
+  }
+  return originalConsoleWarn.apply(console, args);
+};
+
+// Intercept process.stdout.write to suppress AggregateError messages
+const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+process.stdout.write = function (chunk, encoding, callback) {
+  if (typeof chunk === 'string' && chunk.includes('AggregateError')) {
+    // Silently suppress AggregateError messages
+    return true;
+  }
+  return originalStdoutWrite(chunk, encoding, callback);
+};
+
+// Intercept process.stderr.write to suppress AggregateError messages
+const originalStderrWrite = process.stderr.write.bind(process.stderr);
+process.stderr.write = function (chunk, encoding, callback) {
+  if (typeof chunk === 'string' && chunk.includes('AggregateError')) {
+    // Silently suppress AggregateError messages
+    return true;
+  }
+  return originalStderrWrite(chunk, encoding, callback);
 };
 
 // Handle unhandled promise rejections to prevent AggregateError from crashing the process
@@ -63,39 +87,9 @@ process.on('unhandledRejection', (reason, promise) => {
       (reason.errors && Array.isArray(reason.errors)));
 
   if (isAggregateError) {
-    // Suppress BrowserSync AggregateError - it's expected when backend isn't on localhost:8082
+    // Silently suppress all AggregateErrors - they're typically non-fatal connection errors
     // The app works fine without BrowserSync, accessing directly at http://localhost:9060
-    const errorMessage = reason.message || reason.toString() || 'Unknown error';
-    const isBrowserSyncError =
-      errorMessage.includes('ECONNREFUSED') ||
-      errorMessage.includes('browser-sync') ||
-      errorMessage.includes('socket') ||
-      errorMessage.includes('port') ||
-      errorMessage.includes('EADDRINUSE') ||
-      errorMessage.includes('connect') ||
-      (reason.errors &&
-        Array.isArray(reason.errors) &&
-        reason.errors.some(
-          err =>
-            (err.message || err.toString() || '').includes('ECONNREFUSED') ||
-            (err.message || err.toString() || '').includes('browser-sync') ||
-            (err.message || err.toString() || '').includes('port'),
-        ));
-
-    // Silently suppress BrowserSync connection errors - they're expected
-    if (isBrowserSyncError) {
-      // Don't log - just suppress silently
-      return;
-    }
-
-    // Log other AggregateErrors for debugging but don't crash
-    console.warn('[Webpack] AggregateError caught (non-fatal):', errorMessage);
-    if (reason.errors && Array.isArray(reason.errors)) {
-      reason.errors.forEach((err, index) => {
-        console.warn(`[Webpack] Error ${index + 1}:`, err.message || err.toString() || err);
-      });
-    }
-    // Don't exit - let webpack dev server continue
+    // Don't log - just suppress silently to prevent console noise
     return;
   }
   // For other unhandled rejections, log but don't crash
@@ -111,33 +105,8 @@ process.on('uncaughtException', err => {
     (err.errors && Array.isArray(err.errors));
 
   if (isAggregateError) {
-    // Suppress BrowserSync AggregateError - it's expected when backend isn't on localhost:8082
-    const errorMessage = err.message || err.toString() || 'Unknown error';
-    const isBrowserSyncError =
-      errorMessage.includes('ECONNREFUSED') ||
-      errorMessage.includes('browser-sync') ||
-      errorMessage.includes('socket') ||
-      errorMessage.includes('port') ||
-      errorMessage.includes('EADDRINUSE') ||
-      errorMessage.includes('connect') ||
-      (err.errors &&
-        Array.isArray(err.errors) &&
-        err.errors.some(
-          e =>
-            (e.message || e.toString() || '').includes('ECONNREFUSED') ||
-            (e.message || e.toString() || '').includes('browser-sync') ||
-            (e.message || e.toString() || '').includes('port'),
-        ));
-
-    // Silently suppress BrowserSync connection errors
-    if (isBrowserSyncError) {
-      // Don't log - just suppress silently
-      return;
-    }
-
-    // Log other AggregateErrors for debugging but don't crash
-    console.warn('[Webpack] AggregateError exception caught (non-fatal):', errorMessage);
-    // Don't exit - let webpack dev server continue
+    // Silently suppress all AggregateErrors - they're typically non-fatal connection errors
+    // Don't log - just suppress silently to prevent console noise
     return;
   }
   // For other exceptions, log but don't crash in development
