@@ -33,11 +33,11 @@ public class Tenant {
     @Column("database_vendor_code")
     private String databaseVendorCode;
 
-    @Column("database_vendor_version_id")
-    private Long databaseVendorVersionId;
+    @Column("database_version_id")
+    private Long databaseVersionId;
 
-    @Column("database_driver_id")
-    private Long databaseDriverId;
+    @Column("driver_jar_id")
+    private Long driverJarId;
 
     @Column("database_provisioning_mode")
     private String databaseProvisioningMode; // AUTO_CREATE or USE_EXISTING
@@ -179,20 +179,20 @@ public class Tenant {
         this.databaseVendorCode = databaseVendorCode;
     }
 
-    public Long getDatabaseVendorVersionId() {
-        return databaseVendorVersionId;
+    public Long getDatabaseVersionId() {
+        return databaseVersionId;
     }
 
-    public void setDatabaseVendorVersionId(Long databaseVendorVersionId) {
-        this.databaseVendorVersionId = databaseVendorVersionId;
+    public void setDatabaseVersionId(Long databaseVersionId) {
+        this.databaseVersionId = databaseVersionId;
     }
 
-    public Long getDatabaseDriverId() {
-        return databaseDriverId;
+    public Long getDriverJarId() {
+        return driverJarId;
     }
 
-    public void setDatabaseDriverId(Long databaseDriverId) {
-        this.databaseDriverId = databaseDriverId;
+    public void setDriverJarId(Long driverJarId) {
+        this.driverJarId = driverJarId;
     }
 
     public String getDatabaseProvisioningMode() {

@@ -19,8 +19,10 @@
       "question": "Are you sure you want to delete Tenant {{ id }}?"
     },
     "basicInfo": "Basic Information",
+    "platformAndDatabase": "Platform & Database Configuration",
     "databaseConfig": "Database Configuration (Auto-generated)",
     "keycloakConfig": "Keycloak Configuration (Auto-generated)",
+    "status": "Status",
     "tenantKey": "Tenant Key",
     "tenantId": "Tenant ID",
     "name": "Name",
@@ -73,7 +75,11 @@
       "realmName": "Auto-generated Keycloak realm",
       "clientId": "Auto-generated web client ID",
       "mobileClientId": "Auto-generated mobile client ID",
-      "defaultRoles": "Default roles created in the realm"
+      "defaultRoles": "Default roles created in the realm",
+      "name": "Enter the display name for the tenant",
+      "platformAndDatabase": "Configure platform type and database vendor settings",
+      "status": "Set the active status for this tenant",
+      "active": "Enable or disable the tenant"
     }
   }
 }

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Step 1: Create databases table -->
+    <changeSet id="20241203000008-1" author="system">
+        <createTable tableName="databases">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="database_code" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_name" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="varchar(500)"/>
+            <column name="default_driver_class_name" type="varchar(200)"/>
+            <column name="default_port" type="integer"/>
+            <column name="jdbc_url_template" type="varchar(500)"/>
+            <column name="r2dbc_url_template" type="varchar(500)"/>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+        </createTable>
+        
+        <createIndex indexName="idx_database_vendor" tableName="databases">
+            <column name="vendor_id"/>
+        </createIndex>
+        
+        <addUniqueConstraint tableName="databases" columnNames="vendor_id,database_code" constraintName="uk_vendor_database_code"/>
+        
+        <comment>Create databases table to represent specific database products from vendors</comment>
+    </changeSet>
+
+    <!-- Step 2: Insert default databases for each vendor (one database per vendor initially) -->
+    <changeSet id="20241203000008-2" author="system">
+        <sql>
+            INSERT INTO databases (vendor_id, database_code, display_name, description, default_driver_class_name, default_port, jdbc_url_template, r2dbc_url_template, active, created_date, last_modified_date)
+            SELECT 
+                id as vendor_id,
+                vendor_code as database_code,
+                display_name,
+                description,
+                driver_class_name as default_driver_class_name,
+                default_port,
+                jdbc_url_template,
+                r2dbc_url_template,
+                active,
+                created_date,
+                last_modified_date
+            FROM database_vendors
+            WHERE active = true;
+        </sql>
+        
+        <comment>Migrate existing vendor data to create default databases</comment>
+    </changeSet>
+
+    <!-- Step 3: Add database_id column to database_vendor_versions -->
+    <changeSet id="20241203000008-3" author="system">
+        <addColumn tableName="database_vendor_versions">
+            <column name="database_id" type="bigint">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <comment>Add database_id column to database_vendor_versions table</comment>
+    </changeSet>
+
+    <!-- Step 4: Populate database_id in database_vendor_versions based on vendor_id -->
+    <changeSet id="20241203000008-4" author="system">
+        <sql>
+            UPDATE database_vendor_versions dvv
+            SET database_id = (
+                SELECT d.id 
+                FROM databases d 
+                WHERE d.vendor_id = dvv.vendor_id 
+                LIMIT 1
+            )
+            WHERE database_id IS NULL;
+        </sql>
+        
+        <comment>Populate database_id in database_vendor_versions</comment>
+    </changeSet>
+
+    <!-- Step 5: Make database_id NOT NULL and drop vendor_id from database_vendor_versions -->
+    <changeSet id="20241203000008-5" author="system">
+        <addNotNullConstraint tableName="database_vendor_versions" columnName="database_id" columnDataType="bigint"/>
+        
+        <dropUniqueConstraint tableName="database_vendor_versions" constraintName="uk_vendor_version"/>
+        
+        <dropIndex indexName="idx_vendor_version" tableName="database_vendor_versions"/>
+        
+        <dropColumn tableName="database_vendor_versions" columnName="vendor_id"/>
+        
+        <createIndex indexName="idx_database_version" tableName="database_vendor_versions">
+            <column name="database_id"/>
+            <column name="version"/>
+        </createIndex>
+        
+        <addUniqueConstraint tableName="database_vendor_versions" columnNames="database_id,version" constraintName="uk_database_version"/>
+        
+        <comment>Remove vendor_id and make database_id the foreign key</comment>
+    </changeSet>
+
+    <!-- Step 6: Rename database_vendor_versions to database_versions -->
+    <changeSet id="20241203000008-6" author="system">
+        <renameTable oldTableName="database_vendor_versions" newTableName="database_versions"/>
+        
+        <comment>Rename database_vendor_versions table to database_versions</comment>
+    </changeSet>
+
+    <!-- Step 7: Remove vendor_id from database_drivers and update index -->
+    <changeSet id="20241203000008-7" author="system">
+        <dropIndex indexName="idx_driver_vendor_version" tableName="database_drivers"/>
+        
+        <dropColumn tableName="database_drivers" columnName="vendor_id"/>
+        
+        <addNotNullConstraint tableName="database_drivers" columnName="version_id" columnDataType="bigint"/>
+        
+        <createIndex indexName="idx_driver_version_type" tableName="database_drivers">
+            <column name="version_id"/>
+            <column name="driver_type"/>
+        </createIndex>
+        
+        <comment>Remove vendor_id from database_drivers table</comment>
+    </changeSet>
+
+    <!-- Step 8: Rename database_drivers to driver_jars -->
+    <changeSet id="20241203000008-8" author="system">
+        <renameTable oldTableName="database_drivers" newTableName="driver_jars"/>
+        
+        <comment>Rename database_drivers table to driver_jars</comment>
+    </changeSet>
+
+    <!-- Step 9: Update tenants table - rename columns -->
+    <changeSet id="20241203000008-9" author="system">
+        <renameColumn tableName="tenants" oldColumnName="database_vendor_version_id" newColumnName="database_version_id" columnDataType="bigint"/>
+        
+        <renameColumn tableName="tenants" oldColumnName="database_driver_id" newColumnName="driver_jar_id" columnDataType="bigint"/>
+        
+        <comment>Rename tenant columns to match new entity names</comment>
+    </changeSet>
+
+</databaseChangeLog>
+

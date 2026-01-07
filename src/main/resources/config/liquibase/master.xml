@@ -22,4 +22,5 @@
     <include file="config/liquibase/changelog/20241203000005_create_vendor_versions_and_drivers_tables.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20241203000006_create_platforms_table.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20241203000007_add_platform_id_to_tenants.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20241203000008_refactor_database_hierarchy.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>
