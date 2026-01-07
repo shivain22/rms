@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Import databases data -->
+    <changeSet id="20250107000001-1" author="system">
+        <loadUpdateData
+            file="config/liquibase/data/databases.csv"
+            tableName="databases"
+            primaryKey="vendor_id,database_code"
+            separator=","
+            encoding="UTF-8">
+            <column name="vendor_id" type="NUMERIC"/>
+            <column name="database_code" type="STRING"/>
+            <column name="display_name" type="STRING"/>
+            <column name="description" type="STRING"/>
+            <column name="default_driver_class_name" type="STRING"/>
+            <column name="default_port" type="NUMERIC"/>
+            <column name="jdbc_url_template" type="STRING"/>
+            <column name="r2dbc_url_template" type="STRING"/>
+            <column name="active" type="BOOLEAN"/>
+        </loadUpdateData>
+        <comment>Import default databases for each vendor</comment>
+    </changeSet>
+
+    <!-- Import database versions data -->
+    <changeSet id="20250107000001-2" author="system">
+        <loadUpdateData
+            file="config/liquibase/data/database_versions.csv"
+            tableName="database_versions"
+            primaryKey="database_id,version"
+            separator=","
+            encoding="UTF-8">
+            <column name="database_id" type="NUMERIC"/>
+            <column name="version" type="STRING"/>
+            <column name="display_name" type="STRING"/>
+            <column name="release_date" type="DATE"/>
+            <column name="is_supported" type="BOOLEAN"/>
+            <column name="is_recommended" type="BOOLEAN"/>
+            <column name="active" type="BOOLEAN"/>
+        </loadUpdateData>
+        <comment>Import default database versions</comment>
+    </changeSet>
+
+    <!-- Import driver JARs data -->
+    <changeSet id="20250107000001-3" author="system">
+        <loadUpdateData
+            file="config/liquibase/data/driver_jars.csv"
+            tableName="driver_jars"
+            primaryKey="version_id,driver_type"
+            separator=","
+            encoding="UTF-8">
+            <column name="version_id" type="NUMERIC"/>
+            <column name="driver_type" type="STRING"/>
+            <column name="file_path" type="STRING"/>
+            <column name="file_name" type="STRING"/>
+            <column name="file_size" type="NUMERIC"/>
+            <column name="driver_class_name" type="STRING"/>
+            <column name="md5_hash" type="STRING"/>
+            <column name="description" type="STRING"/>
+            <column name="is_default" type="BOOLEAN"/>
+            <column name="uploaded_by" type="STRING"/>
+            <column name="active" type="BOOLEAN"/>
+        </loadUpdateData>
+        <comment>Import default driver JARs metadata</comment>
+    </changeSet>
+
+</databaseChangeLog>
+

@@ -1,0 +1,15 @@
+database_id,version,display_name,release_date,is_supported,is_recommended,active
+1,16,PostgreSQL 16,2023-09-14,true,true,true
+1,15,PostgreSQL 15,2022-10-13,true,false,true
+1,14,PostgreSQL 14,2021-09-30,true,false,true
+2,8.0,MySQL 8.0,2018-04-19,true,true,true
+2,5.7,MySQL 5.7,2015-10-21,true,false,true
+3,23c,Oracle Database 23c,2023-09-19,true,true,true
+3,21c,Oracle Database 21c,2020-12-08,true,false,true
+3,19c,Oracle Database 19c,2019-02-13,true,false,true
+4,2022,SQL Server 2022,2022-11-16,true,true,true
+4,2019,SQL Server 2019,2019-11-04,true,false,true
+4,2017,SQL Server 2017,2017-10-02,true,false,true
+5,11.5,DB2 11.5,2019-06-28,true,true,true
+5,11.1,DB2 11.1,2016-06-10,true,false,true
+

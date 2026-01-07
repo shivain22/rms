@@ -1,0 +1,7 @@
+vendor_id,database_code,display_name,description,default_driver_class_name,default_port,jdbc_url_template,r2dbc_url_template,active
+1,POSTGRESQL,PostgreSQL,PostgreSQL is a powerful open source object-relational database system,org.postgresql.Driver,5432,jdbc:postgresql://{host}:{port}/{database},r2dbc:postgresql://{host}:{port}/{database},true
+2,MYSQL,MySQL,MySQL is an open-source relational database management system,com.mysql.cj.jdbc.Driver,3306,jdbc:mysql://{host}:{port}/{database},r2dbc:mysql://{host}:{port}/{database},true
+3,ORACLE,Oracle Database,Oracle Database is a multi-model database management system,oracle.jdbc.OracleDriver,1521,jdbc:oracle:thin:@{host}:{port}:{database},r2dbc:oracle://{host}:{port}/{database},true
+4,MSSQL,Microsoft SQL Server,Microsoft SQL Server is a relational database management system,com.microsoft.sqlserver.jdbc.SQLServerDriver,1433,jdbc:sqlserver://{host}:{port};databaseName={database},r2dbc:mssql://{host}:{port}/{database},true
+5,DB2,IBM DB2,IBM DB2 is a family of data management products,com.ibm.db2.jcc.DB2Driver,50000,jdbc:db2://{host}:{port}/{database},r2dbc:db2://{host}:{port}/{database},true
+
