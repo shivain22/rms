@@ -32,6 +32,9 @@ public class TenantDatabaseConfigDTO implements Serializable {
     @JsonProperty("validationQuery")
     private String validationQuery = "SELECT 1";
 
+    @JsonProperty("driverType")
+    private String driverType;
+
     @JsonProperty("keycloakBaseUrl")
     private String keycloakBaseUrl;
 
