@@ -22,32 +22,14 @@ public class DatabaseDriverRepository {
         return masterTemplate.select(DatabaseDriver.class).all();
     }
 
-    public Flux<DatabaseDriver> findByVendorId(Long vendorId) {
-        return masterTemplate.select(DatabaseDriver.class).matching(Query.query(Criteria.where("vendor_id").is(vendorId))).all();
+    public Flux<DatabaseDriver> findByVersionId(Long versionId) {
+        return masterTemplate.select(DatabaseDriver.class).matching(Query.query(Criteria.where("version_id").is(versionId))).all();
     }
 
-    public Flux<DatabaseDriver> findByVendorIdAndVersionId(Long vendorId, Long versionId) {
+    public Flux<DatabaseDriver> findByVersionIdAndDriverType(Long versionId, String driverType) {
         return masterTemplate
             .select(DatabaseDriver.class)
-            .matching(Query.query(Criteria.where("vendor_id").is(vendorId).and("version_id").is(versionId)))
-            .all();
-    }
-
-    public Flux<DatabaseDriver> findByVendorIdAndVersionIdAndDriverType(Long vendorId, Long versionId, String driverType) {
-        return masterTemplate
-            .select(DatabaseDriver.class)
-            .matching(
-                Query.query(
-                    Criteria.where("vendor_id")
-                        .is(vendorId)
-                        .and("version_id")
-                        .is(versionId)
-                        .and("driver_type")
-                        .is(driverType)
-                        .and("active")
-                        .is(true)
-                )
-            )
+            .matching(Query.query(Criteria.where("version_id").is(versionId).and("driver_type").is(driverType).and("active").is(true)))
             .all();
     }
 
@@ -55,14 +37,12 @@ public class DatabaseDriverRepository {
         return masterTemplate.selectOne(Query.query(Criteria.where("id").is(id)), DatabaseDriver.class);
     }
 
-    public Mono<DatabaseDriver> findDefaultDriver(Long vendorId, Long versionId, String driverType) {
+    public Mono<DatabaseDriver> findDefaultDriver(Long versionId, String driverType) {
         return masterTemplate
             .select(DatabaseDriver.class)
             .matching(
                 Query.query(
-                    Criteria.where("vendor_id")
-                        .is(vendorId)
-                        .and("version_id")
+                    Criteria.where("version_id")
                         .is(versionId)
                         .and("driver_type")
                         .is(driverType)

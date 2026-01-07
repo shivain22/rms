@@ -10,6 +10,7 @@ import Docs from './docs/docs';
 import Gateway from './gateway/gateway';
 import TenantManagementRoutes from './tenant-management';
 import PlatformManagementRoutes from './tenant-management/platform-management-routes';
+import DatabaseVendorManagementRoutes from './database-management/database-vendor-management-routes';
 
 const AdministrationRoutes = () => (
   <div>
@@ -22,6 +23,7 @@ const AdministrationRoutes = () => (
       <Route path="docs" element={<Docs />} />
       <Route path="tenant-management/*" element={<TenantManagementRoutes />} />
       <Route path="platform-management/*" element={<PlatformManagementRoutes />} />
+      <Route path="database-vendor-management/*" element={<DatabaseVendorManagementRoutes />} />
     </ErrorBoundaryRoutes>
   </div>
 );

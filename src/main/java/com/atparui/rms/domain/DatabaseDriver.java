@@ -10,7 +10,7 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Table("driver_jars")
-public class DriverJar {
+public class DatabaseDriver {
 
     @Id
     private Long id;
@@ -66,9 +66,9 @@ public class DriverJar {
     private Instant lastModifiedDate = Instant.now();
 
     // Constructors
-    public DriverJar() {}
+    public DatabaseDriver() {}
 
-    public DriverJar(Long versionId, String driverType, String filePath, String fileName) {
+    public DatabaseDriver(Long versionId, String driverType, String filePath, String fileName) {
         this.versionId = versionId;
         this.driverType = driverType;
         this.filePath = filePath;
@@ -192,8 +192,8 @@ public class DriverJar {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof DriverJar)) return false;
-        return id != null && id.equals(((DriverJar) o).id);
+        if (!(o instanceof DatabaseDriver)) return false;
+        return id != null && id.equals(((DatabaseDriver) o).id);
     }
 
     @Override
@@ -204,7 +204,7 @@ public class DriverJar {
     @Override
     public String toString() {
         return (
-            "DriverJar{" +
+            "DatabaseDriver{" +
             "id=" +
             id +
             ", versionId=" +

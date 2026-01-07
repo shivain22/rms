@@ -12,6 +12,7 @@ import databaseVendor from 'app/modules/administration/tenant-management/databas
 import databaseVendorVersion from 'app/modules/administration/tenant-management/database-vendor-version.reducer';
 import databaseDriver from 'app/modules/administration/tenant-management/database-driver.reducer';
 import platform from 'app/modules/administration/tenant-management/platform.reducer';
+import databaseVendorManagement from 'app/modules/administration/database-management/database-vendor.reducer';
 /* jhipster-needle-add-reducer-import - JHipster will add reducer here */
 
 const rootReducer: ReducersMapObject = {
@@ -25,6 +26,7 @@ const rootReducer: ReducersMapObject = {
   databaseVendorVersion,
   databaseDriver,
   platform,
+  databaseVendorManagement,
   loadingBar,
   /* jhipster-needle-add-reducer-combine - JHipster will add reducer here */
 };

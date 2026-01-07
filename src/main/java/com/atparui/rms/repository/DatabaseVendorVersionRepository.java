@@ -22,25 +22,25 @@ public class DatabaseVendorVersionRepository {
         return masterTemplate.select(DatabaseVendorVersion.class).all();
     }
 
-    public Flux<DatabaseVendorVersion> findByVendorId(Long vendorId) {
-        return masterTemplate.select(DatabaseVendorVersion.class).matching(Query.query(Criteria.where("vendor_id").is(vendorId))).all();
+    public Flux<DatabaseVendorVersion> findByDatabaseId(Long databaseId) {
+        return masterTemplate.select(DatabaseVendorVersion.class).matching(Query.query(Criteria.where("database_id").is(databaseId))).all();
     }
 
-    public Flux<DatabaseVendorVersion> findByVendorIdAndActiveTrue(Long vendorId) {
+    public Flux<DatabaseVendorVersion> findByDatabaseIdAndActiveTrue(Long databaseId) {
         return masterTemplate
             .select(DatabaseVendorVersion.class)
-            .matching(Query.query(Criteria.where("vendor_id").is(vendorId).and("active").is(true)))
+            .matching(Query.query(Criteria.where("database_id").is(databaseId).and("active").is(true)))
             .all();
     }
 
-    public Flux<DatabaseVendorVersion> findRecentVersions(Long vendorId, int years) {
+    public Flux<DatabaseVendorVersion> findRecentVersions(Long databaseId, int years) {
         // Get versions from last N years
         java.time.LocalDate cutoffDate = java.time.LocalDate.now().minusYears(years);
         return masterTemplate
             .select(DatabaseVendorVersion.class)
             .matching(
                 Query.query(
-                    Criteria.where("vendor_id").is(vendorId).and("active").is(true).and("release_date").greaterThanOrEquals(cutoffDate)
+                    Criteria.where("database_id").is(databaseId).and("active").is(true).and("release_date").greaterThanOrEquals(cutoffDate)
                 )
             )
             .all();
@@ -50,10 +50,10 @@ public class DatabaseVendorVersionRepository {
         return masterTemplate.selectOne(Query.query(Criteria.where("id").is(id)), DatabaseVendorVersion.class);
     }
 
-    public Mono<DatabaseVendorVersion> findByVendorIdAndVersion(Long vendorId, String version) {
+    public Mono<DatabaseVendorVersion> findByDatabaseIdAndVersion(Long databaseId, String version) {
         return masterTemplate
             .select(DatabaseVendorVersion.class)
-            .matching(Query.query(Criteria.where("vendor_id").is(vendorId).and("version").is(version)))
+            .matching(Query.query(Criteria.where("database_id").is(databaseId).and("version").is(version)))
             .one();
     }
 
@@ -69,9 +69,9 @@ public class DatabaseVendorVersionRepository {
         return masterTemplate.delete(DatabaseVendorVersion.class).matching(Query.query(Criteria.where("id").is(id))).all().then();
     }
 
-    public Mono<Boolean> existsByVendorIdAndVersion(Long vendorId, String version) {
+    public Mono<Boolean> existsByDatabaseIdAndVersion(Long databaseId, String version) {
         return masterTemplate.exists(
-            Query.query(Criteria.where("vendor_id").is(vendorId).and("version").is(version)),
+            Query.query(Criteria.where("database_id").is(databaseId).and("version").is(version)),
             DatabaseVendorVersion.class
         );
     }

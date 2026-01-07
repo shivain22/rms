@@ -11,7 +11,7 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Table("database_versions")
-public class DatabaseVersion {
+public class DatabaseVendorVersion {
 
     @Id
     private Long id;
@@ -56,9 +56,9 @@ public class DatabaseVersion {
     private Instant lastModifiedDate = Instant.now();
 
     // Constructors
-    public DatabaseVersion() {}
+    public DatabaseVendorVersion() {}
 
-    public DatabaseVersion(Long databaseId, String version, String displayName) {
+    public DatabaseVendorVersion(Long databaseId, String version, String displayName) {
         this.databaseId = databaseId;
         this.version = version;
         this.displayName = displayName;
@@ -166,8 +166,8 @@ public class DatabaseVersion {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof DatabaseVersion)) return false;
-        return id != null && id.equals(((DatabaseVersion) o).id);
+        if (!(o instanceof DatabaseVendorVersion)) return false;
+        return id != null && id.equals(((DatabaseVendorVersion) o).id);
     }
 
     @Override
@@ -178,7 +178,7 @@ public class DatabaseVersion {
     @Override
     public String toString() {
         return (
-            "DatabaseVersion{" +
+            "DatabaseVendorVersion{" +
             "id=" +
             id +
             ", databaseId=" +
