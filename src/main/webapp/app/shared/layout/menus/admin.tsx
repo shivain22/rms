@@ -18,6 +18,15 @@ const adminMenuItems = () => (
     <MenuItem icon="database" to="/admin/database-vendor-management">
       <Translate contentKey="global.menu.admin.databaseVendorManagement">Database Vendors</Translate>
     </MenuItem>
+    <MenuItem icon="server" to="/admin/database-management">
+      <Translate contentKey="global.menu.admin.databaseManagement">Databases</Translate>
+    </MenuItem>
+    <MenuItem icon="tags" to="/admin/database-version-management">
+      <Translate contentKey="global.menu.admin.databaseVersionManagement">Database Versions</Translate>
+    </MenuItem>
+    <MenuItem icon="upload" to="/admin/driver-jar-management">
+      <Translate contentKey="global.menu.admin.driverJarManagement">Driver JARs</Translate>
+    </MenuItem>
     <MenuItem icon="tachometer-alt" to="/admin/metrics">
       <Translate contentKey="global.menu.admin.metrics">Metrics</Translate>
     </MenuItem>
