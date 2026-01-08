@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20250108000001-1" author="system">
+        <comment>Add prefix, subdomain, and GitHub repo columns to platforms table</comment>
+        
+        <addColumn tableName="platforms">
+            <column name="prefix" type="varchar(10)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="subdomain" type="varchar(100)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="webapp_github_repo" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="mobile_github_repo" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <createIndex indexName="idx_platforms_prefix" tableName="platforms" unique="true">
+            <column name="prefix"/>
+        </createIndex>
+        
+        <createIndex indexName="idx_platforms_subdomain" tableName="platforms" unique="true">
+            <column name="subdomain"/>
+        </createIndex>
+        
+        <rollback>
+            <dropIndex indexName="idx_platforms_subdomain" tableName="platforms"/>
+            <dropIndex indexName="idx_platforms_prefix" tableName="platforms"/>
+            <dropColumn tableName="platforms" columnName="mobile_github_repo"/>
+            <dropColumn tableName="platforms" columnName="webapp_github_repo"/>
+            <dropColumn tableName="platforms" columnName="subdomain"/>
+            <dropColumn tableName="platforms" columnName="prefix"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="20250108000001-2" author="system">
+        <comment>Update existing platforms with prefix, subdomain, and GitHub repos</comment>
+        
+        <!-- Restaurant Management System -->
+        <update tableName="platforms">
+            <column name="prefix" value="RMS"/>
+            <column name="subdomain" value="rms.atparui.com"/>
+            <column name="webapp_github_repo" value="https://github.com/atparui/rms-webapp"/>
+            <column name="mobile_github_repo" value="https://github.com/atparui/rms-mobile"/>
+            <where>name = 'Restaurant Management System'</where>
+        </update>
+        
+        <!-- Ecommerce -->
+        <update tableName="platforms">
+            <column name="prefix" value="ECM"/>
+            <column name="subdomain" value="ecommerce.atparui.com"/>
+            <column name="webapp_github_repo" value="https://github.com/atparui/ecm-webapp"/>
+            <column name="mobile_github_repo" value="https://github.com/atparui/ecm-mobile"/>
+            <where>name = 'Ecommerce'</where>
+        </update>
+        
+        <!-- Neo Banking -->
+        <update tableName="platforms">
+            <column name="prefix" value="NBK"/>
+            <column name="subdomain" value="neobanking.atparui.com"/>
+            <column name="webapp_github_repo" value="https://github.com/atparui/nbk-webapp"/>
+            <column name="mobile_github_repo" value="https://github.com/atparui/nbk-mobile"/>
+            <where>name = 'Neo Banking'</where>
+        </update>
+        
+        <!-- AWD Farming -->
+        <update tableName="platforms">
+            <column name="prefix" value="AWD"/>
+            <column name="subdomain" value="awdfarming.atparui.com"/>
+            <column name="webapp_github_repo" value="https://github.com/atparui/awd-webapp"/>
+            <column name="mobile_github_repo" value="https://github.com/atparui/awd-mobile"/>
+            <where>name = 'AWD Farming (Alternative Wet and Dry Farming)'</where>
+        </update>
+        
+        <!-- Visitor Pass Management System -->
+        <update tableName="platforms">
+            <column name="prefix" value="VPM"/>
+            <column name="subdomain" value="visitorpass.atparui.com"/>
+            <column name="webapp_github_repo" value="https://github.com/atparui/vpm-webapp"/>
+            <column name="mobile_github_repo" value="https://github.com/atparui/vpm-mobile"/>
+            <where>name = 'Visitor Pass Management System'</where>
+        </update>
+        
+        <!-- Hospital Management System -->
+        <update tableName="platforms">
+            <column name="prefix" value="HMS"/>
+            <column name="subdomain" value="hospital.atparui.com"/>
+            <column name="webapp_github_repo" value="https://github.com/atparui/hms-webapp"/>
+            <column name="mobile_github_repo" value="https://github.com/atparui/hms-mobile"/>
+            <where>name = 'Hospital Management System'</where>
+        </update>
+        
+        <!-- Event Management System -->
+        <update tableName="platforms">
+            <column name="prefix" value="EMS"/>
+            <column name="subdomain" value="events.atparui.com"/>
+            <column name="webapp_github_repo" value="https://github.com/atparui/ems-webapp"/>
+            <column name="mobile_github_repo" value="https://github.com/atparui/ems-mobile"/>
+            <where>name = 'Event Management System'</where>
+        </update>
+        
+        <!-- Dairy Management System -->
+        <update tableName="platforms">
+            <column name="prefix" value="DMS"/>
+            <column name="subdomain" value="dairy.atparui.com"/>
+            <column name="webapp_github_repo" value="https://github.com/atparui/dms-webapp"/>
+            <column name="mobile_github_repo" value="https://github.com/atparui/dms-mobile"/>
+            <where>name = 'Dairy Management System'</where>
+        </update>
+        
+        <rollback>
+            <update tableName="platforms">
+                <column name="prefix" value=""/>
+                <column name="subdomain" value=""/>
+                <column name="webapp_github_repo" value=""/>
+                <column name="mobile_github_repo" value=""/>
+            </update>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="20250108000001-3" author="system">
+        <comment>Make prefix column NOT NULL after data migration</comment>
+        
+        <addNotNullConstraint tableName="platforms" columnName="prefix" columnDataType="varchar(10)"/>
+        
+        <rollback>
+            <dropNotNullConstraint tableName="platforms" columnName="prefix" columnDataType="varchar(10)"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
+

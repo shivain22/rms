@@ -20,9 +20,26 @@ public class Platform {
     @Column("name")
     private String name;
 
+    @NotNull
+    @Size(min = 2, max = 10)
+    @Column("prefix")
+    private String prefix;
+
     @Size(max = 500)
     @Column("description")
     private String description;
+
+    @Size(max = 100)
+    @Column("subdomain")
+    private String subdomain;
+
+    @Size(max = 255)
+    @Column("webapp_github_repo")
+    private String webappGithubRepo;
+
+    @Size(max = 255)
+    @Column("mobile_github_repo")
+    private String mobileGithubRepo;
 
     private Boolean active = true;
 
@@ -37,9 +54,20 @@ public class Platform {
     // Constructors
     public Platform() {}
 
-    public Platform(String name, String description) {
+    public Platform(String name, String prefix, String description) {
         this.name = name;
+        this.prefix = prefix;
         this.description = description;
+        this.active = true;
+    }
+
+    public Platform(String name, String prefix, String description, String subdomain, String webappGithubRepo, String mobileGithubRepo) {
+        this.name = name;
+        this.prefix = prefix;
+        this.description = description;
+        this.subdomain = subdomain;
+        this.webappGithubRepo = webappGithubRepo;
+        this.mobileGithubRepo = mobileGithubRepo;
         this.active = true;
     }
 
@@ -60,12 +88,44 @@ public class Platform {
         this.name = name;
     }
 
+    public String getPrefix() {
+        return prefix;
+    }
+
+    public void setPrefix(String prefix) {
+        this.prefix = prefix;
+    }
+
     public String getDescription() {
         return description;
     }
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getSubdomain() {
+        return subdomain;
+    }
+
+    public void setSubdomain(String subdomain) {
+        this.subdomain = subdomain;
+    }
+
+    public String getWebappGithubRepo() {
+        return webappGithubRepo;
+    }
+
+    public void setWebappGithubRepo(String webappGithubRepo) {
+        this.webappGithubRepo = webappGithubRepo;
+    }
+
+    public String getMobileGithubRepo() {
+        return mobileGithubRepo;
+    }
+
+    public void setMobileGithubRepo(String mobileGithubRepo) {
+        this.mobileGithubRepo = mobileGithubRepo;
     }
 
     public Boolean getActive() {
@@ -106,6 +166,22 @@ public class Platform {
 
     @Override
     public String toString() {
-        return ("Platform{" + "id=" + id + ", name='" + name + '\'' + ", active=" + active + '}');
+        return (
+            "Platform{" +
+            "id=" +
+            id +
+            ", name='" +
+            name +
+            '\'' +
+            ", prefix='" +
+            prefix +
+            '\'' +
+            ", subdomain='" +
+            subdomain +
+            '\'' +
+            ", active=" +
+            active +
+            '}'
+        );
     }
 }

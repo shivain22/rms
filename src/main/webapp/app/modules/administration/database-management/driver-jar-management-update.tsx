@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Translate, translate } from 'react-jhipster';
 import { ArrowLeft, Save, Loader2, Upload } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -13,7 +12,6 @@ import { useAppDispatch, useAppSelector } from 'app/config/store';
 import { getDriverJar, updateDriverJar, uploadDriverJar } from './driver-jar.reducer';
 import { IDriverJar } from './driver-jar.model';
 import { getDatabaseVersions } from './database-version.reducer';
-import axios from 'axios';
 
 const DriverJarManagementUpdate = () => {
   const dispatch = useAppDispatch();
@@ -102,38 +100,27 @@ const DriverJarManagementUpdate = () => {
     <div className="space-y-8 w-full">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            <Translate contentKey={isNew ? 'driverJarManagement.home.uploadLabel' : 'driverJarManagement.home.editLabel'}>
-              {isNew ? 'Upload Driver JAR' : 'Edit Driver JAR'}
-            </Translate>
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">{isNew ? 'Upload Driver JAR' : 'Edit Driver JAR'}</h1>
         </div>
         <Button asChild variant="outline">
           <Link to="/admin/driver-jar-management">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            <Translate contentKey="entity.action.back">Back</Translate>
+            Back
           </Link>
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>
-            <Translate contentKey="driverJarManagement.form.title">Driver JAR Information</Translate>
-          </CardTitle>
-          <CardDescription>
-            <Translate contentKey="driverJarManagement.form.description">
-              {isNew ? 'Upload a JDBC or R2DBC driver JAR file' : 'Update driver JAR details'}
-            </Translate>
-          </CardDescription>
+          <CardTitle>Driver JAR Information</CardTitle>
+          <CardDescription>{isNew ? 'Upload a JDBC or R2DBC driver JAR file' : 'Update driver JAR details'}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="versionId">
-                  <Translate contentKey="driverJarManagement.version">Database Version</Translate>
-                  <span className="text-destructive">*</span>
+                  Database Version <span className="text-destructive">*</span>
                 </Label>
                 <Select
                   value={formData.versionId?.toString() || ''}
@@ -155,8 +142,7 @@ const DriverJarManagementUpdate = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="driverType">
-                  <Translate contentKey="driverJarManagement.driverType">Driver Type</Translate>
-                  <span className="text-destructive">*</span>
+                  Driver Type <span className="text-destructive">*</span>
                 </Label>
                 <Select
                   value={formData.driverType || 'JDBC'}
@@ -176,8 +162,7 @@ const DriverJarManagementUpdate = () => {
               {isNew && (
                 <div className="space-y-2">
                   <Label htmlFor="file">
-                    <Translate contentKey="driverJarManagement.file">JAR File</Translate>
-                    <span className="text-destructive">*</span>
+                    JAR File <span className="text-destructive">*</span>
                   </Label>
                   <Input id="file" type="file" accept=".jar" onChange={handleFileChange} required={isNew} className="cursor-pointer" />
                   {selectedFile && (
@@ -190,8 +175,7 @@ const DriverJarManagementUpdate = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="driverClassName">
-                  <Translate contentKey="driverJarManagement.driverClassName">Driver Class Name</Translate>
-                  <span className="text-destructive">*</span>
+                  Driver Class Name <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="driverClassName"
@@ -203,9 +187,7 @@ const DriverJarManagementUpdate = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">
-                  <Translate contentKey="driverJarManagement.description">Description</Translate>
-                </Label>
+                <Label htmlFor="description">Description</Label>
                 <Input
                   id="description"
                   value={formData.description}
@@ -223,7 +205,7 @@ const DriverJarManagementUpdate = () => {
                       onCheckedChange={checked => setFormData({ ...formData, isDefault: !!checked })}
                     />
                     <Label htmlFor="isDefault" className="cursor-pointer">
-                      <Translate contentKey="driverJarManagement.isDefault">Set as Default</Translate>
+                      Set as Default
                     </Label>
                   </div>
 
@@ -234,7 +216,7 @@ const DriverJarManagementUpdate = () => {
                       onCheckedChange={checked => setFormData({ ...formData, active: !!checked })}
                     />
                     <Label htmlFor="active" className="cursor-pointer">
-                      <Translate contentKey="driverJarManagement.active">Active</Translate>
+                      Active
                     </Label>
                   </div>
                 </>
@@ -242,29 +224,25 @@ const DriverJarManagementUpdate = () => {
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" asChild>
-                  <Link to="/admin/driver-jar-management">
-                    <Translate contentKey="entity.action.cancel">Cancel</Translate>
-                  </Link>
+                  <Link to="/admin/driver-jar-management">Cancel</Link>
                 </Button>
                 <Button type="submit" disabled={loading || uploading}>
                   {loading || uploading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      <Translate contentKey={isNew ? 'driverJarManagement.uploading' : 'entity.action.saving'}>
-                        {isNew ? 'Uploading...' : 'Saving...'}
-                      </Translate>
+                      {isNew ? 'Uploading...' : 'Saving...'}
                     </>
                   ) : (
                     <>
                       {isNew ? (
                         <>
                           <Upload className="mr-2 h-4 w-4" />
-                          <Translate contentKey="driverJarManagement.upload">Upload</Translate>
+                          Upload
                         </>
                       ) : (
                         <>
                           <Save className="mr-2 h-4 w-4" />
-                          <Translate contentKey="entity.action.save">Save</Translate>
+                          Save
                         </>
                       )}
                     </>

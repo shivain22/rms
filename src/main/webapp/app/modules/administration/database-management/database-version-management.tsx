@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Translate } from 'react-jhipster';
 import { RefreshCw, Plus, ArrowUpDown, ArrowUp, ArrowDown, Eye, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -52,21 +51,19 @@ const DatabaseVersionManagement = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" id="database-version-management-page-heading">
-            <Translate contentKey="databaseVersionManagement.home.title">Database Versions</Translate>
+            Database Versions
           </h1>
-          <p className="text-muted-foreground mt-1.5">
-            <Translate contentKey="databaseVersionManagement.home.subtitle">Manage database versions</Translate>
-          </p>
+          <p className="text-muted-foreground mt-1.5">Manage database versions</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => dispatch(getDatabaseVersions())} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            <Translate contentKey="databaseVersionManagement.home.refreshListLabel">Refresh List</Translate>
+            Refresh List
           </Button>
           <Button asChild variant="default">
             <Link to="/admin/database-version-management/new" className="jh-create-entity">
               <Plus className="mr-2 h-4 w-4" />
-              <Translate contentKey="databaseVersionManagement.home.createLabel">Create a new Database Version</Translate>
+              Create a new Database Version
             </Link>
           </Button>
         </div>
@@ -76,12 +73,8 @@ const DatabaseVersionManagement = () => {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>
-              <Translate contentKey="databaseVersionManagement.table.title">Database Version List</Translate>
-            </CardTitle>
-            <CardDescription>
-              <Translate contentKey="databaseVersionManagement.table.description">View and manage all database versions</Translate>
-            </CardDescription>
+            <CardTitle>Database Version List</CardTitle>
+            <CardDescription>View and manage all database versions</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -91,34 +84,22 @@ const DatabaseVersionManagement = () => {
                 <TableRow className="border-b">
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('id')}>
                     <div className="flex items-center">
-                      <Translate contentKey="global.field.id">ID</Translate>
+                      ID
                       {getSortIconByFieldName('id')}
                     </div>
                   </TableHead>
-                  <TableHead>
-                    <Translate contentKey="databaseVersionManagement.database">Database</Translate>
-                  </TableHead>
+                  <TableHead>Database</TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('version')}>
                     <div className="flex items-center">
-                      <Translate contentKey="databaseVersionManagement.version">Version</Translate>
+                      Version
                       {getSortIconByFieldName('version')}
                     </div>
                   </TableHead>
-                  <TableHead>
-                    <Translate contentKey="databaseVersionManagement.displayName">Display Name</Translate>
-                  </TableHead>
-                  <TableHead>
-                    <Translate contentKey="databaseVersionManagement.isSupported">Supported</Translate>
-                  </TableHead>
-                  <TableHead>
-                    <Translate contentKey="databaseVersionManagement.isRecommended">Recommended</Translate>
-                  </TableHead>
-                  <TableHead>
-                    <Translate contentKey="databaseVersionManagement.active">Active</Translate>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <Translate contentKey="global.field.actions">Actions</Translate>
-                  </TableHead>
+                  <TableHead>Display Name</TableHead>
+                  <TableHead>Supported</TableHead>
+                  <TableHead>Recommended</TableHead>
+                  <TableHead>Active</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -155,19 +136,19 @@ const DatabaseVersionManagement = () => {
                             <DropdownMenuItem asChild>
                               <Link to={`/admin/database-version-management/${version.id}`}>
                                 <Eye className="mr-2 h-4 w-4" />
-                                <Translate contentKey="entity.action.view">View</Translate>
+                                View
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link to={`/admin/database-version-management/${version.id}/edit`}>
                                 <Pencil className="mr-2 h-4 w-4" />
-                                <Translate contentKey="entity.action.edit">Edit</Translate>
+                                Edit
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link to={`/admin/database-version-management/${version.id}/delete`}>
                                 <Trash2 className="mr-2 h-4 w-4" />
-                                <Translate contentKey="entity.action.delete">Delete</Translate>
+                                Delete
                               </Link>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -178,7 +159,7 @@ const DatabaseVersionManagement = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      <Translate contentKey="databaseVersionManagement.table.empty">No database versions found</Translate>
+                      No database versions found
                     </TableCell>
                   </TableRow>
                 )}

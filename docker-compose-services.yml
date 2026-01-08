@@ -67,7 +67,7 @@ services:
       - rms-network
 
   postgresql:
-    image: postgres:15.4
+    image: postgres:17
     container_name: rms-postgresql
     ports:
       - '5432:5432'

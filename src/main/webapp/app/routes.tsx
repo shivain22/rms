@@ -1,7 +1,5 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Route } from 'react-router';
-
-import Loadable from 'react-loadable';
 
 import LoginRedirect from 'app/modules/login/login-redirect';
 import Logout from 'app/modules/login/logout';
@@ -11,13 +9,16 @@ import PrivateRoute from 'app/shared/auth/private-route';
 import ErrorBoundaryRoutes from 'app/shared/error/error-boundary-routes';
 import PageNotFound from 'app/shared/error/page-not-found';
 import { AUTHORITIES } from 'app/config/constants';
+import { Loader2 } from 'lucide-react';
 
-const loading = <div>loading ...</div>;
+const Admin = lazy(() => import(/* webpackChunkName: "administration" */ 'app/modules/administration'));
 
-const Admin = Loadable({
-  loader: () => import(/* webpackChunkName: "administration" */ 'app/modules/administration'),
-  loading: () => loading,
-});
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center py-8">
+    <Loader2 className="h-6 w-6 animate-spin" />
+    <span className="ml-2">Loading...</span>
+  </div>
+);
 
 const AppRoutes = () => {
   return (
@@ -29,7 +30,9 @@ const AppRoutes = () => {
           path="admin/*"
           element={
             <PrivateRoute hasAnyAuthorities={[AUTHORITIES.ADMIN]}>
-              <Admin />
+              <Suspense fallback={<LoadingFallback />}>
+                <Admin />
+              </Suspense>
             </PrivateRoute>
           }
         />

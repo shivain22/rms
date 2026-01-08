@@ -91,6 +91,9 @@ public class Tenant {
     @Column("platform_id")
     private Long platformId;
 
+    @Column("is_template")
+    private Boolean isTemplate = false;
+
     private Boolean active = true;
 
     @CreatedDate
@@ -324,6 +327,14 @@ public class Tenant {
 
     public void setPlatformId(Long platformId) {
         this.platformId = platformId;
+    }
+
+    public Boolean getIsTemplate() {
+        return isTemplate;
+    }
+
+    public void setIsTemplate(Boolean isTemplate) {
+        this.isTemplate = isTemplate;
     }
 
     public Boolean getActive() {

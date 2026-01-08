@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Translate } from 'react-jhipster';
 import { RefreshCw, Plus, ArrowUpDown, ArrowUp, ArrowDown, Eye, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -50,21 +49,19 @@ const DatabaseVendorManagement = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" id="database-vendor-management-page-heading">
-            <Translate contentKey="databaseVendorManagement.home.title">Database Vendors</Translate>
+            Database Vendors
           </h1>
-          <p className="text-muted-foreground mt-1.5">
-            <Translate contentKey="databaseVendorManagement.home.subtitle">Manage database vendors and providers</Translate>
-          </p>
+          <p className="text-muted-foreground mt-1.5">Manage database vendors and providers</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => dispatch(getDatabaseVendors())} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            <Translate contentKey="databaseVendorManagement.home.refreshListLabel">Refresh List</Translate>
+            Refresh List
           </Button>
           <Button asChild variant="default">
             <Link to="/admin/database-vendor-management/new" className="jh-create-entity">
               <Plus className="mr-2 h-4 w-4" />
-              <Translate contentKey="databaseVendorManagement.home.createLabel">Create a new Database Vendor</Translate>
+              Create a new Database Vendor
             </Link>
           </Button>
         </div>
@@ -74,12 +71,8 @@ const DatabaseVendorManagement = () => {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>
-              <Translate contentKey="databaseVendorManagement.table.title">Database Vendor List</Translate>
-            </CardTitle>
-            <CardDescription>
-              <Translate contentKey="databaseVendorManagement.table.description">View and manage all database vendors</Translate>
-            </CardDescription>
+            <CardTitle>Database Vendor List</CardTitle>
+            <CardDescription>View and manage all database vendors</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -89,34 +82,26 @@ const DatabaseVendorManagement = () => {
                 <TableRow className="border-b">
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('id')}>
                     <div className="flex items-center">
-                      <Translate contentKey="global.field.id">ID</Translate>
+                      ID
                       {getSortIconByFieldName('id')}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('vendorCode')}>
                     <div className="flex items-center">
-                      <Translate contentKey="databaseVendorManagement.vendorCode">Vendor Code</Translate>
+                      Vendor Code
                       {getSortIconByFieldName('vendorCode')}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('displayName')}>
                     <div className="flex items-center">
-                      <Translate contentKey="databaseVendorManagement.displayName">Display Name</Translate>
+                      Display Name
                       {getSortIconByFieldName('displayName')}
                     </div>
                   </TableHead>
-                  <TableHead>
-                    <Translate contentKey="databaseVendorManagement.defaultPort">Default Port</Translate>
-                  </TableHead>
-                  <TableHead>
-                    <Translate contentKey="databaseVendorManagement.driverKey">Driver Key</Translate>
-                  </TableHead>
-                  <TableHead>
-                    <Translate contentKey="databaseVendorManagement.active">Active</Translate>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <Translate contentKey="global.field.actions">Actions</Translate>
-                  </TableHead>
+                  <TableHead>Default Port</TableHead>
+                  <TableHead>Driver Key</TableHead>
+                  <TableHead>Active</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -148,19 +133,19 @@ const DatabaseVendorManagement = () => {
                             <DropdownMenuItem asChild>
                               <Link to={`/admin/database-vendor-management/${vendor.id}`}>
                                 <Eye className="mr-2 h-4 w-4" />
-                                <Translate contentKey="entity.action.view">View</Translate>
+                                View
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link to={`/admin/database-vendor-management/${vendor.id}/edit`}>
                                 <Pencil className="mr-2 h-4 w-4" />
-                                <Translate contentKey="entity.action.edit">Edit</Translate>
+                                Edit
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link to={`/admin/database-vendor-management/${vendor.id}/delete`}>
                                 <Trash2 className="mr-2 h-4 w-4" />
-                                <Translate contentKey="entity.action.delete">Delete</Translate>
+                                Delete
                               </Link>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -171,7 +156,7 @@ const DatabaseVendorManagement = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      <Translate contentKey="databaseVendorManagement.table.empty">No database vendors found</Translate>
+                      No database vendors found
                     </TableCell>
                   </TableRow>
                 )}

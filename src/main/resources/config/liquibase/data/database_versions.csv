@@ -1,5 +1,6 @@
 database_id,version,display_name,release_date,is_supported,is_recommended,active
-1,16,PostgreSQL 16,2023-09-14,true,true,true
+1,17,PostgreSQL 17,2024-09-26,true,true,true
+1,16,PostgreSQL 16,2023-09-14,true,false,true
 1,15,PostgreSQL 15,2022-10-13,true,false,true
 1,14,PostgreSQL 14,2021-09-30,true,false,true
 2,8.0,MySQL 8.0,2018-04-19,true,true,true

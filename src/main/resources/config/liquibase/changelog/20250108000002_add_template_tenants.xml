@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Add is_template column to distinguish template tenants -->
+    <changeSet id="20250108000002-1" author="system">
+        <comment>Add is_template column to tenants table</comment>
+        
+        <addColumn tableName="tenants">
+            <column name="is_template" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        
+        <createIndex indexName="idx_tenants_is_template" tableName="tenants">
+            <column name="is_template"/>
+        </createIndex>
+        
+        <rollback>
+            <dropIndex indexName="idx_tenants_is_template" tableName="tenants"/>
+            <dropColumn tableName="tenants" columnName="is_template"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Create default template tenants for each platform -->
+    <changeSet id="20250108000002-2" author="system">
+        <comment>Create default template tenants for each platform type using PostgreSQL 16</comment>
+        
+        <!-- RMS - Restaurant Management System Template (platform_id = 1) -->
+        <insert tableName="tenants">
+            <column name="tenant_key" value="rms-template"/>
+            <column name="tenant_id" value="rms-template"/>
+            <column name="name" value="RMS Default Template"/>
+            <column name="subdomain" value="rms-template"/>
+            <column name="database_vendor_code" value="POSTGRESQL"/>
+            <column name="database_version_id" valueNumeric="1"/>
+            <column name="driver_type" value="R2DBC"/>
+            <column name="database_provisioning_mode" value="AUTO_CREATE"/>
+            <column name="database_host" value="localhost"/>
+            <column name="database_port" valueNumeric="5432"/>
+            <column name="database_name" value="rms_tenant"/>
+            <column name="database_url" value="r2dbc:postgresql://localhost:5432/rms_tenant"/>
+            <column name="database_username" value="rms"/>
+            <column name="database_password" value=""/>
+            <column name="schema_name" value="public"/>
+            <column name="realm_name" value="rms-template-realm"/>
+            <column name="client_id" value="rms-template-web"/>
+            <column name="default_roles" value="ROLE_ADMIN,ROLE_MANAGER,ROLE_WAITER,ROLE_CHEF,ROLE_CASHIER,ROLE_CUSTOMER"/>
+            <column name="platform_id" valueNumeric="1"/>
+            <column name="is_template" valueBoolean="true"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <!-- ECM - Ecommerce Template (platform_id = 2) -->
+        <insert tableName="tenants">
+            <column name="tenant_key" value="ecm-template"/>
+            <column name="tenant_id" value="ecm-template"/>
+            <column name="name" value="ECM Default Template"/>
+            <column name="subdomain" value="ecm-template"/>
+            <column name="database_vendor_code" value="POSTGRESQL"/>
+            <column name="database_version_id" valueNumeric="1"/>
+            <column name="driver_type" value="R2DBC"/>
+            <column name="database_provisioning_mode" value="AUTO_CREATE"/>
+            <column name="database_host" value="localhost"/>
+            <column name="database_port" valueNumeric="5432"/>
+            <column name="database_name" value="ecm_tenant"/>
+            <column name="database_url" value="r2dbc:postgresql://localhost:5432/ecm_tenant"/>
+            <column name="database_username" value="rms"/>
+            <column name="database_password" value=""/>
+            <column name="schema_name" value="public"/>
+            <column name="realm_name" value="ecm-template-realm"/>
+            <column name="client_id" value="ecm-template-web"/>
+            <column name="default_roles" value="ROLE_ADMIN,ROLE_MANAGER,ROLE_SELLER,ROLE_CUSTOMER,ROLE_SUPPORT"/>
+            <column name="platform_id" valueNumeric="2"/>
+            <column name="is_template" valueBoolean="true"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <!-- NBK - Neo Banking Template (platform_id = 3) -->
+        <insert tableName="tenants">
+            <column name="tenant_key" value="nbk-template"/>
+            <column name="tenant_id" value="nbk-template"/>
+            <column name="name" value="NBK Default Template"/>
+            <column name="subdomain" value="nbk-template"/>
+            <column name="database_vendor_code" value="POSTGRESQL"/>
+            <column name="database_version_id" valueNumeric="1"/>
+            <column name="driver_type" value="R2DBC"/>
+            <column name="database_provisioning_mode" value="AUTO_CREATE"/>
+            <column name="database_host" value="localhost"/>
+            <column name="database_port" valueNumeric="5432"/>
+            <column name="database_name" value="nbk_tenant"/>
+            <column name="database_url" value="r2dbc:postgresql://localhost:5432/nbk_tenant"/>
+            <column name="database_username" value="rms"/>
+            <column name="database_password" value=""/>
+            <column name="schema_name" value="public"/>
+            <column name="realm_name" value="nbk-template-realm"/>
+            <column name="client_id" value="nbk-template-web"/>
+            <column name="default_roles" value="ROLE_ADMIN,ROLE_MANAGER,ROLE_TELLER,ROLE_CUSTOMER,ROLE_AUDITOR"/>
+            <column name="platform_id" valueNumeric="3"/>
+            <column name="is_template" valueBoolean="true"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <!-- AWD - AWD Farming Template (platform_id = 4) -->
+        <insert tableName="tenants">
+            <column name="tenant_key" value="awd-template"/>
+            <column name="tenant_id" value="awd-template"/>
+            <column name="name" value="AWD Default Template"/>
+            <column name="subdomain" value="awd-template"/>
+            <column name="database_vendor_code" value="POSTGRESQL"/>
+            <column name="database_version_id" valueNumeric="1"/>
+            <column name="driver_type" value="R2DBC"/>
+            <column name="database_provisioning_mode" value="AUTO_CREATE"/>
+            <column name="database_host" value="localhost"/>
+            <column name="database_port" valueNumeric="5432"/>
+            <column name="database_name" value="awd_tenant"/>
+            <column name="database_url" value="r2dbc:postgresql://localhost:5432/awd_tenant"/>
+            <column name="database_username" value="rms"/>
+            <column name="database_password" value=""/>
+            <column name="schema_name" value="public"/>
+            <column name="realm_name" value="awd-template-realm"/>
+            <column name="client_id" value="awd-template-web"/>
+            <column name="default_roles" value="ROLE_ADMIN,ROLE_MANAGER,ROLE_FARMER,ROLE_TECHNICIAN,ROLE_ANALYST"/>
+            <column name="platform_id" valueNumeric="4"/>
+            <column name="is_template" valueBoolean="true"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <!-- VPM - Visitor Pass Management Template (platform_id = 5) -->
+        <insert tableName="tenants">
+            <column name="tenant_key" value="vpm-template"/>
+            <column name="tenant_id" value="vpm-template"/>
+            <column name="name" value="VPM Default Template"/>
+            <column name="subdomain" value="vpm-template"/>
+            <column name="database_vendor_code" value="POSTGRESQL"/>
+            <column name="database_version_id" valueNumeric="1"/>
+            <column name="driver_type" value="R2DBC"/>
+            <column name="database_provisioning_mode" value="AUTO_CREATE"/>
+            <column name="database_host" value="localhost"/>
+            <column name="database_port" valueNumeric="5432"/>
+            <column name="database_name" value="vpm_tenant"/>
+            <column name="database_url" value="r2dbc:postgresql://localhost:5432/vpm_tenant"/>
+            <column name="database_username" value="rms"/>
+            <column name="database_password" value=""/>
+            <column name="schema_name" value="public"/>
+            <column name="realm_name" value="vpm-template-realm"/>
+            <column name="client_id" value="vpm-template-web"/>
+            <column name="default_roles" value="ROLE_ADMIN,ROLE_MANAGER,ROLE_SECURITY,ROLE_RECEPTIONIST,ROLE_VISITOR"/>
+            <column name="platform_id" valueNumeric="5"/>
+            <column name="is_template" valueBoolean="true"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <!-- HMS - Hospital Management System Template (platform_id = 6) -->
+        <insert tableName="tenants">
+            <column name="tenant_key" value="hms-template"/>
+            <column name="tenant_id" value="hms-template"/>
+            <column name="name" value="HMS Default Template"/>
+            <column name="subdomain" value="hms-template"/>
+            <column name="database_vendor_code" value="POSTGRESQL"/>
+            <column name="database_version_id" valueNumeric="1"/>
+            <column name="driver_type" value="R2DBC"/>
+            <column name="database_provisioning_mode" value="AUTO_CREATE"/>
+            <column name="database_host" value="localhost"/>
+            <column name="database_port" valueNumeric="5432"/>
+            <column name="database_name" value="hms_tenant"/>
+            <column name="database_url" value="r2dbc:postgresql://localhost:5432/hms_tenant"/>
+            <column name="database_username" value="rms"/>
+            <column name="database_password" value=""/>
+            <column name="schema_name" value="public"/>
+            <column name="realm_name" value="hms-template-realm"/>
+            <column name="client_id" value="hms-template-web"/>
+            <column name="default_roles" value="ROLE_ADMIN,ROLE_DOCTOR,ROLE_NURSE,ROLE_RECEPTIONIST,ROLE_PATIENT,ROLE_PHARMACIST"/>
+            <column name="platform_id" valueNumeric="6"/>
+            <column name="is_template" valueBoolean="true"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <!-- EMS - Event Management System Template (platform_id = 7) -->
+        <insert tableName="tenants">
+            <column name="tenant_key" value="ems-template"/>
+            <column name="tenant_id" value="ems-template"/>
+            <column name="name" value="EMS Default Template"/>
+            <column name="subdomain" value="ems-template"/>
+            <column name="database_vendor_code" value="POSTGRESQL"/>
+            <column name="database_version_id" valueNumeric="1"/>
+            <column name="driver_type" value="R2DBC"/>
+            <column name="database_provisioning_mode" value="AUTO_CREATE"/>
+            <column name="database_host" value="localhost"/>
+            <column name="database_port" valueNumeric="5432"/>
+            <column name="database_name" value="ems_tenant"/>
+            <column name="database_url" value="r2dbc:postgresql://localhost:5432/ems_tenant"/>
+            <column name="database_username" value="rms"/>
+            <column name="database_password" value=""/>
+            <column name="schema_name" value="public"/>
+            <column name="realm_name" value="ems-template-realm"/>
+            <column name="client_id" value="ems-template-web"/>
+            <column name="default_roles" value="ROLE_ADMIN,ROLE_ORGANIZER,ROLE_STAFF,ROLE_ATTENDEE,ROLE_SPEAKER"/>
+            <column name="platform_id" valueNumeric="7"/>
+            <column name="is_template" valueBoolean="true"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <!-- DMS - Dairy Management System Template (platform_id = 8) -->
+        <insert tableName="tenants">
+            <column name="tenant_key" value="dms-template"/>
+            <column name="tenant_id" value="dms-template"/>
+            <column name="name" value="DMS Default Template"/>
+            <column name="subdomain" value="dms-template"/>
+            <column name="database_vendor_code" value="POSTGRESQL"/>
+            <column name="database_version_id" valueNumeric="1"/>
+            <column name="driver_type" value="R2DBC"/>
+            <column name="database_provisioning_mode" value="AUTO_CREATE"/>
+            <column name="database_host" value="localhost"/>
+            <column name="database_port" valueNumeric="5432"/>
+            <column name="database_name" value="dms_tenant"/>
+            <column name="database_url" value="r2dbc:postgresql://localhost:5432/dms_tenant"/>
+            <column name="database_username" value="rms"/>
+            <column name="database_password" value=""/>
+            <column name="schema_name" value="public"/>
+            <column name="realm_name" value="dms-template-realm"/>
+            <column name="client_id" value="dms-template-web"/>
+            <column name="default_roles" value="ROLE_ADMIN,ROLE_MANAGER,ROLE_FARMER,ROLE_VETERINARIAN,ROLE_DRIVER"/>
+            <column name="platform_id" valueNumeric="8"/>
+            <column name="is_template" valueBoolean="true"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_date" valueDate="now()"/>
+            <column name="last_modified_date" valueDate="now()"/>
+        </insert>
+        
+        <rollback>
+            <delete tableName="tenants">
+                <where>is_template = true</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
+

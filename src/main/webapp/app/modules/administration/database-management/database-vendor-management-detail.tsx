@@ -3,7 +3,6 @@ import { Link, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Translate } from 'react-jhipster';
 import { ArrowLeft, Pencil } from 'lucide-react';
 
 import { useAppDispatch, useAppSelector } from 'app/config/store';
@@ -27,7 +26,7 @@ export const DatabaseVendorManagementDetail = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            <Translate contentKey="databaseVendorManagement.detail.title">Database Vendor</Translate>
+            Database Vendor
             {vendor && <span className="ml-2 text-muted-foreground">[{vendor.vendorCode}]</span>}
           </h1>
         </div>
@@ -35,14 +34,14 @@ export const DatabaseVendorManagementDetail = () => {
           <Button asChild variant="outline">
             <Link to="/admin/database-vendor-management">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              <Translate contentKey="entity.action.back">Back</Translate>
+              Back
             </Link>
           </Button>
           {vendor && (
             <Button asChild variant="default">
               <Link to={`/admin/database-vendor-management/${vendor.id}/edit`}>
                 <Pencil className="mr-2 h-4 w-4" />
-                <Translate contentKey="entity.action.edit">Edit</Translate>
+                Edit
               </Link>
             </Button>
           )}
@@ -54,82 +53,58 @@ export const DatabaseVendorManagementDetail = () => {
       ) : vendor ? (
         <Card>
           <CardHeader>
-            <CardTitle>
-              <Translate contentKey="databaseVendorManagement.detail.information">Vendor Information</Translate>
-            </CardTitle>
-            <CardDescription>
-              <Translate contentKey="databaseVendorManagement.detail.description">View database vendor details</Translate>
-            </CardDescription>
+            <CardTitle>Vendor Information</CardTitle>
+            <CardDescription>View database vendor details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  <Translate contentKey="global.field.id">ID</Translate>
-                </label>
+                <label className="text-sm font-medium text-muted-foreground">ID</label>
                 <p className="text-base">{vendor.id}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  <Translate contentKey="databaseVendorManagement.vendorCode">Vendor Code</Translate>
-                </label>
+                <label className="text-sm font-medium text-muted-foreground">Vendor Code</label>
                 <p className="text-base font-medium">{vendor.vendorCode}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  <Translate contentKey="databaseVendorManagement.displayName">Display Name</Translate>
-                </label>
+                <label className="text-sm font-medium text-muted-foreground">Display Name</label>
                 <p className="text-base">{vendor.displayName}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  <Translate contentKey="databaseVendorManagement.defaultPort">Default Port</Translate>
-                </label>
+                <label className="text-sm font-medium text-muted-foreground">Default Port</label>
                 <p className="text-base">{vendor.defaultPort}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  <Translate contentKey="databaseVendorManagement.driverKey">Driver Key</Translate>
-                </label>
+                <label className="text-sm font-medium text-muted-foreground">Driver Key</label>
                 <p className="text-base">{vendor.driverKey}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  <Translate contentKey="databaseVendorManagement.active">Status</Translate>
-                </label>
+                <label className="text-sm font-medium text-muted-foreground">Status</label>
                 <p className="text-base">
                   <Badge variant={vendor.active ? 'default' : 'secondary'}>{vendor.active ? 'Active' : 'Inactive'}</Badge>
                 </p>
               </div>
               {vendor.description && (
                 <div className="col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    <Translate contentKey="databaseVendorManagement.description">Description</Translate>
-                  </label>
+                  <label className="text-sm font-medium text-muted-foreground">Description</label>
                   <p className="text-base">{vendor.description}</p>
                 </div>
               )}
               {vendor.jdbcUrlTemplate && (
                 <div className="col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    <Translate contentKey="databaseVendorManagement.jdbcUrlTemplate">JDBC URL Template</Translate>
-                  </label>
+                  <label className="text-sm font-medium text-muted-foreground">JDBC URL Template</label>
                   <p className="text-base font-mono text-sm">{vendor.jdbcUrlTemplate}</p>
                 </div>
               )}
               {vendor.r2dbcUrlTemplate && (
                 <div className="col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    <Translate contentKey="databaseVendorManagement.r2dbcUrlTemplate">R2DBC URL Template</Translate>
-                  </label>
+                  <label className="text-sm font-medium text-muted-foreground">R2DBC URL Template</label>
                   <p className="text-base font-mono text-sm">{vendor.r2dbcUrlTemplate}</p>
                 </div>
               )}
               {vendor.driverClassName && (
                 <div className="col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    <Translate contentKey="databaseVendorManagement.driverClassName">Driver Class Name</Translate>
-                  </label>
+                  <label className="text-sm font-medium text-muted-foreground">Driver Class Name</label>
                   <p className="text-base font-mono text-sm">{vendor.driverClassName}</p>
                 </div>
               )}
@@ -138,9 +113,7 @@ export const DatabaseVendorManagementDetail = () => {
         </Card>
       ) : (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            <Translate contentKey="databaseVendorManagement.detail.notFound">Database vendor not found</Translate>
-          </CardContent>
+          <CardContent className="py-8 text-center text-muted-foreground">Database vendor not found</CardContent>
         </Card>
       )}
     </div>

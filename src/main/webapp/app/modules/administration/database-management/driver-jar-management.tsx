@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Translate } from 'react-jhipster';
-import { RefreshCw, Plus, ArrowUpDown, ArrowUp, ArrowDown, Eye, Pencil, Trash2, MoreHorizontal, Upload } from 'lucide-react';
+import { RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Eye, Pencil, Trash2, MoreHorizontal, Upload } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { useAppDispatch, useAppSelector } from 'app/config/store';
@@ -59,21 +58,19 @@ const DriverJarManagement = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" id="driver-jar-management-page-heading">
-            <Translate contentKey="driverJarManagement.home.title">Driver Jars</Translate>
+            Driver JARs
           </h1>
-          <p className="text-muted-foreground mt-1.5">
-            <Translate contentKey="driverJarManagement.home.subtitle">Manage JDBC/R2DBC driver JAR files</Translate>
-          </p>
+          <p className="text-muted-foreground mt-1.5">Manage JDBC/R2DBC driver JAR files</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => dispatch(getDriverJars())} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            <Translate contentKey="driverJarManagement.home.refreshListLabel">Refresh List</Translate>
+            Refresh List
           </Button>
           <Button asChild variant="default">
             <Link to="/admin/driver-jar-management/new" className="jh-create-entity">
               <Upload className="mr-2 h-4 w-4" />
-              <Translate contentKey="driverJarManagement.home.uploadLabel">Upload Driver JAR</Translate>
+              Upload Driver JAR
             </Link>
           </Button>
         </div>
@@ -83,12 +80,8 @@ const DriverJarManagement = () => {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>
-              <Translate contentKey="driverJarManagement.table.title">Driver JAR List</Translate>
-            </CardTitle>
-            <CardDescription>
-              <Translate contentKey="driverJarManagement.table.description">View and manage all uploaded driver JAR files</Translate>
-            </CardDescription>
+            <CardTitle>Driver JAR List</CardTitle>
+            <CardDescription>View and manage all uploaded driver JAR files</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -98,37 +91,23 @@ const DriverJarManagement = () => {
                 <TableRow className="border-b">
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('id')}>
                     <div className="flex items-center">
-                      <Translate contentKey="global.field.id">ID</Translate>
+                      ID
                       {getSortIconByFieldName('id')}
                     </div>
                   </TableHead>
-                  <TableHead>
-                    <Translate contentKey="driverJarManagement.version">Version</Translate>
-                  </TableHead>
-                  <TableHead>
-                    <Translate contentKey="driverJarManagement.driverType">Driver Type</Translate>
-                  </TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Driver Type</TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('fileName')}>
                     <div className="flex items-center">
-                      <Translate contentKey="driverJarManagement.fileName">File Name</Translate>
+                      File Name
                       {getSortIconByFieldName('fileName')}
                     </div>
                   </TableHead>
-                  <TableHead>
-                    <Translate contentKey="driverJarManagement.fileSize">File Size</Translate>
-                  </TableHead>
-                  <TableHead>
-                    <Translate contentKey="driverJarManagement.driverClassName">Driver Class</Translate>
-                  </TableHead>
-                  <TableHead>
-                    <Translate contentKey="driverJarManagement.isDefault">Default</Translate>
-                  </TableHead>
-                  <TableHead>
-                    <Translate contentKey="driverJarManagement.active">Active</Translate>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <Translate contentKey="global.field.actions">Actions</Translate>
-                  </TableHead>
+                  <TableHead>File Size</TableHead>
+                  <TableHead>Driver Class</TableHead>
+                  <TableHead>Default</TableHead>
+                  <TableHead>Active</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -166,19 +145,19 @@ const DriverJarManagement = () => {
                             <DropdownMenuItem asChild>
                               <Link to={`/admin/driver-jar-management/${driver.id}`}>
                                 <Eye className="mr-2 h-4 w-4" />
-                                <Translate contentKey="entity.action.view">View</Translate>
+                                View
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link to={`/admin/driver-jar-management/${driver.id}/edit`}>
                                 <Pencil className="mr-2 h-4 w-4" />
-                                <Translate contentKey="entity.action.edit">Edit</Translate>
+                                Edit
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link to={`/admin/driver-jar-management/${driver.id}/delete`}>
                                 <Trash2 className="mr-2 h-4 w-4" />
-                                <Translate contentKey="entity.action.delete">Delete</Translate>
+                                Delete
                               </Link>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -189,7 +168,7 @@ const DriverJarManagement = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      <Translate contentKey="driverJarManagement.table.empty">No driver JARs found</Translate>
+                      No driver JARs found
                     </TableCell>
                   </TableRow>
                 )}

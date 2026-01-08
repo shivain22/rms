@@ -17,8 +17,20 @@ public class PlatformDTO implements Serializable {
     @JsonProperty("name")
     private String name;
 
+    @JsonProperty("prefix")
+    private String prefix;
+
     @JsonProperty("description")
     private String description;
+
+    @JsonProperty("subdomain")
+    private String subdomain;
+
+    @JsonProperty("webappGithubRepo")
+    private String webappGithubRepo;
+
+    @JsonProperty("mobileGithubRepo")
+    private String mobileGithubRepo;
 
     @JsonProperty("active")
     private Boolean active;
@@ -33,10 +45,25 @@ public class PlatformDTO implements Serializable {
         // Empty constructor needed for Jackson
     }
 
-    public PlatformDTO(Long id, String name, String description, Boolean active, Instant createdDate, Instant lastModifiedDate) {
+    public PlatformDTO(
+        Long id,
+        String name,
+        String prefix,
+        String description,
+        String subdomain,
+        String webappGithubRepo,
+        String mobileGithubRepo,
+        Boolean active,
+        Instant createdDate,
+        Instant lastModifiedDate
+    ) {
         this.id = id;
         this.name = name;
+        this.prefix = prefix;
         this.description = description;
+        this.subdomain = subdomain;
+        this.webappGithubRepo = webappGithubRepo;
+        this.mobileGithubRepo = mobileGithubRepo;
         this.active = active;
         this.createdDate = createdDate;
         this.lastModifiedDate = lastModifiedDate;
@@ -58,12 +85,44 @@ public class PlatformDTO implements Serializable {
         this.name = name;
     }
 
+    public String getPrefix() {
+        return prefix;
+    }
+
+    public void setPrefix(String prefix) {
+        this.prefix = prefix;
+    }
+
     public String getDescription() {
         return description;
     }
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getSubdomain() {
+        return subdomain;
+    }
+
+    public void setSubdomain(String subdomain) {
+        this.subdomain = subdomain;
+    }
+
+    public String getWebappGithubRepo() {
+        return webappGithubRepo;
+    }
+
+    public void setWebappGithubRepo(String webappGithubRepo) {
+        this.webappGithubRepo = webappGithubRepo;
+    }
+
+    public String getMobileGithubRepo() {
+        return mobileGithubRepo;
+    }
+
+    public void setMobileGithubRepo(String mobileGithubRepo) {
+        this.mobileGithubRepo = mobileGithubRepo;
     }
 
     public Boolean getActive() {
@@ -92,6 +151,22 @@ public class PlatformDTO implements Serializable {
 
     @Override
     public String toString() {
-        return ("PlatformDTO{" + "id=" + id + ", name='" + name + '\'' + ", active=" + active + '}');
+        return (
+            "PlatformDTO{" +
+            "id=" +
+            id +
+            ", name='" +
+            name +
+            '\'' +
+            ", prefix='" +
+            prefix +
+            '\'' +
+            ", subdomain='" +
+            subdomain +
+            '\'' +
+            ", active=" +
+            active +
+            '}'
+        );
     }
 }
