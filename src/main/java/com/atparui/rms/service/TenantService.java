@@ -1,8 +1,10 @@
 package com.atparui.rms.service;
 
 import com.atparui.rms.domain.DatabaseVendor;
+import com.atparui.rms.domain.Platform;
 import com.atparui.rms.domain.Tenant;
 import com.atparui.rms.repository.DatabaseVendorRepository;
+import com.atparui.rms.repository.PlatformRepository;
 import com.atparui.rms.repository.TenantRepository;
 import com.atparui.rms.service.DatabaseDriverService;
 import com.atparui.rms.service.dto.TenantCreationContext;
@@ -29,6 +31,7 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final com.atparui.rms.repository.TenantClientRepository tenantClientRepository;
     private final DatabaseVendorRepository databaseVendorRepository;
+    private final PlatformRepository platformRepository;
     private final DatabaseDriverService databaseDriverService;
     private final KeycloakRealmService keycloakRealmService;
     private final DatabaseProvisioningService databaseProvisioningService;
@@ -43,6 +46,7 @@ public class TenantService {
         TenantRepository tenantRepository,
         com.atparui.rms.repository.TenantClientRepository tenantClientRepository,
         DatabaseVendorRepository databaseVendorRepository,
+        PlatformRepository platformRepository,
         DatabaseDriverService databaseDriverService,
         KeycloakRealmService keycloakRealmService,
         DatabaseProvisioningService databaseProvisioningService,
@@ -52,6 +56,7 @@ public class TenantService {
         this.tenantRepository = tenantRepository;
         this.tenantClientRepository = tenantClientRepository;
         this.databaseVendorRepository = databaseVendorRepository;
+        this.platformRepository = platformRepository;
         this.databaseDriverService = databaseDriverService;
         this.keycloakRealmService = keycloakRealmService;
         this.databaseProvisioningService = databaseProvisioningService;
@@ -128,9 +133,15 @@ public class TenantService {
             tenant.setDatabaseVendorCode("POSTGRESQL");
         }
 
-        // Set default provisioning mode if not provided
+        // Set default database ownership type if not provided
+        if (tenant.getDatabaseOwnershipType() == null || tenant.getDatabaseOwnershipType().isEmpty()) {
+            tenant.setDatabaseOwnershipType("PLATFORM");
+        }
+
+        // Set provisioning mode based on ownership type
         if (tenant.getDatabaseProvisioningMode() == null || tenant.getDatabaseProvisioningMode().isEmpty()) {
-            tenant.setDatabaseProvisioningMode("AUTO_CREATE");
+            // PLATFORM = AUTO_CREATE, BYOD = USE_EXISTING
+            tenant.setDatabaseProvisioningMode("BYOD".equals(tenant.getDatabaseOwnershipType()) ? "USE_EXISTING" : "AUTO_CREATE");
         }
 
         // Set default driver type if not provided
@@ -225,39 +236,64 @@ public class TenantService {
                 context.setTenantEntityId(savedTenant.getId());
                 log.debug("Step 1: Saved tenant entity (within transaction): {}", savedTenant.getTenantKey());
             })
-            // Step 2: Handle database provisioning based on mode
+            // Step 2: Handle database provisioning based on ownership type
             .flatMap(savedTenant -> {
-                if ("USE_EXISTING".equals(savedTenant.getDatabaseProvisioningMode())) {
-                    // Use existing database - no need to create, just validate connection details are set
-                    log.debug("Step 2: Using existing database for tenant: {}", savedTenant.getTenantKey());
+                String ownershipType = savedTenant.getDatabaseOwnershipType() != null ? savedTenant.getDatabaseOwnershipType() : "PLATFORM";
+
+                if ("BYOD".equals(ownershipType) || "USE_EXISTING".equals(savedTenant.getDatabaseProvisioningMode())) {
+                    // BYOD - Use existing database - validate connection details
+                    log.debug("Step 2: Using BYOD database for tenant: {}", savedTenant.getTenantKey());
                     if (savedTenant.getDatabaseUrl() == null || savedTenant.getDatabaseUrl().isEmpty()) {
-                        return Mono.error(new RuntimeException("Database URL is required when using existing database"));
+                        return Mono.error(new RuntimeException("Database URL is required for BYOD"));
                     }
                     if (savedTenant.getDatabaseUsername() == null || savedTenant.getDatabaseUsername().isEmpty()) {
-                        return Mono.error(new RuntimeException("Database username is required when using existing database"));
+                        return Mono.error(new RuntimeException("Database username is required for BYOD"));
                     }
                     if (savedTenant.getDatabasePassword() == null || savedTenant.getDatabasePassword().isEmpty()) {
-                        return Mono.error(new RuntimeException("Database password is required when using existing database"));
+                        return Mono.error(new RuntimeException("Database password is required for BYOD"));
                     }
-                    // Set database name and host/port if not already set
+                    // Set database name if not already set
                     if (savedTenant.getDatabaseName() == null || savedTenant.getDatabaseName().isEmpty()) {
-                        // Extract database name from URL if possible
                         String dbName = extractDatabaseNameFromUrl(savedTenant.getDatabaseUrl(), vendor);
                         savedTenant.setDatabaseName(dbName);
                     }
                     return Mono.just(savedTenant);
                 } else {
-                    // AUTO_CREATE mode - create database
-                    return Mono.fromRunnable(() -> {
+                    // PLATFORM mode - create database using platform configuration
+                    return getPlatformForTenant(savedTenant).flatMap(platform -> {
+                        String platformPrefix = platform != null ? platform.getPrefix().toLowerCase() : "rms";
                         try {
-                            databaseProvisioningService.createTenantDatabase(savedTenant.getTenantKey(), applyLiquibaseImmediately);
+                            DatabaseProvisioningService.ProvisioningResult result =
+                                databaseProvisioningService.createTenantDatabaseForPlatform(
+                                    platform,
+                                    platformPrefix,
+                                    savedTenant.getTenantKey(),
+                                    applyLiquibaseImmediately
+                                );
                             context.setDatabaseCreated(true);
-                            log.debug("Step 2: Created database for tenant: {}", savedTenant.getTenantKey());
+                            context.setDatabaseName(result.getDatabaseName());
+                            context.setDatabaseUser(result.getUsername());
+
+                            // Update tenant with actual database details
+                            savedTenant.setDatabaseHost(result.getHost());
+                            savedTenant.setDatabasePort(result.getPort());
+                            savedTenant.setDatabaseName(result.getDatabaseName());
+                            savedTenant.setDatabaseUsername(result.getUsername());
+                            savedTenant.setDatabasePassword(result.getPassword());
+                            savedTenant.setDatabaseUrl(result.getJdbcUrl());
+                            savedTenant.setSchemaName("public");
+
+                            log.debug(
+                                "Step 2: Created platform database {} for tenant: {}",
+                                result.getDatabaseName(),
+                                savedTenant.getTenantKey()
+                            );
+                            return Mono.just(savedTenant);
                         } catch (Exception e) {
-                            log.error("Failed to create database for tenant: {}", savedTenant.getTenantKey(), e);
-                            throw new RuntimeException("Failed to create database", e);
+                            log.error("Failed to create platform database for tenant: {}", savedTenant.getTenantKey(), e);
+                            return Mono.error(new RuntimeException("Failed to create platform database", e));
                         }
-                    }).thenReturn(savedTenant);
+                    });
                 }
             })
             // Step 3: Update tenant with database info (within transaction)
@@ -591,6 +627,18 @@ public class TenantService {
 
     private String generateClientSecret() {
         return java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 32);
+    }
+
+    /**
+     * Get the platform for a tenant based on platformId.
+     * @param tenant the tenant
+     * @return Mono containing the Platform or empty if not found
+     */
+    private Mono<Platform> getPlatformForTenant(Tenant tenant) {
+        if (tenant.getPlatformId() != null) {
+            return platformRepository.findById(tenant.getPlatformId()).defaultIfEmpty(new Platform("Default", "rms", "Default Platform"));
+        }
+        return Mono.just(new Platform("Default", "rms", "Default Platform"));
     }
 
     public Mono<Void> delete(Long id) {

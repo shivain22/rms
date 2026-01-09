@@ -26,6 +26,14 @@ public class PlatformRepository {
         return masterTemplate.select(Platform.class).matching(Query.query(Criteria.where("active").is(true))).all();
     }
 
+    public Flux<Platform> findByActiveTrue() {
+        return masterTemplate.select(Platform.class).matching(Query.query(Criteria.where("active").is(true))).all();
+    }
+
+    public Mono<Platform> findByPrefix(String prefix) {
+        return masterTemplate.selectOne(Query.query(Criteria.where("prefix").is(prefix)), Platform.class);
+    }
+
     public Mono<Platform> findById(Long id) {
         return masterTemplate.selectOne(Query.query(Criteria.where("id").is(id)), Platform.class);
     }

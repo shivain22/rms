@@ -98,8 +98,16 @@ public class TenantCreationContext {
         return databaseName;
     }
 
+    public void setDatabaseName(String databaseName) {
+        this.databaseName = databaseName;
+    }
+
     public String getDatabaseUser() {
         return databaseUser;
+    }
+
+    public void setDatabaseUser(String databaseUser) {
+        this.databaseUser = databaseUser;
     }
 
     public String getRealmName() {

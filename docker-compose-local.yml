@@ -5,17 +5,25 @@ services:
     image: postgres:17
     container_name: rms-postgres
     environment:
-      POSTGRES_DB: ${DB_NAME:-rms}
-      POSTGRES_USER: ${DB_USERNAME:-rms}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-}
-      POSTGRES_HOST_AUTH_METHOD: trust
+      # Superuser (postgres) - used for creating tenant databases
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-postgres123}
+      # Default database for gateway
+      POSTGRES_DB: ${DB_NAME:-rms_gateway}
+      # Additional settings
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8'
     ports:
       - '${DB_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./setup-tenant-databases.sql:/docker-entrypoint-initdb.d/setup-tenant-databases.sql
+      - ./src/main/docker/init-scripts:/docker-entrypoint-initdb.d
     networks:
       - rms-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   keycloak:
     image: quay.io/keycloak/keycloak:23.0.1
@@ -39,15 +47,26 @@ services:
     build: .
     container_name: rms-gateway
     environment:
+      # Gateway database connection (uses postgres superuser initially)
       - DB_HOST=postgresql
       - DB_PORT=5432
-      - DB_NAME=${DB_NAME:-rms}
-      - DB_USERNAME=${DB_USERNAME:-rms}
-      - DB_PASSWORD=${DB_PASSWORD:-}
+      - DB_NAME=${DB_NAME:-rms_gateway}
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${POSTGRES_ADMIN_PASSWORD:-postgres123}
+      # Platform database admin credentials (for creating tenant databases)
+      - PLATFORM_DB_ADMIN_HOST=postgresql
+      - PLATFORM_DB_ADMIN_PORT=5432
+      - PLATFORM_DB_ADMIN_USER=postgres
+      - PLATFORM_DB_ADMIN_PASSWORD=${POSTGRES_ADMIN_PASSWORD:-postgres123}
+      - PLATFORM_DB_ADMIN_DATABASE=postgres
+      - PLATFORM_DB_INITIALIZE_ON_STARTUP=true
+      - PLATFORM_DB_CREATE_DEMO_DATA=true
+      # Keycloak configuration
       - KEYCLOAK_HOST=${KEYCLOAK_HOST:-rmsauth.atparui.com}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-gateway}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-gateway-web}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h}
+      # Other services
       - CONSUL_HOST=consul
       - ELASTICSEARCH_HOST=elasticsearch
       - SPRING_PROFILES_ACTIVE=prod

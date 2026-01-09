@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Add database connection fields to platforms table -->
+    <changeSet id="20250109000001-1" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="platforms" columnName="database_host"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="platforms">
+            <column name="database_host" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20250109000001-2" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="platforms" columnName="database_port"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="platforms">
+            <column name="database_port" type="integer">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20250109000001-3" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="platforms" columnName="database_admin_username"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="platforms">
+            <column name="database_admin_username" type="varchar(100)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20250109000001-4" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="platforms" columnName="database_admin_password"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="platforms">
+            <column name="database_admin_password" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20250109000001-5" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="platforms" columnName="database_name"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="platforms">
+            <column name="database_name" type="varchar(100)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20250109000001-6" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="platforms" columnName="database_initialized"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="platforms">
+            <column name="database_initialized" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- Add database_ownership_type to tenants table -->
+    <changeSet id="20250109000001-7" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="tenants" columnName="database_ownership_type"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="tenants">
+            <column name="database_ownership_type" type="varchar(20)" defaultValue="PLATFORM">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <comment>Database ownership type: PLATFORM (use platform's database) or BYOD (bring your own database)</comment>
+    </changeSet>
+
+    <!-- Update existing tenants to have PLATFORM ownership type -->
+    <changeSet id="20250109000001-8" author="system">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="tenants" columnName="database_ownership_type"/>
+        </preConditions>
+        <update tableName="tenants">
+            <column name="database_ownership_type" value="PLATFORM"/>
+            <where>database_ownership_type IS NULL</where>
+        </update>
+    </changeSet>
+
+    <!-- Rename template tenants to use -template and -default naming convention -->
+    <changeSet id="20250109000001-9" author="system">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM tenants WHERE tenant_key = 'rms-template' AND is_template = true
+            </sqlCheck>
+        </preConditions>
+        <!-- Update rms-template to ensure it's marked as template -->
+        <update tableName="tenants">
+            <column name="is_template" valueBoolean="true"/>
+            <where>tenant_key = 'rms-template'</where>
+        </update>
+    </changeSet>
+
+</databaseChangeLog>

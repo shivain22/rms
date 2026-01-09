@@ -1,5 +1,7 @@
 package com.atparui.rms.service;
 
+import com.atparui.rms.config.PlatformDatabaseConfig;
+import com.atparui.rms.domain.Platform;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -25,14 +27,268 @@ public class DatabaseProvisioningService {
     private String masterDbPassword;
 
     private String tenantPassword;
-    private TenantLiquibaseService tenantLiquibaseService;
+    private final TenantLiquibaseService tenantLiquibaseService;
+    private final PlatformDatabaseConfig platformDatabaseConfig;
 
-    public DatabaseProvisioningService(TenantLiquibaseService tenantLiquibaseService) {
+    public DatabaseProvisioningService(TenantLiquibaseService tenantLiquibaseService, PlatformDatabaseConfig platformDatabaseConfig) {
         this.tenantLiquibaseService = tenantLiquibaseService;
+        this.platformDatabaseConfig = platformDatabaseConfig;
+    }
+
+    /**
+     * Result object for database provisioning operations.
+     */
+    public static class ProvisioningResult {
+
+        private final String databaseName;
+        private final String username;
+        private final String password;
+        private final String host;
+        private final Integer port;
+        private final String jdbcUrl;
+        private final String r2dbcUrl;
+
+        public ProvisioningResult(String databaseName, String username, String password, String host, Integer port) {
+            this.databaseName = databaseName;
+            this.username = username;
+            this.password = password;
+            this.host = host;
+            this.port = port;
+            this.jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, databaseName);
+            this.r2dbcUrl = String.format("r2dbc:postgresql://%s:%d/%s", host, port, databaseName);
+        }
+
+        public String getDatabaseName() {
+            return databaseName;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public String getHost() {
+            return host;
+        }
+
+        public Integer getPort() {
+            return port;
+        }
+
+        public String getJdbcUrl() {
+            return jdbcUrl;
+        }
+
+        public String getR2dbcUrl() {
+            return r2dbcUrl;
+        }
     }
 
     public void createTenantDatabase(String tenantId) {
         createTenantDatabase(tenantId, false);
+    }
+
+    /**
+     * Create a tenant database using platform database configuration.
+     * This is used when user selects "Use Platform Database" option.
+     *
+     * @param platform the platform (can be null to use default config)
+     * @param platformPrefix the platform prefix (e.g., "rms", "ecm")
+     * @param tenantKey the tenant key
+     * @param applyLiquibaseImmediately whether to apply Liquibase migrations immediately
+     * @return ProvisioningResult with database connection details
+     */
+    public ProvisioningResult createTenantDatabaseForPlatform(
+        Platform platform,
+        String platformPrefix,
+        String tenantKey,
+        boolean applyLiquibaseImmediately
+    ) {
+        // Use platform-specific config or fall back to default
+        String host = (platform != null && platform.getDatabaseHost() != null)
+            ? platform.getDatabaseHost()
+            : platformDatabaseConfig.getAdminHost();
+        Integer port = (platform != null && platform.getDatabasePort() != null)
+            ? platform.getDatabasePort()
+            : platformDatabaseConfig.getAdminPort();
+        String adminUser = (platform != null && platform.getDatabaseAdminUsername() != null)
+            ? platform.getDatabaseAdminUsername()
+            : platformDatabaseConfig.getAdminUsername();
+        String adminPass = (platform != null && platform.getDatabaseAdminPassword() != null)
+            ? platform.getDatabaseAdminPassword()
+            : platformDatabaseConfig.getAdminPassword();
+
+        // Database naming: {platform_prefix}_{tenant_key}
+        String dbName = platformPrefix.toLowerCase() + "_" + tenantKey.toLowerCase().replace("-", "_");
+        String dbUser = dbName; // User same as database name
+        String dbPassword = generatePassword();
+
+        log.info("Creating platform database: {} for tenant: {} on {}:{}", dbName, tenantKey, host, port);
+
+        String adminJdbcUrl = String.format("jdbc:postgresql://%s:%d/postgres", host, port);
+
+        boolean databaseCreated = false;
+        boolean userCreated = false;
+
+        try (Connection connection = DriverManager.getConnection(adminJdbcUrl, adminUser, adminPass)) {
+            // Step 1: Create user if not exists
+            try {
+                if (!userExistsCheck(connection, dbUser)) {
+                    createUser(connection, dbUser, dbPassword);
+                    userCreated = true;
+                    log.info("Created user: {}", dbUser);
+                } else {
+                    log.debug("User already exists: {}", dbUser);
+                }
+            } catch (SQLException e) {
+                log.error("Failed to create user: {}", dbUser, e);
+                throw new RuntimeException("Failed to create user: " + dbUser, e);
+            }
+
+            // Step 2: Create database
+            try {
+                if (!databaseExistsCheck(connection, dbName)) {
+                    createDatabaseWithOwner(connection, dbName, dbUser);
+                    databaseCreated = true;
+                    log.info("Created database: {} with owner: {}", dbName, dbUser);
+                } else {
+                    log.debug("Database already exists: {}", dbName);
+                }
+            } catch (SQLException e) {
+                log.error("Failed to create database: {}", dbName, e);
+                rollbackDatabase(connection, dbName, dbUser, databaseCreated, userCreated);
+                throw new RuntimeException("Failed to create database: " + dbName, e);
+            }
+
+            // Step 3: Grant privileges
+            try {
+                grantPrivilegesForPlatform(host, port, dbName, dbUser, adminUser, adminPass);
+                log.info("Granted privileges to user: {} on database: {}", dbUser, dbName);
+            } catch (SQLException e) {
+                log.error("Failed to grant privileges to user: {} on database: {}", dbUser, dbName, e);
+                rollbackDatabase(connection, dbName, dbUser, databaseCreated, userCreated);
+                throw new RuntimeException("Failed to grant privileges", e);
+            }
+
+            // Step 4: Apply Liquibase if requested
+            if (applyLiquibaseImmediately && databaseCreated) {
+                String tenantJdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, dbName);
+                try {
+                    tenantLiquibaseService.applyLiquibaseChanges(tenantKey, tenantJdbcUrl, dbUser, dbPassword);
+                    log.info("Applied Liquibase changes for tenant: {}", tenantKey);
+                } catch (Exception e) {
+                    log.warn("Failed to apply Liquibase changes for tenant: {}, continuing with basic schema", tenantKey, e);
+                }
+            }
+
+            log.info("Successfully created platform database: {} for tenant: {}", dbName, tenantKey);
+            return new ProvisioningResult(dbName, dbUser, dbPassword, host, port);
+        } catch (SQLException e) {
+            log.error("Failed to create platform database for tenant: {}", tenantKey, e);
+            throw new RuntimeException("Failed to create tenant database", e);
+        }
+    }
+
+    private boolean databaseExistsCheck(Connection connection, String dbName) throws SQLException {
+        try (
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT 1 FROM pg_database WHERE datname = '" + dbName + "'")
+        ) {
+            return rs.next();
+        }
+    }
+
+    private boolean userExistsCheck(Connection connection, String username) throws SQLException {
+        try (
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT 1 FROM pg_user WHERE usename = '" + username + "'")
+        ) {
+            return rs.next();
+        }
+    }
+
+    private void createDatabaseWithOwner(Connection connection, String dbName, String owner) throws SQLException {
+        String sql = "CREATE DATABASE " + dbName + " WITH OWNER = " + owner + " ENCODING = 'UTF8'";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.executeUpdate(sql);
+        }
+    }
+
+    private void grantPrivilegesForPlatform(String host, Integer port, String dbName, String username, String adminUser, String adminPass)
+        throws SQLException {
+        String dbJdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, dbName);
+        try (Connection dbConn = DriverManager.getConnection(dbJdbcUrl, adminUser, adminPass); Statement stmt = dbConn.createStatement()) {
+            stmt.executeUpdate("GRANT ALL ON SCHEMA public TO " + username);
+            stmt.executeUpdate("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO " + username);
+            stmt.executeUpdate("GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO " + username);
+            stmt.executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO " + username);
+            stmt.executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO " + username);
+        }
+    }
+
+    /**
+     * Delete a tenant database created on the platform.
+     *
+     * @param platform the platform (can be null to use default config)
+     * @param dbName the database name
+     * @param dbUser the database user
+     */
+    public void deleteTenantDatabaseForPlatform(Platform platform, String dbName, String dbUser) {
+        String host = (platform != null && platform.getDatabaseHost() != null)
+            ? platform.getDatabaseHost()
+            : platformDatabaseConfig.getAdminHost();
+        Integer port = (platform != null && platform.getDatabasePort() != null)
+            ? platform.getDatabasePort()
+            : platformDatabaseConfig.getAdminPort();
+        String adminUser = (platform != null && platform.getDatabaseAdminUsername() != null)
+            ? platform.getDatabaseAdminUsername()
+            : platformDatabaseConfig.getAdminUsername();
+        String adminPass = (platform != null && platform.getDatabaseAdminPassword() != null)
+            ? platform.getDatabaseAdminPassword()
+            : platformDatabaseConfig.getAdminPassword();
+
+        String adminJdbcUrl = String.format("jdbc:postgresql://%s:%d/postgres", host, port);
+
+        log.info("Deleting platform database: {} and user: {}", dbName, dbUser);
+
+        try (Connection connection = DriverManager.getConnection(adminJdbcUrl, adminUser, adminPass)) {
+            // Terminate connections and drop database
+            terminateConnections(connection, dbName);
+            dropDatabaseIfExists(connection, dbName);
+            dropUserIfExists(connection, dbUser);
+            log.info("Successfully deleted database: {} and user: {}", dbName, dbUser);
+        } catch (SQLException e) {
+            log.error("Failed to delete platform database: {}", dbName, e);
+            throw new RuntimeException("Failed to delete platform database", e);
+        }
+    }
+
+    private void terminateConnections(Connection connection, String dbName) throws SQLException {
+        try (
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '" + dbName + "' AND pid <> pg_backend_pid()"
+            )
+        ) {
+            int count = 0;
+            while (rs.next()) count++;
+            if (count > 0) log.debug("Terminated {} connections to {}", count, dbName);
+        }
+    }
+
+    private void dropDatabaseIfExists(Connection connection, String dbName) throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+            stmt.executeUpdate("DROP DATABASE IF EXISTS " + dbName);
+        }
+    }
+
+    private void dropUserIfExists(Connection connection, String dbUser) throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+            stmt.executeUpdate("DROP USER IF EXISTS " + dbUser);
+        }
     }
 
     public void createTenantDatabase(String tenantId, boolean applyLiquibaseImmediately) {

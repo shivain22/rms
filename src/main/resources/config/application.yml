@@ -380,4 +380,24 @@ database:
   driver:
     storage:
       path: ${DATABASE_DRIVER_STORAGE_PATH:C:\Users\shiva\eclipse-workspace\shared-drivers}
+
+# Platform Database Configuration
+# Admin credentials for creating tenant databases when user selects "Use Platform Database"
+platform:
+  database:
+    # PostgreSQL admin host
+    admin-host: ${PLATFORM_DB_ADMIN_HOST:localhost}
+    # PostgreSQL admin port
+    admin-port: ${PLATFORM_DB_ADMIN_PORT:5432}
+    # PostgreSQL superuser username (typically 'postgres')
+    admin-username: ${PLATFORM_DB_ADMIN_USER:postgres}
+    # PostgreSQL superuser password
+    admin-password: ${PLATFORM_DB_ADMIN_PASSWORD:}
+    # Default database for admin operations
+    admin-database: ${PLATFORM_DB_ADMIN_DATABASE:postgres}
+    # Whether to initialize platform databases on startup
+    initialize-on-startup: ${PLATFORM_DB_INITIALIZE_ON_STARTUP:true}
+    # Whether to create demo data in default tenants
+    create-demo-data: ${PLATFORM_DB_CREATE_DEMO_DATA:true}
+
 # application:

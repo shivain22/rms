@@ -45,6 +45,9 @@ public class Tenant {
     @Column("database_provisioning_mode")
     private String databaseProvisioningMode; // AUTO_CREATE or USE_EXISTING
 
+    @Column("database_ownership_type")
+    private String databaseOwnershipType; // PLATFORM or BYOD (Bring Your Own Database)
+
     @Column("database_host")
     private String databaseHost;
 
@@ -215,6 +218,14 @@ public class Tenant {
 
     public void setDatabaseProvisioningMode(String databaseProvisioningMode) {
         this.databaseProvisioningMode = databaseProvisioningMode;
+    }
+
+    public String getDatabaseOwnershipType() {
+        return databaseOwnershipType;
+    }
+
+    public void setDatabaseOwnershipType(String databaseOwnershipType) {
+        this.databaseOwnershipType = databaseOwnershipType;
     }
 
     public String getDatabaseHost() {

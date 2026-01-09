@@ -181,6 +181,18 @@ keycloak:
 rms-service:
   client-secret: ''
 
+# Platform Database Configuration for development
+# Using SSH tunnel on port 5433 pointing to remote postgres
+platform:
+  database:
+    admin-host: localhost
+    admin-port: 5433
+    admin-username: postgres
+    admin-password: postgres123
+    admin-database: postgres
+    initialize-on-startup: true
+    create-demo-data: true
+
 # Restaurant Keycloak Configuration
 restaurant:
   keycloak:

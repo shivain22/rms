@@ -36,4 +36,5 @@
     <include file="config/liquibase/changelog/20250107000002_add_driver_type_to_tenants.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20250108000001_add_platform_details.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20250108000002_add_template_tenants.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20250109000001_add_platform_database_fields.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>
