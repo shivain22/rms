@@ -5,6 +5,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { AppThunk } from 'app/config/store';
 import { setLocale } from 'app/shared/reducers/locale';
 import { serializeAxiosError } from './reducer.utils';
+import { clearAuthToken } from 'app/config/axios-interceptor';
 
 export const initialState = {
   loading: false,
@@ -39,6 +40,8 @@ export const logoutServer = createAsyncThunk('authentication/logout', async () =
 });
 
 export const logout: () => AppThunk = () => async dispatch => {
+  // Clear auth token from storage before making logout request
+  clearAuthToken();
   await dispatch(logoutServer());
   // Don't fetch session after logout - user is logging out
 };
@@ -87,6 +90,8 @@ export const AuthenticationSlice = createSlice({
       })
       .addCase(logoutServer.fulfilled, (state, action) => ({
         ...initialState,
+        // Keep sessionHasBeenFetched true so the Logout component can render and redirect
+        sessionHasBeenFetched: true,
         logoutUrl: action.payload.data.logoutUrl,
       }))
       .addCase(getAccount.pending, state => {

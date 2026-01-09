@@ -7,7 +7,22 @@ axios.defaults.baseURL = SERVER_API_URL;
 // axios.defaults.withCredentials = true; // Disabled for JWT Bearer token authentication
 
 // Storage key for JWT token
-const TOKEN_STORAGE_KEY = 'jhipster-authenticationToken';
+export const TOKEN_STORAGE_KEY = 'jhipster-authenticationToken';
+
+/**
+ * Clear the authentication token from all storage locations.
+ * Call this during logout to ensure clean state.
+ */
+export const clearAuthToken = () => {
+  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  // Also clear from localStorage in case it was stored there
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  // Clear any other potential auth-related storage
+  sessionStorage.removeItem('jhi-authenticationToken');
+  localStorage.removeItem('jhi-authenticationToken');
+  // eslint-disable-next-line no-console
+  console.log('[Auth] Token cleared from storage');
+};
 
 const setupAxiosInterceptors = onUnauthenticated => {
   const onRequestSuccess = config => {
