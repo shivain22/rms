@@ -708,7 +708,7 @@ export const TenantManagementUpdate = () => {
                   <CardTitle className="text-xl">
                     <Translate contentKey="tenantManagement.databaseOwnership">Database Source</Translate>
                   </CardTitle>
-                  <CardDescription>Choose where to host the tenant's database</CardDescription>
+                  <CardDescription>Choose where to host the tenant database</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 pt-6">
                   {/* Database Ownership Type - Visual Selection */}
@@ -734,7 +734,7 @@ export const TenantManagementUpdate = () => {
                         <div className="flex-1">
                           <h4 className="font-semibold">Use Platform Database</h4>
                           <p className="text-sm text-muted-foreground mt-1">
-                            We'll create and manage a PostgreSQL database for you on our platform. Recommended for most users.
+                            We will create and manage a PostgreSQL database for you on our platform. Recommended for most users.
                           </p>
                           <ul className="text-xs text-muted-foreground mt-2 space-y-1">
                             <li>✓ Automatic backups</li>
@@ -830,7 +830,7 @@ export const TenantManagementUpdate = () => {
                           <div className="flex-1">
                             <h4 className="font-semibold">Database Already Exists</h4>
                             <p className="text-sm text-muted-foreground mt-1">
-                              I have an existing database ready to use. I'll provide the connection details.
+                              I have an existing database ready to use. I will provide the connection details.
                             </p>
                           </div>
                         </div>
@@ -1096,7 +1096,7 @@ export const TenantManagementUpdate = () => {
                               required: { value: true, message: translate('entity.validation.required') },
                             }}
                           />
-                          <p className="text-sm text-muted-foreground">Admin user's password</p>
+                          <p className="text-sm text-muted-foreground">Admin user password</p>
                         </div>
                       </div>
                     </div>
@@ -1125,7 +1125,7 @@ export const TenantManagementUpdate = () => {
 
                         <div className="space-y-2">
                           <ValidatedField name="schemaName" label="Schema Name" id="tenant-schemaName" type="text" placeholder="public" />
-                          <p className="text-sm text-muted-foreground">Schema name (defaults to 'public')</p>
+                          <p className="text-sm text-muted-foreground">Schema name (defaults to &quot;public&quot;)</p>
                         </div>
                       </div>
 
@@ -1166,7 +1166,7 @@ export const TenantManagementUpdate = () => {
                     </div>
 
                     <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">What we'll create:</h4>
+                      <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">What we will create:</h4>
                       <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
                         <li>• Connect to your server using admin credentials</li>
                         <li>• Create a new database with the specified name</li>
