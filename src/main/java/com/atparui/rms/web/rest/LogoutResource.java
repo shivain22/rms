@@ -1,5 +1,7 @@
 package com.atparui.rms.web.rest;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,7 +132,9 @@ public class LogoutResource {
         StringBuilder logoutUrl = new StringBuilder();
         logoutUrl.append(endSessionEndpoint);
         String originUrl = getOriginUrl(request);
-        logoutUrl.append("?id_token_hint=").append(idTokenHint).append("&post_logout_redirect_uri=").append(originUrl);
+        String encodedOriginUrl = URLEncoder.encode(originUrl, StandardCharsets.UTF_8);
+        LOG.debug("Building logout URL with post_logout_redirect_uri: {} (encoded: {})", originUrl, encodedOriginUrl);
+        logoutUrl.append("?id_token_hint=").append(idTokenHint).append("&post_logout_redirect_uri=").append(encodedOriginUrl);
         return Map.of("logoutUrl", logoutUrl.toString());
     }
 
@@ -146,8 +150,10 @@ public class LogoutResource {
         logoutUrl.append(endSessionEndpoint.toString());
 
         String originUrl = getOriginUrl(request);
+        String encodedOriginUrl = URLEncoder.encode(originUrl, StandardCharsets.UTF_8);
+        LOG.debug("Building OAuth2 logout URL with post_logout_redirect_uri: {} (encoded: {})", originUrl, encodedOriginUrl);
 
-        logoutUrl.append("?id_token_hint=").append(idToken.getTokenValue()).append("&post_logout_redirect_uri=").append(originUrl);
+        logoutUrl.append("?id_token_hint=").append(idToken.getTokenValue()).append("&post_logout_redirect_uri=").append(encodedOriginUrl);
 
         return Map.of("logoutUrl", logoutUrl.toString());
     }
