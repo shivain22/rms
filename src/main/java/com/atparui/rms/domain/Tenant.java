@@ -99,6 +99,14 @@ public class Tenant {
 
     private Boolean active = true;
 
+    // Transient fields - NOT stored in database
+    // Used during BYOD_CREATE mode to create database on external server
+    @org.springframework.data.annotation.Transient
+    private String adminUsername;
+
+    @org.springframework.data.annotation.Transient
+    private String adminPassword;
+
     @CreatedDate
     @Column("created_date")
     private Instant createdDate = Instant.now();
@@ -354,6 +362,23 @@ public class Tenant {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    // Transient getters/setters for admin credentials (BYOD_CREATE mode)
+    public String getAdminUsername() {
+        return adminUsername;
+    }
+
+    public void setAdminUsername(String adminUsername) {
+        this.adminUsername = adminUsername;
+    }
+
+    public String getAdminPassword() {
+        return adminPassword;
+    }
+
+    public void setAdminPassword(String adminPassword) {
+        this.adminPassword = adminPassword;
     }
 
     public Instant getCreatedDate() {

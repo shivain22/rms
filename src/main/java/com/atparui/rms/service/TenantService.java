@@ -239,10 +239,13 @@ public class TenantService {
             // Step 2: Handle database provisioning based on ownership type
             .flatMap(savedTenant -> {
                 String ownershipType = savedTenant.getDatabaseOwnershipType() != null ? savedTenant.getDatabaseOwnershipType() : "PLATFORM";
+                String provisioningMode = savedTenant.getDatabaseProvisioningMode() != null
+                    ? savedTenant.getDatabaseProvisioningMode()
+                    : "AUTO_CREATE";
 
-                if ("BYOD".equals(ownershipType) || "USE_EXISTING".equals(savedTenant.getDatabaseProvisioningMode())) {
+                if ("USE_EXISTING".equals(provisioningMode)) {
                     // BYOD - Use existing database - validate connection details
-                    log.debug("Step 2: Using BYOD database for tenant: {}", savedTenant.getTenantKey());
+                    log.debug("Step 2: Using existing BYOD database for tenant: {}", savedTenant.getTenantKey());
                     if (savedTenant.getDatabaseUrl() == null || savedTenant.getDatabaseUrl().isEmpty()) {
                         return Mono.error(new RuntimeException("Database URL is required for BYOD"));
                     }
@@ -258,6 +261,62 @@ public class TenantService {
                         savedTenant.setDatabaseName(dbName);
                     }
                     return Mono.just(savedTenant);
+                } else if ("BYOD_CREATE".equals(provisioningMode)) {
+                    // BYOD_CREATE - Create database on user's server using their admin credentials
+                    log.debug("Step 2: Creating BYOD database for tenant: {}", savedTenant.getTenantKey());
+
+                    // Validate required fields
+                    if (savedTenant.getDatabaseHost() == null || savedTenant.getDatabaseHost().isEmpty()) {
+                        return Mono.error(new RuntimeException("Database host is required for BYOD_CREATE"));
+                    }
+                    if (savedTenant.getAdminUsername() == null || savedTenant.getAdminUsername().isEmpty()) {
+                        return Mono.error(new RuntimeException("Admin username is required for BYOD_CREATE"));
+                    }
+                    if (savedTenant.getAdminPassword() == null || savedTenant.getAdminPassword().isEmpty()) {
+                        return Mono.error(new RuntimeException("Admin password is required for BYOD_CREATE"));
+                    }
+                    if (savedTenant.getDatabaseName() == null || savedTenant.getDatabaseName().isEmpty()) {
+                        return Mono.error(new RuntimeException("Database name is required for BYOD_CREATE"));
+                    }
+                    if (savedTenant.getDatabaseUsername() == null || savedTenant.getDatabaseUsername().isEmpty()) {
+                        return Mono.error(new RuntimeException("Database username is required for BYOD_CREATE"));
+                    }
+                    if (savedTenant.getDatabasePassword() == null || savedTenant.getDatabasePassword().isEmpty()) {
+                        return Mono.error(new RuntimeException("Database password is required for BYOD_CREATE"));
+                    }
+
+                    try {
+                        // Create database on user's server using their admin credentials
+                        DatabaseProvisioningService.ProvisioningResult result = databaseProvisioningService.createDatabaseOnExternalServer(
+                            savedTenant.getDatabaseHost(),
+                            savedTenant.getDatabasePort() != null ? savedTenant.getDatabasePort() : vendor.getDefaultPort(),
+                            savedTenant.getAdminUsername(),
+                            savedTenant.getAdminPassword(),
+                            savedTenant.getDatabaseName(),
+                            savedTenant.getDatabaseUsername(),
+                            savedTenant.getDatabasePassword(),
+                            savedTenant.getSchemaName(),
+                            savedTenant.getDatabaseVendorCode()
+                        );
+
+                        context.setDatabaseCreated(true);
+                        context.setDatabaseName(result.getDatabaseName());
+                        context.setDatabaseUser(result.getUsername());
+
+                        // Update tenant with actual database details
+                        savedTenant.setDatabaseUrl(result.getJdbcUrl());
+                        savedTenant.setSchemaName(result.getSchemaName() != null ? result.getSchemaName() : "public");
+
+                        // Clear admin credentials - they should NOT be stored
+                        savedTenant.setAdminUsername(null);
+                        savedTenant.setAdminPassword(null);
+
+                        log.debug("Step 2: Created BYOD database {} for tenant: {}", result.getDatabaseName(), savedTenant.getTenantKey());
+                        return Mono.just(savedTenant);
+                    } catch (Exception e) {
+                        log.error("Failed to create BYOD database for tenant: {}", savedTenant.getTenantKey(), e);
+                        return Mono.error(new RuntimeException("Failed to create database on external server: " + e.getMessage(), e));
+                    }
                 } else {
                     // PLATFORM mode - create database using platform configuration
                     return getPlatformForTenant(savedTenant).flatMap(platform -> {

@@ -8,7 +8,7 @@ export interface ITenant {
   databaseVendorVersionId?: number;
   databaseDriverId?: number;
   databaseOwnershipType?: string; // PLATFORM or BYOD (Bring Your Own Database)
-  databaseProvisioningMode?: string; // AUTO_CREATE or USE_EXISTING
+  databaseProvisioningMode?: string; // AUTO_CREATE, USE_EXISTING, or BYOD_CREATE
   databaseHost?: string;
   databasePort?: number;
   databaseName?: string;
@@ -16,6 +16,9 @@ export interface ITenant {
   databaseUsername?: string;
   databasePassword?: string;
   schemaName?: string;
+  // Admin credentials for BYOD_CREATE mode (not stored, used only during creation)
+  adminUsername?: string;
+  adminPassword?: string;
   realmName?: string;
   clientId?: string;
   clientSecret?: string;

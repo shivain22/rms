@@ -47,13 +47,19 @@ public class DatabaseProvisioningService {
         private final Integer port;
         private final String jdbcUrl;
         private final String r2dbcUrl;
+        private final String schemaName;
 
         public ProvisioningResult(String databaseName, String username, String password, String host, Integer port) {
+            this(databaseName, username, password, host, port, "public");
+        }
+
+        public ProvisioningResult(String databaseName, String username, String password, String host, Integer port, String schemaName) {
             this.databaseName = databaseName;
             this.username = username;
             this.password = password;
             this.host = host;
             this.port = port;
+            this.schemaName = schemaName != null ? schemaName : "public";
             this.jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, databaseName);
             this.r2dbcUrl = String.format("r2dbc:postgresql://%s:%d/%s", host, port, databaseName);
         }
@@ -84,6 +90,10 @@ public class DatabaseProvisioningService {
 
         public String getR2dbcUrl() {
             return r2dbcUrl;
+        }
+
+        public String getSchemaName() {
+            return schemaName;
         }
     }
 
@@ -189,6 +199,114 @@ public class DatabaseProvisioningService {
         } catch (SQLException e) {
             log.error("Failed to create platform database for tenant: {}", tenantKey, e);
             throw new RuntimeException("Failed to create tenant database", e);
+        }
+    }
+
+    /**
+     * Create a database on an external server using user-provided admin credentials.
+     * This is used for BYOD_CREATE mode when user wants us to create the database on their server.
+     *
+     * @param host the database server host
+     * @param port the database server port
+     * @param adminUsername admin user with CREATE DATABASE privilege
+     * @param adminPassword admin user's password
+     * @param databaseName name of the database to create
+     * @param databaseUsername new user to create for this database
+     * @param databasePassword password for the new database user
+     * @param schemaName schema name (defaults to 'public')
+     * @param vendorCode database vendor code (e.g., 'POSTGRESQL', 'MYSQL')
+     * @return ProvisioningResult with database connection details
+     */
+    public ProvisioningResult createDatabaseOnExternalServer(
+        String host,
+        Integer port,
+        String adminUsername,
+        String adminPassword,
+        String databaseName,
+        String databaseUsername,
+        String databasePassword,
+        String schemaName,
+        String vendorCode
+    ) {
+        log.info("Creating BYOD database: {} on external server {}:{}", databaseName, host, port);
+
+        // Currently only PostgreSQL is supported for BYOD_CREATE
+        if (vendorCode != null && !"POSTGRESQL".equalsIgnoreCase(vendorCode)) {
+            throw new RuntimeException("BYOD_CREATE is currently only supported for PostgreSQL. Vendor: " + vendorCode);
+        }
+
+        String adminJdbcUrl = String.format("jdbc:postgresql://%s:%d/postgres", host, port);
+        String finalSchemaName = (schemaName != null && !schemaName.isEmpty()) ? schemaName : "public";
+
+        boolean databaseCreated = false;
+        boolean userCreated = false;
+
+        try (Connection connection = DriverManager.getConnection(adminJdbcUrl, adminUsername, adminPassword)) {
+            // Step 1: Create user if not exists
+            try {
+                if (!userExistsCheck(connection, databaseUsername)) {
+                    createUser(connection, databaseUsername, databasePassword);
+                    userCreated = true;
+                    log.info("Created user: {} on external server", databaseUsername);
+                } else {
+                    // Update password for existing user
+                    try (Statement stmt = connection.createStatement()) {
+                        stmt.executeUpdate("ALTER USER " + databaseUsername + " WITH PASSWORD '" + databasePassword + "'");
+                    }
+                    log.debug("User already exists, updated password: {}", databaseUsername);
+                }
+            } catch (SQLException e) {
+                log.error("Failed to create user on external server: {}", databaseUsername, e);
+                throw new RuntimeException("Failed to create user: " + databaseUsername + ". Error: " + e.getMessage(), e);
+            }
+
+            // Step 2: Create database
+            try {
+                if (!databaseExistsCheck(connection, databaseName)) {
+                    createDatabaseWithOwner(connection, databaseName, databaseUsername);
+                    databaseCreated = true;
+                    log.info("Created database: {} with owner: {} on external server", databaseName, databaseUsername);
+                } else {
+                    log.debug("Database already exists on external server: {}", databaseName);
+                }
+            } catch (SQLException e) {
+                log.error("Failed to create database on external server: {}", databaseName, e);
+                if (userCreated) {
+                    try {
+                        dropUserIfExists(connection, databaseUsername);
+                    } catch (SQLException ex) {
+                        log.warn("Failed to rollback user creation: {}", databaseUsername, ex);
+                    }
+                }
+                throw new RuntimeException("Failed to create database: " + databaseName + ". Error: " + e.getMessage(), e);
+            }
+
+            // Step 3: Grant privileges
+            try {
+                grantPrivilegesForPlatform(host, port, databaseName, databaseUsername, adminUsername, adminPassword);
+                log.info("Granted privileges to user: {} on database: {} on external server", databaseUsername, databaseName);
+            } catch (SQLException e) {
+                log.error("Failed to grant privileges on external server", e);
+                rollbackDatabase(connection, databaseName, databaseUsername, databaseCreated, userCreated);
+                throw new RuntimeException("Failed to grant privileges. Error: " + e.getMessage(), e);
+            }
+
+            // Step 4: Apply Liquibase migrations
+            if (databaseCreated) {
+                String tenantJdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, databaseName);
+                try {
+                    tenantLiquibaseService.applyLiquibaseChanges(databaseName, tenantJdbcUrl, databaseUsername, databasePassword);
+                    log.info("Applied Liquibase changes for BYOD database: {}", databaseName);
+                } catch (Exception e) {
+                    log.warn("Failed to apply Liquibase changes for BYOD database: {}, continuing with basic schema", databaseName, e);
+                }
+            }
+
+            log.info("Successfully created BYOD database: {} on external server {}:{}", databaseName, host, port);
+            return new ProvisioningResult(databaseName, databaseUsername, databasePassword, host, port, finalSchemaName);
+        } catch (SQLException e) {
+            log.error("Failed to connect to external server for BYOD database creation: {}:{}", host, port, e);
+            throw new RuntimeException("Failed to connect to external database server: " + e.getMessage(), e);
         }
     }
 
