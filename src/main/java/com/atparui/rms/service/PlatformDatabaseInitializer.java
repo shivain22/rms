@@ -278,6 +278,7 @@ public class PlatformDatabaseInitializer implements ApplicationRunner {
             case "hms" -> getHmsDemoDataSql();
             case "ems" -> getEmsDemoDataSql();
             case "dms" -> getDmsDemoDataSql();
+            case "eim" -> getEimDemoDataSql();
             default -> getGenericDemoDataSql();
         };
     }
@@ -610,6 +611,147 @@ public class PlatformDatabaseInitializer implements ApplicationRunner {
         ('Holstein', 'High milk production breed', 28.00),
         ('Jersey', 'High butterfat content milk', 20.00),
         ('Gir', 'Indian breed, heat tolerant', 12.00)
+        ON CONFLICT DO NOTHING;
+        """;
+    }
+
+    /**
+     * EIM (Export Import Management) demo data.
+     */
+    private String getEimDemoDataSql() {
+        return """
+        -- Customers (Buyers/Importers)
+        CREATE TABLE IF NOT EXISTS customers (
+            id BIGSERIAL PRIMARY KEY,
+            name VARCHAR(200) NOT NULL,
+            company_name VARCHAR(200),
+            country VARCHAR(100),
+            address TEXT,
+            email VARCHAR(100),
+            phone VARCHAR(20),
+            gst_number VARCHAR(50),
+            active BOOLEAN DEFAULT true,
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Vendors/Suppliers
+        CREATE TABLE IF NOT EXISTS vendors (
+            id BIGSERIAL PRIMARY KEY,
+            name VARCHAR(200) NOT NULL,
+            company_name VARCHAR(200),
+            address TEXT,
+            email VARCHAR(100),
+            phone VARCHAR(20),
+            gst_number VARCHAR(50),
+            active BOOLEAN DEFAULT true,
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Products/Items
+        CREATE TABLE IF NOT EXISTS products (
+            id BIGSERIAL PRIMARY KEY,
+            name VARCHAR(200) NOT NULL,
+            description TEXT,
+            hsn_code VARCHAR(50),
+            unit VARCHAR(50),
+            price DECIMAL(15,2),
+            active BOOLEAN DEFAULT true,
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Ports
+        CREATE TABLE IF NOT EXISTS ports (
+            id BIGSERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            code VARCHAR(20) UNIQUE,
+            country VARCHAR(100),
+            port_type VARCHAR(50),
+            active BOOLEAN DEFAULT true,
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Orders/Contracts
+        CREATE TABLE IF NOT EXISTS orders (
+            id BIGSERIAL PRIMARY KEY,
+            order_number VARCHAR(50) UNIQUE NOT NULL,
+            customer_id BIGINT REFERENCES customers(id),
+            order_date DATE NOT NULL,
+            delivery_date DATE,
+            currency VARCHAR(10) DEFAULT 'USD',
+            total_amount DECIMAL(15,2),
+            status VARCHAR(50) DEFAULT 'PENDING',
+            payment_terms VARCHAR(200),
+            shipment_terms VARCHAR(200),
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Order Items
+        CREATE TABLE IF NOT EXISTS order_items (
+            id BIGSERIAL PRIMARY KEY,
+            order_id BIGINT REFERENCES orders(id),
+            product_id BIGINT REFERENCES products(id),
+            quantity DECIMAL(10,2) NOT NULL,
+            unit_price DECIMAL(15,2) NOT NULL,
+            total_price DECIMAL(15,2) NOT NULL,
+            packaging_details TEXT,
+            quality_specifications TEXT
+        );
+
+        -- Shipments
+        CREATE TABLE IF NOT EXISTS shipments (
+            id BIGSERIAL PRIMARY KEY,
+            shipment_number VARCHAR(50) UNIQUE NOT NULL,
+            order_id BIGINT REFERENCES orders(id),
+            port_id BIGINT REFERENCES ports(id),
+            container_number VARCHAR(50),
+            bl_number VARCHAR(50),
+            shipment_date DATE,
+            status VARCHAR(50) DEFAULT 'PLANNED',
+            cfs_reached BOOLEAN DEFAULT false,
+            container_booked BOOLEAN DEFAULT false,
+            port_stuffing_status VARCHAR(50),
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Expenses
+        CREATE TABLE IF NOT EXISTS expenses (
+            id BIGSERIAL PRIMARY KEY,
+            shipment_id BIGINT REFERENCES shipments(id),
+            expense_type VARCHAR(100) NOT NULL,
+            description TEXT,
+            amount DECIMAL(15,2) NOT NULL,
+            currency VARCHAR(10) DEFAULT 'USD',
+            expense_date DATE,
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Insert demo data
+        INSERT INTO customers (name, company_name, country, email, phone) VALUES
+        ('Global Trading Inc.', 'Global Trading Inc.', 'USA', 'contact@globaltrading.com', '+1-555-0101'),
+        ('European Imports Ltd.', 'European Imports Ltd.', 'Germany', 'info@euimports.de', '+49-555-0102'),
+        ('Asia Pacific Trading', 'Asia Pacific Trading', 'Singapore', 'sales@aptrading.sg', '+65-555-0103')
+        ON CONFLICT DO NOTHING;
+
+        INSERT INTO vendors (name, company_name, email, phone) VALUES
+        ('Local Supplier Co.', 'Local Supplier Co.', 'supplier@local.com', '+91-555-0201'),
+        ('Quality Materials Ltd.', 'Quality Materials Ltd.', 'info@qualitymaterials.com', '+91-555-0202')
+        ON CONFLICT DO NOTHING;
+
+        INSERT INTO products (name, description, hsn_code, unit, price) VALUES
+        ('Cotton Yarn', 'Premium quality cotton yarn', '5205', 'KG', 5.50),
+        ('Spices Mix', 'Assorted spices blend', '0904', 'KG', 12.00),
+        ('Ceramic Tiles', 'Premium ceramic floor tiles', '6907', 'SQM', 8.50),
+        ('Textile Fabric', '100% cotton fabric', '5208', 'MTR', 3.25)
+        ON CONFLICT DO NOTHING;
+
+        INSERT INTO ports (name, code, country, port_type) VALUES
+        ('Mumbai Port', 'INMUM', 'India', 'SEA'),
+        ('Nhava Sheva Port', 'INNSA', 'India', 'SEA'),
+        ('Mundra Port', 'INMUN', 'India', 'SEA'),
+        ('Los Angeles Port', 'USLAX', 'USA', 'SEA'),
+        ('Hamburg Port', 'DEHAM', 'Germany', 'SEA')
         ON CONFLICT DO NOTHING;
         """;
     }
