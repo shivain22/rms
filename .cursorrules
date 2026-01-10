@@ -1,0 +1,42 @@
+# Cursor AI Rules for RMS (Spring Boot Gateway)
+
+## Documentation Rules
+
+### Markdown Files Location
+- **ALWAYS create all `.md` files in the `docs/` folder**, organized by subject matter
+- **Exception**: `README.md` should remain in the project root
+- When creating new documentation, place it in the appropriate subfolder:
+  - `docs/` - General documentation (create subfolders as needed)
+
+### File Naming
+- Use descriptive, uppercase filenames with underscores: `FEATURE_NAME.md`
+- For summaries: `FEATURE_SUMMARY.md`
+- For fixes: `FIX_ISSUE_NAME.md`
+- For setup guides: `FEATURE_SETUP.md`
+
+## Code Style
+
+### Java/Spring Boot
+- Follow Java naming conventions
+- Use Spring Boot best practices
+- Use dependency injection
+- Follow RESTful API design principles
+
+### Project Structure
+- Controllers: `controller/` or `web/` package
+- Services: `service/` package
+- Repositories: `repository/` package
+- Entities: `entity/` or `domain/` package
+
+## General Guidelines
+
+1. **Documentation**: Always document changes in `docs/` folder
+2. **Error Handling**: Use Spring's exception handling mechanisms
+3. **Configuration**: Use `application.yml` or `application.properties`, never hardcode secrets
+4. **Testing**: Write unit and integration tests
+
+## When Creating New Files
+
+- **Documentation**: Always in `docs/` with appropriate subfolder
+- **Java Classes**: In appropriate package structure
+- **Configuration**: In `src/main/resources/`
