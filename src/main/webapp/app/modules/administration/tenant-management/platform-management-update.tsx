@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Translate, translate, ValidatedField, ValidatedForm } from 'react-jhipster';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Translate, translate } from 'react-jhipster';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 
 import { useAppDispatch, useAppSelector } from 'app/config/store';
@@ -22,23 +23,57 @@ export const PlatformManagementUpdate = () => {
   const updating = useAppSelector(state => state.platform.updating);
   const updateSuccess = useAppSelector(state => state.platform.updateSuccess);
 
+  // Local form state
+  const [formData, setFormData] = useState<IPlatform>({
+    name: '',
+    description: '',
+    active: true,
+  });
+  const [dataReady, setDataReady] = useState(false);
+
+  // Fetch platform data when editing
   useEffect(() => {
     if (!isNew && id) {
       dispatch(getPlatform(id));
+    } else if (isNew) {
+      setDataReady(true);
     }
   }, [isNew, id, dispatch]);
 
+  // Populate form when platform data is loaded
+  useEffect(() => {
+    if (!isNew && platform && platform.id && String(platform.id) === id) {
+      setFormData({
+        id: platform.id,
+        name: platform.name || '',
+        description: platform.description || '',
+        active: platform.active !== false,
+      });
+      setDataReady(true);
+    }
+  }, [platform, isNew, id]);
+
+  // Navigate away on successful update
   useEffect(() => {
     if (updateSuccess) {
       navigate('/admin/platform-management');
     }
   }, [updateSuccess, navigate]);
 
-  const saveEntity = (values: IPlatform) => {
-    const entity = {
-      ...platform,
-      ...values,
-      active: values.active !== false,
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const entity: IPlatform = {
+      ...formData,
+      id: isNew ? undefined : platform?.id,
     };
 
     if (isNew) {
@@ -46,19 +81,6 @@ export const PlatformManagementUpdate = () => {
     } else {
       dispatch(updatePlatform(entity));
     }
-  };
-
-  const defaultValues = () => {
-    return isNew
-      ? {
-          active: true,
-          name: '',
-          description: '',
-        }
-      : {
-          ...platform,
-          active: platform?.active !== false,
-        };
   };
 
   return (
@@ -73,12 +95,12 @@ export const PlatformManagementUpdate = () => {
         </p>
       </div>
 
-      {loading ? (
+      {loading || !dataReady ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <ValidatedForm key={isNew ? 'new' : `edit-${platform?.id || id}`} defaultValues={defaultValues()} onSubmit={saveEntity}>
+        <form onSubmit={handleSubmit}>
           {/* Basic Information Section */}
           <Card>
             <CardHeader>
@@ -90,44 +112,39 @@ export const PlatformManagementUpdate = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!isNew ? (
+              {!isNew && (
                 <div className="space-y-2">
-                  <ValidatedField
-                    name="id"
-                    required
-                    readOnly
-                    id="platform-id"
-                    label={translate('global.field.id')}
-                    validate={{ required: true }}
-                  />
+                  <Label htmlFor="platform-id">{translate('global.field.id')}</Label>
+                  <Input id="platform-id" name="id" value={formData.id || ''} readOnly className="bg-muted" />
                 </div>
-              ) : null}
+              )}
               <div className="space-y-2">
-                <ValidatedField
-                  name="name"
-                  label={translate('platformManagement.name')}
+                <Label htmlFor="platform-name">
+                  {translate('platformManagement.name')} <span className="text-destructive">*</span>
+                </Label>
+                <Input
                   id="platform-name"
-                  type="text"
-                  validate={{
-                    required: { value: true, message: translate('entity.validation.required') },
-                    minLength: { value: 2, message: translate('entity.validation.minlength', { min: 2 }) },
-                    maxLength: { value: 100, message: translate('entity.validation.maxlength', { max: 100 }) },
-                  }}
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  minLength={2}
+                  maxLength={100}
                 />
                 <p className="text-sm text-muted-foreground">
                   <Translate contentKey="platformManagement.help.name">Enter the platform name</Translate>
                 </p>
               </div>
               <div className="space-y-2">
-                <ValidatedField
-                  name="description"
-                  label={translate('platformManagement.description')}
+                <Label htmlFor="platform-description">{translate('platformManagement.description')}</Label>
+                <textarea
                   id="platform-description"
-                  type="textarea"
+                  name="description"
+                  value={formData.description || ''}
+                  onChange={handleInputChange}
                   rows={4}
-                  validate={{
-                    maxLength: { value: 500, message: translate('entity.validation.maxlength', { max: 500 }) },
-                  }}
+                  maxLength={500}
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <p className="text-sm text-muted-foreground">
                   <Translate contentKey="platformManagement.help.description">Enter a description for the platform</Translate>
@@ -137,16 +154,23 @@ export const PlatformManagementUpdate = () => {
           </Card>
 
           {/* Active Status */}
-          <Card>
+          <Card className="mt-6">
             <CardContent className="pt-6">
-              <div className="space-y-2">
-                <ValidatedField name="active" label={translate('platformManagement.active')} id="platform-active" check type="checkbox" />
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="platform-active"
+                  checked={formData.active}
+                  onCheckedChange={checked => setFormData(prev => ({ ...prev, active: !!checked }))}
+                />
+                <Label htmlFor="platform-active" className="cursor-pointer">
+                  {translate('platformManagement.active')}
+                </Label>
               </div>
             </CardContent>
           </Card>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-4">
+          <div className="flex items-center justify-end gap-4 mt-6">
             <Button asChild id="cancel-save" data-cy="entityCreateCancelButton" variant="outline">
               <Link to="/admin/platform-management" replace>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -158,7 +182,7 @@ export const PlatformManagementUpdate = () => {
               <Translate contentKey="entity.action.save">Save</Translate>
             </Button>
           </div>
-        </ValidatedForm>
+        </form>
       )}
     </div>
   );
