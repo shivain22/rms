@@ -17,7 +17,7 @@ export const PlatformManagementUpdate = () => {
   const { id } = useParams<'id'>();
   const isNew = id === undefined;
 
-  const platform = useAppSelector(state => state.platform.platforms.find(p => p.id?.toString() === id));
+  const platform = useAppSelector(state => state.platform.platform);
   const loading = useAppSelector(state => state.platform.loading);
   const updating = useAppSelector(state => state.platform.updating);
   const updateSuccess = useAppSelector(state => state.platform.updateSuccess);
@@ -73,12 +73,12 @@ export const PlatformManagementUpdate = () => {
         </p>
       </div>
 
-      {loading && !platform && !isNew ? (
+      {loading ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <ValidatedForm defaultValues={defaultValues()} onSubmit={saveEntity}>
+        <ValidatedForm key={isNew ? 'new' : `edit-${platform?.id || id}`} defaultValues={defaultValues()} onSubmit={saveEntity}>
           {/* Basic Information Section */}
           <Card>
             <CardHeader>

@@ -30,7 +30,7 @@ All configuration values are stored in these profile-specific YAML files. To cha
 
 - **Server Port**: 8082
 - **Database**: PostgreSQL at `localhost:5432/rms` (username: `rms`, password: `rms`)
-- **Keycloak**: `https://rmsauth.atparui.com`
+- **Keycloak**: `https://auth.atparui.com`
 - **Consul**: Disabled by default
 - **Elasticsearch**: Disabled by default
 

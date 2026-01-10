@@ -40,7 +40,7 @@ You need to configure Keycloak to allow `http://localhost:9000` as a valid origi
 
 1. **Access Keycloak Admin Console:**
 
-   - Go to `https://rmsauth.atparui.com/admin`
+   - Go to `https://auth.atparui.com/admin`
    - Log in with admin credentials
    - Select the `gateway` realm
 

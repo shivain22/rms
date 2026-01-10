@@ -8,6 +8,7 @@ const initialState = {
   errorMessage: null,
   platforms: [] as ReadonlyArray<IPlatform>,
   activePlatforms: [] as ReadonlyArray<IPlatform>,
+  platform: {} as IPlatform,
   updating: false,
   updateSuccess: false,
 };
@@ -90,9 +91,14 @@ export const PlatformSlice = createSlice({
         state.loading = false;
         state.errorMessage = action.error.message;
       })
+      .addCase(getPlatform.pending, state => {
+        state.loading = true;
+        state.platform = {} as IPlatform;
+      })
       .addCase(getPlatform.fulfilled, (state, action) => {
         state.loading = false;
         const platform = action.payload.data;
+        state.platform = platform;
         const index = state.platforms.findIndex(p => p.id === platform.id);
         if (index >= 0) {
           state.platforms[index] = platform;
@@ -153,6 +159,10 @@ export const PlatformSlice = createSlice({
       .addCase(updatePlatform.rejected, state => {
         state.updating = false;
         state.updateSuccess = false;
+      })
+      .addCase(getPlatform.rejected, (state, action) => {
+        state.loading = false;
+        state.errorMessage = action.error.message;
       })
       .addCase(deletePlatform.fulfilled, (state, action) => {
         state.loading = false;

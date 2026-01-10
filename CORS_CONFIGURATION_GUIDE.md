@@ -5,7 +5,7 @@
 The CORS (Cross-Origin Resource Sharing) error you're seeing occurs when:
 
 - **Origin**: `https://rmsgateway.atparui.com` (your frontend)
-- **Target**: `https://rmsauth.atparui.com` (Keycloak authentication server)
+- **Target**: `https://auth.atparui.com` (Keycloak authentication server)
 - **Error**: "No 'Access-Control-Allow-Origin' header is present"
 
 This happens because the browser is trying to access Keycloak directly, and Keycloak doesn't have CORS configured to allow requests from your gateway domain.
@@ -18,7 +18,7 @@ The CORS error needs to be fixed in **Keycloak**, not in the RMS application. He
 
 1. **Log into Keycloak Admin Console**
 
-   - Navigate to `https://rmsauth.atparui.com/admin`
+   - Navigate to `https://auth.atparui.com/admin`
    - Select your realm (likely `gateway`)
 
 2. **Configure Web Origins**
@@ -40,7 +40,7 @@ If you have access to the Keycloak Admin API, you can configure CORS programmati
 
 ```bash
 # Update client settings to allow CORS from your gateway
-curl -X PUT "https://rmsauth.atparui.com/admin/realms/gateway/clients/{client-id}" \
+curl -X PUT "https://auth.atparui.com/admin/realms/gateway/clients/{client-id}" \
   -H "Authorization: Bearer {admin-token}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -56,7 +56,7 @@ If Keycloak is running in Docker, you can configure CORS in the Keycloak configu
 ```yaml
 # In your Keycloak docker-compose.yml or configuration
 environment:
-  - KEYCLOAK_FRONTEND_URL=https://rmsauth.atparui.com
+  - KEYCLOAK_FRONTEND_URL=https://auth.atparui.com
   # Or configure via realm JSON import
 ```
 
@@ -89,7 +89,7 @@ This configuration handles CORS for:
 2. **OAuth2 Flow**: During the OAuth2 authentication flow:
 
    - User clicks "Sign In" on `rmsgateway.atparui.com`
-   - Browser redirects to `rmsauth.atparui.com` (Keycloak)
+   - Browser redirects to `auth.atparui.com` (Keycloak)
    - Keycloak needs to send CORS headers allowing `rmsgateway.atparui.com` as the origin
 
 3. **Manifest Request**: The error mentions `manifest.webapp` - this is a PWA manifest file that the browser requests, and Keycloak is redirecting it, causing the CORS check.

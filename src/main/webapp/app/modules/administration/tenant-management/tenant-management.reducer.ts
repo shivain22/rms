@@ -64,9 +64,17 @@ export const TenantManagementSlice = createSlice({
         state.loading = false;
         state.errorMessage = action.error.message;
       })
+      .addCase(getTenant.pending, state => {
+        state.loading = true;
+        state.tenant = {} as ITenant;
+      })
       .addCase(getTenant.fulfilled, (state, action) => {
         state.loading = false;
         state.tenant = action.payload.data;
+      })
+      .addCase(getTenant.rejected, (state, action) => {
+        state.loading = false;
+        state.errorMessage = action.error.message;
       })
       .addCase(createTenant.pending, state => {
         state.updating = true;

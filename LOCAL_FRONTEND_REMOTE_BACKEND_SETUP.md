@@ -5,7 +5,7 @@
 This guide explains how to run the JHipster gateway frontend locally on `http://localhost:9000` while connecting to:
 
 - **Backend Gateway**: `https://rmsgateway.atparui.com`
-- **Auth Server (Keycloak)**: `https://rmsauth.atparui.com`
+- **Auth Server (Keycloak)**: `https://auth.atparui.com`
 
 ## Architecture
 
@@ -20,7 +20,7 @@ Webpack Proxy
     ↓
 Production Backend (https://rmsgateway.atparui.com)
     ↓
-Keycloak (https://rmsauth.atparui.com)
+Keycloak (https://auth.atparui.com)
 ```
 
 ## Prerequisites
@@ -67,7 +67,7 @@ Keycloak needs to be configured to allow `http://localhost:9000` as a valid orig
 
 #### Step 1: Access Keycloak Admin Console
 
-1. Navigate to `https://rmsauth.atparui.com/admin`
+1. Navigate to `https://auth.atparui.com/admin`
 2. Log in with admin credentials
 3. Select the `gateway` realm (or your application's realm)
 

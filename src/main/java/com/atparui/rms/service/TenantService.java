@@ -39,7 +39,7 @@ public class TenantService {
     private final TransactionalOperator transactionalOperator;
     private final ConcurrentHashMap<String, ConnectionFactory> connectionFactoryCache = new ConcurrentHashMap<>();
 
-    @Value("${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}")
+    @Value("${multitenancy.keycloak.base-url:https://auth.atparui.com}")
     private String keycloakBaseUrl;
 
     public TenantService(

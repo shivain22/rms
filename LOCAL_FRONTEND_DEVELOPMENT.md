@@ -6,7 +6,7 @@ This guide explains how to develop the frontend locally (using `npm start`) whil
 
 - **Frontend**: Runs locally on `http://localhost:9000` (BrowserSync) via `npm start`
 - **Backend**: Runs in production at `https://rmsgateway.atparui.com`
-- **Keycloak**: Production instance at `https://rmsauth.atparui.com`
+- **Keycloak**: Production instance at `https://auth.atparui.com`
 
 ## Setup
 

@@ -14,7 +14,7 @@ public class DynamicOAuth2ConfigService {
     @Autowired
     private TenantResolver tenantResolver;
 
-    @Value("${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}")
+    @Value("${multitenancy.keycloak.base-url:https://auth.atparui.com}")
     private String baseKeycloakUrl;
 
     public Mono<ClientRegistration> getClientRegistration(ServerWebExchange exchange) {

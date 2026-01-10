@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "keycloak.admin")
 public class KeycloakAdminProperties {
 
-    private String serverUrl = "https://rmsauth.atparui.com";
+    private String serverUrl = "https://auth.atparui.com";
     private String realm = "master";
     private String clientId = "admin-cli";
     private String username;

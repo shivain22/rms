@@ -10,7 +10,7 @@ public class GatewayAdminConfig {
     private String realm = "gateway";
     private String clientId = "gateway-web";
     private String clientSecret = "M5nP8qR2sT6uV9wX1yZ3aC4dE7fG0h";
-    private String issuerUri = "${multitenancy.keycloak.base-url:https://rmsauth.atparui.com}/realms/gateway";
+    private String issuerUri = "${multitenancy.keycloak.base-url:https://auth.atparui.com}/realms/gateway";
 
     // Admin client for realm management
     private String adminClientId = "gateway-admin-client";

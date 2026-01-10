@@ -97,9 +97,9 @@ spring:
       client:
         provider:
           oidc:
-            issuer-uri: https://rmsauth.atparui.com/realms/gateway
+            issuer-uri: https://auth.atparui.com/realms/gateway
           gwadmin:
-            issuer-uri: https://rmsauth.atparui.com/realms/gateway
+            issuer-uri: https://auth.atparui.com/realms/gateway
         registration:
           oidc:
             client-id: gateway-web
@@ -169,7 +169,7 @@ jhipster:
 # Keycloak Admin Client Configuration
 keycloak:
   admin:
-    server-url: https://rmsauth.atparui.com
+    server-url: https://auth.atparui.com
     realm: master
     client-id: admin-cli
     username: admin

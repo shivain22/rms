@@ -197,9 +197,9 @@ spring:
       client:
         provider:
           oidc:
-            issuer-uri: https://rmsauth.atparui.com/realms/gateway
+            issuer-uri: https://auth.atparui.com/realms/gateway
           gwadmin:
-            issuer-uri: https://rmsauth.atparui.com/realms/gateway
+            issuer-uri: https://auth.atparui.com/realms/gateway
         registration:
           oidc:
             client-id: gateway-web
@@ -298,7 +298,7 @@ multitenancy:
   default-tenant: gateway
   tenant-header: X-Tenant-ID
   keycloak:
-    base-url: https://rmsauth.atparui.com
+    base-url: https://auth.atparui.com
     admin-realm: master
   domains:
     pizzahut.com: pizzahut-realm
